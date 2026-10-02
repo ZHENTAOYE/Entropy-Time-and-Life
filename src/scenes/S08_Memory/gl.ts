@@ -1,11 +1,15 @@
 // S08 — offscreen WebGL fragment-shader runner (same conventions as lib/Shader.tsx: FRAG_HEADER, v_uv top-left).
 // The result is drawn into S08's single CPU canvas (one DOM raster layer for the whole scene: every extra full-frame
 // DOM layer costs a lot in the headless compositor).
+// PERFORMANCE (measured): never drawImage() a WebGL canvas into the CPU canvas — Chrome then silently moves that 2D
+// canvas onto the (SwiftShader-emulated) GPU path and every later 2D op of the frame gets 10–100× slower (a full-frame
+// gradient 8 → 90 ms, the dendrite strokes 6 → 600 ms). Instead the pixels are read back with gl.readPixels into a
+// CPU canvas (≈15 ms for 540×960). The quad is rendered upside-down so readPixels' bottom-up rows come out top-down.
 import { FRAG_HEADER } from '../../lib/Shader';
 import { memo } from '../../lib/math';
 
 const VERT = `attribute vec2 a_pos; varying vec2 v_uv;
-void main(){ v_uv = vec2(a_pos.x*0.5+0.5, 0.5-a_pos.y*0.5); gl_Position = vec4(a_pos,0.,1.); }`;
+void main(){ v_uv = vec2(a_pos.x*0.5+0.5, 0.5+a_pos.y*0.5); gl_Position = vec4(a_pos,0.,1.); }`;
 
 interface GLS {
   c: HTMLCanvasElement;
@@ -47,8 +51,25 @@ export type Uniforms = Record<string, number | number[]>;
 
 export type Tex = TexImageSource | { src: TexImageSource; repeat: boolean };
 
-/** Render `frag` into a memoised offscreen w×h WebGL canvas and return it (read it with drawImage). */
+/** Render `frag` and return a CPU-backed canvas holding the result (safe to drawImage into a CPU canvas). */
 export function renderFrag(key: string, frag: string, w: number, h: number, uniforms: Uniforms, textures: Record<string, Tex>): HTMLCanvasElement {
+  const s = renderFragGL(key, frag, w, h, uniforms, textures);
+  const gl = s.getContext('webgl') as WebGLRenderingContext;
+  const rb = memo(`S08:glrb:${key}:${w}x${h}`, () => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    const img = ctx.createImageData(w, h);
+    return { c, ctx, img, px: new Uint8Array(img.data.buffer, img.data.byteOffset, img.data.byteLength) };
+  });
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rb.px);
+  rb.ctx.putImageData(rb.img, 0, 0);
+  return rb.c;
+}
+
+/** Render `frag` into a memoised offscreen w×h WebGL canvas and return it (rows upside-down: use renderFrag). */
+function renderFragGL(key: string, frag: string, w: number, h: number, uniforms: Uniforms, textures: Record<string, Tex>): HTMLCanvasElement {
   const s = memo(`S08:gl:${key}:${w}x${h}`, () => setup(frag, w, h));
   const { gl, prog, locs } = s;
   gl.useProgram(prog);

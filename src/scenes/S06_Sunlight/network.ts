@@ -175,75 +175,104 @@ export const LIFE = ['#FFC94A', '#FFD86A', '#D9E46A', '#9EE06A', '#6FD88A', '#45
 /** Reveal 0..1 of the vein growth. */
 export const netReveal = (frame: number) => ease.inOutSine(seg(frame, T.netGrowStart, T.netGrowEnd));
 
-// river rasterised once: crisp (dive) and soft (out-of-focus web behind the rosette)
+// the soft out-of-focus river web behind the rosette (320² raster, blurred once)
 const RSPAN = 1000;
-const riverCache = (soft: boolean) =>
-  memo('s06:riverCache:' + soft, () => {
+const riverSoft = () =>
+  memo('s06:riverSoft', () => {
     const R = river();
-    const S = soft ? 512 : 1536;
+    const S = 320;
     const k = S / RSPAN;
     const c = document.createElement('canvas');
     c.width = S;
     c.height = S;
     const ctx = c.getContext('2d', { willReadFrequently: true })!;
-    const buckets = 5;
-    const PP: Path2D[] = Array.from({ length: buckets }, () => new Path2D());
+    const NB = 5;
+    const PP: Path2D[] = Array.from({ length: NB }, () => new Path2D());
     for (const n of R.nodes) {
       if (n.parent < 0) continue;
       const p = R.nodes[n.parent];
-      const b = Math.max(0, Math.min(buckets - 1, Math.floor(Math.log2(n.radius) * 0.9)));
+      const b = Math.max(0, Math.min(NB - 1, Math.floor(Math.log2(n.radius) * 0.9)));
       PP[b].moveTo((p.x - C.x) * k + S / 2, (p.y - C.y) * k + S / 2);
       PP[b].lineTo((n.x - C.x) * k + S / 2, (n.y - C.y) * k + S / 2);
     }
     ctx.lineCap = 'round';
     ctx.globalCompositeOperation = 'lighter';
-    for (let b = 0; b < buckets; b++) {
-      if (soft) {
-        ctx.strokeStyle = `rgba(110,210,150,${0.25 + b * 0.12})`;
-        ctx.lineWidth = 2 + b * 1.5;
-      } else {
-        ctx.strokeStyle = `rgba(255,${170 + b * 14},${70 + b * 20},${0.32 + b * 0.16})`;
-        ctx.lineWidth = (0.9 + b * 0.9) * (S / 1024);
-      }
+    for (let b = 0; b < NB; b++) {
+      ctx.strokeStyle = `rgba(110,210,150,${0.25 + b * 0.12})`;
+      ctx.lineWidth = (2 + b * 1.5) * (S / 512);
       ctx.stroke(PP[b]);
     }
-    if (soft) {
-      const o = document.createElement('canvas');
-      o.width = S;
-      o.height = S;
-      const oc = o.getContext('2d', { willReadFrequently: true })!;
-      oc.filter = 'blur(3px)';
-      oc.drawImage(c, 0, 0);
-      return { img: o, trunk: PP[buckets - 1], trunk2: PP[buckets - 2], k };
+    const o = document.createElement('canvas');
+    o.width = S;
+    o.height = S;
+    const oc = o.getContext('2d', { willReadFrequently: true })!;
+    oc.filter = `blur(${(3 * S) / 512}px)`;
+    oc.drawImage(c, 0, 0);
+    return o;
+  });
+
+// river: static vector paths in ground space (crisp at every zoom), bucketed by Murray radius
+const riverPaths = () =>
+  memo('s06:riverPaths', () => {
+    const R = river();
+    const NB = 5;
+    const PP: Path2D[] = Array.from({ length: NB }, () => new Path2D());
+    for (const n of R.nodes) {
+      if (n.parent < 0) continue;
+      const p = R.nodes[n.parent];
+      const b = Math.max(0, Math.min(NB - 1, Math.floor(Math.log2(n.radius) * 0.9)));
+      PP[b].moveTo(p.x - C.x, p.y - C.y);
+      PP[b].lineTo(n.x - C.x, n.y - C.y);
     }
-    return { img: c, trunk: PP[buckets - 1], trunk2: PP[buckets - 2], k };
+    return PP;
   });
 
 /** Draw the river copy — `k` = magnification relative to the leaf rosette. tint: 'water' (glinting rivers of
- *  light seen from orbit during the dive) or 'far' (out-of-focus web behind the rosette). */
-export function drawRiver(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, alpha: number, k: number, tint: 'water' | 'far' = 'water') {
+ *  light on dusk land during the dive: crisp 1–2.6 px lines + flowing dashes; the bloom pass adds the glow) or
+ *  'far' (soft out-of-focus web behind the rosette). */
+export function drawRiver(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, alpha: number, k: number, tint: 'water' | 'far' | 'glow' = 'water') {
   if (alpha <= 0.01) return;
-  const soft = tint === 'far';
-  const RC = riverCache(soft);
+  if (tint === 'far') {
+    const img = riverSoft();
+    ctx.save();
+    ctx.translate(cam.sx, cam.sy);
+    ctx.scale(groundScale(cam, k), groundScale(cam, k));
+    ctx.rotate(0.6 + frame * 0.0015);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(img, -RSPAN / 2, -RSPAN / 2, RSPAN, RSPAN);
+    ctx.restore();
+    return;
+  }
+  const PP = riverPaths();
   const s = groundScale(cam, k);
   ctx.save();
   ctx.translate(cam.sx, cam.sy);
   ctx.scale(s, s);
-  if (soft) ctx.rotate(0.6 + frame * 0.0015);
   ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = Math.min(1, alpha);
-  ctx.drawImage(RC.img, -RSPAN / 2, -RSPAN / 2, RSPAN, RSPAN);
-  if (!soft) {
-    // light flowing down the main channels towards the mouth
-    ctx.scale(1 / RC.k, 1 / RC.k);
-    ctx.translate(-RC.img.width / 2, -RC.img.height / 2);
-    ctx.setLineDash([(14 * RC.k) / s, (46 * RC.k) / s]);
-    ctx.lineDashOffset = (frame * 5 * RC.k) / s;
-    ctx.strokeStyle = `rgba(255,240,200,${0.8 * alpha})`;
-    ctx.lineWidth = (1.8 * RC.k) / s;
-    ctx.stroke(RC.trunk);
-    ctx.lineWidth = (1.2 * RC.k) / s;
-    ctx.stroke(RC.trunk2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const a = Math.min(1, alpha);
+  for (let b = 0; b < PP.length; b++) {
+    if (tint === 'glow') {
+      ctx.strokeStyle = `rgba(255,190,90,${((0.25 + b * 0.15) * a).toFixed(3)})`;
+      ctx.lineWidth = (4 + b * 2) / s;
+    } else {
+      // sunlight glinting on water at dusk: fine tributaries dim, the trunk bright
+      ctx.strokeStyle = `rgba(255,${200 + b * 10},${120 + b * 25},${((0.38 + b * 0.15) * a).toFixed(3)})`;
+      ctx.lineWidth = (0.8 + b * 0.45) / s;
+    }
+    ctx.stroke(PP[b]);
+  }
+  if (tint === 'water') {
+    // light flowing down the main channels towards the mouth (screen-constant dash length & speed)
+    ctx.setLineDash([16 / s, 52 / s]);
+    ctx.lineDashOffset = (frame * 6) / s;
+    ctx.strokeStyle = `rgba(255,246,220,${(0.85 * a).toFixed(3)})`;
+    ctx.lineWidth = 2 / s;
+    ctx.stroke(PP[PP.length - 1]);
+    ctx.lineWidth = 1.4 / s;
+    ctx.stroke(PP[PP.length - 2]);
     ctx.setLineDash([]);
   }
   ctx.restore();
@@ -254,27 +283,6 @@ export const youPulse = (frame: number) => {
   const t = frame - YOU_AT;
   return t < 0 ? 0 : (1 - Math.exp(-t / 3)) * Math.exp(-t / 22);
 };
-
-/** uniforms for the GPU vein renderer (netGL.ts) */
-export function netUniforms(frame: number, cam: Cam, alpha: number, dmax: number) {
-  const K = twistAmount(frame);
-  return {
-    u_sc: [cam.sx, cam.sy],
-    u_s: groundScale(cam),
-    u_K: K,
-    u_spin: spinAt(frame),
-    u_q: ease.inQuad(clamp(K / K_END)),
-    u_reveal: netReveal(frame),
-    u_dmax: dmax,
-    u_t: frame,
-    u_alpha: alpha,
-    u_green: ease.inOutSine(seg(frame, T.netGrowStart + 30, T.netGrowEnd + 30)),
-    u_flow: ease.inOutSine(seg(frame, T.netGrowStart + 20, T.netGrowEnd + 10)) * (1 + 0.8 * youPulse(frame)),
-    // blades fade out while the rosette winds up: only the flowing veins remain at the cut
-    u_blade: ease.inOutSine(seg(frame, T.netGrowStart + 20, T.netGrowEnd + 10)) * (1 - ease.inOutSine(seg(frame, T.swirlStart + 20, T.bladeOut))),
-    u_acc: 1 + 1.3 * ease.inQuad(seg(frame, T.swirlStart, T.end)),
-  };
-}
 
 /** CPU part of the network: arriving sunlight, IR sparks at the junctions, the sink. */
 export function drawNetwork(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, alpha: number, glow = false) {
@@ -362,15 +370,17 @@ export function drawNetwork(ctx: CanvasRenderingContext2D, frame: number, cam: C
   }
 
   // ---- the sink (where all the flows converge): grows into S07's white-green core at the cut
-  const sinkOn = alpha * seg(frame, T.netGrowStart + 30, T.netGrowEnd + 20);
+  const sinkOn = alpha * seg(frame, T.netGrowStart + 8, T.netGrowStart + 42);
   if (sinkOn > 0.01) {
     const pulse = 0.85 + 0.15 * Math.sin(frame * 0.3) + 0.5 * youPulse(frame);
     const grow = ease.inOutSine(seg(frame, T.swirlStart, T.end));
     const R = (glow ? 70 : 42) * (1 + 0.8 * grow + 0.7 * youPulse(frame));
     const g = ctx.createRadialGradient(C.x, C.y, 0, C.x, C.y, R);
-    g.addColorStop(0, `rgba(255,252,232,${(glow ? 0.55 : 0.92) * sinkOn * pulse})`);
-    g.addColorStop(0.2, `rgba(240,255,210,${(glow ? 0.35 : 0.62) * sinkOn})`);
-    g.addColorStop(0.42, `rgba(158,224,106,${(glow ? 0.22 : 0.4) * sinkOn})`);
+    // (the bloom copy of the eye eases off as it grows, so the cut shows S07's small white-green core, not a blow-out)
+    const gk = glow ? 1 - 0.45 * grow : 1;
+    g.addColorStop(0, `rgba(255,252,232,${(glow ? 0.55 * gk : 0.92) * sinkOn * pulse})`);
+    g.addColorStop(0.2, `rgba(240,255,210,${(glow ? 0.35 * gk : 0.62) * sinkOn})`);
+    g.addColorStop(0.42, `rgba(158,224,106,${(glow ? 0.22 * gk : 0.4) * sinkOn})`);
     g.addColorStop(0.65, `rgba(44,197,166,${0.22 * sinkOn})`);
     g.addColorStop(1, 'rgba(44,197,166,0)');
     ctx.fillStyle = g;

@@ -3,24 +3,26 @@
 //   angle:   θ(τ)  = θ_inj + wind(R, r)   wind = k·ln(R/r) outside the core, solid-body rotation inside (r < rc):
 //                                          k·(ln(R/rc) + ½(1 − r²/rc²))  — a feeder arm is a STATIONARY curve even
 //                                          though every particle on it keeps moving (the scene's thesis).
-// At the very start (the S06 match cut) the flow is still S06's loosely twisted 7-leaf rosette: the arms sit on S06's
-// leaf midribs (twisted by S06's own law, still turning at S06's rate) and the winding is blended into the whirlpool's
-// log spirals over f0–46 (wOpen). Every particle recycles: cycle c re-enters at the rim. All closed form in t.
-import { clamp, lerp, memo, smootherstep, smoothstep } from '../../lib/math';
+// The whirlpool is fully formed from frame 0: S06 ends on the same clockwise log spiral (K = |k| = 5), so the cut is a
+// pattern match (s06.ts redraws S06's last image on top and fades it out). The 7 feeder arms continue 7 of S06's 13
+// leaf streams. At the cut the flow still runs at S06's inflow speed: flow time vTime(f) runs ×2.5 at f0 and settles
+// to real time by f36 (the arms' pattern keeps turning in real time). Every particle recycles: cycle c re-enters at
+// the rim. All closed form in t.
+import { clamp, memo, smoothstep } from '../../lib/math';
 import { mulberry32 } from '../../lib/random';
-import { blade06, g06, K06, midrib06, NLEAF, pull06, rosette06, spin06 } from './s06';
+import { armLeaves, rosette06, spin06, S06_LAST, twist06 } from './s06';
 import { T } from './timing';
 
 export const V = {
   R0: 440,
   rEye: 30,
   rc: 78,
-  /** final winding (negative → clockwise on screen, continuing S06's twist) */
+  /** winding (negative → clockwise on screen, continuing S06's twist K = 5) */
   k: -5,
   /** depth of the free-surface funnel at the eye (world px) */
   Hf: 280,
-  NA: NLEAF,
-  /** pattern speed of the feeder arms (rad/frame) */
+  NA: 7,
+  /** pattern speed of the feeder arms (rad/frame) = S06's rigid spin */
   Om: -0.0035,
   rOutEnd: 430,
   /** residence time of rim water (frames): every drop inside the rim leaves within ≤ 1.05·Lin ≈ 69 f */
@@ -40,12 +42,13 @@ export const NV = N_IN + N_OUT;
 const GOLDEN = 2.399963229728653;
 const Q_REF = (V.R0 * V.R0 - V.rEye * V.rEye) / V.Lin;
 
-// ------------------------------------------------------------------ the opening blend (S06 rosette → whirlpool)
-export const OPEN_END = 46;
-/** 0 = S06's rosette geometry … 1 = the whirlpool (zero velocity at both ends) */
-export const wOpen = (t: number) => smootherstep(0, OPEN_END, t);
-/** effective winding of the water during the blend (S06's twist ≈ a log spiral with k ≈ −0.7; its inflow ≈ −1.5) */
-export const kAt = (t: number, outer = false) => lerp(outer ? -1.5 : -0.7, V.k, wOpen(t));
+// ------------------------------------------------------------------ flow time (S06's inflow speed at the cut)
+const WARP_A = 1.5;
+const WARP_T = 36;
+/** flow time of the whirlpool at scene frame f (= f from f36 on) */
+export const vTime = (f: number) => (f >= WARP_T ? f : f - (WARP_A * (WARP_T - f) * (WARP_T - f)) / (2 * WARP_T));
+/** d vTime / df */
+export const vRate = (f: number) => (f >= WARP_T ? 1 : 1 + (WARP_A * (WARP_T - f)) / WARP_T);
 
 /** angle wound up by the flow from the rim R to radius r (Rankine core inside rc) */
 export function wind(R: number, r: number, k: number): number {
@@ -53,35 +56,23 @@ export function wind(R: number, r: number, k: number): number {
   return k * (Math.log(R / V.rc) + 0.5 * (1 - (r * r) / (V.rc * V.rc)));
 }
 
-// the blend pivots about the arms' outer end: every part of S06's rosette keeps turning the way it already turned
-// (clockwise, the centre fastest) while it winds up — nothing swings backwards
-const R_PIVOT = 900;
+const R_PIVOT = 500;
 const tauRef = (r: number) => (V.Rarm * V.Rarm - r * r) / Q_REF;
-/** arm base angles: arm a's centre line coincides with S06 leaf a's twisted midrib at R_PIVOT at f0 */
+/** arm base angles: arm a's centre line passes through the centre of one of S06's leaf streams at R_PIVOT at f0 */
 let ARMB: Float64Array | null = null;
 export const armBase = (): Float64Array => {
   if (ARMB) return ARMB;
   const B = new Float64Array(V.NA);
-  for (let a = 0; a < V.NA; a++) B[a] = -midrib06(a, R_PIVOT, 0) + V.Om * tauRef(R_PIVOT) - wind(V.Rarm, R_PIVOT, V.k);
+  const R = rosette06();
+  const L = armLeaves();
+  const K = twist06(S06_LAST);
+  for (let a = 0; a < V.NA; a++) {
+    // S06 stream centre (screen angle, y down) → world angle (Z up) = −screen angle
+    const phi = -(R.ang[L[a]] + K * Math.log(720 / (R_PIVOT + 20)) + spin06(S06_LAST));
+    B[a] = phi + V.Om * tauRef(R_PIVOT) - wind(V.Rarm, R_PIVOT, V.k);
+  }
   return (ARMB = B);
 };
-/** world angle of arm a's centre line at radius r, time t (pure whirlpool) */
-export const armCentre = (a: number, r: number, t: number) => armBase()[a] + V.Om * (t - tauRef(r)) + wind(V.Rarm, r, V.k);
-/** world-angle offset that carries S06's leaf a (at radius r) into the whirlpool, × wOpen(t) */
-export const leafDelta = (a: number, r: number, t: number) => armCentre(a, r, t) + midrib06(a, r, t);
-
-/** S06 leaf point (pre-twist polar ρ, α) of leaf a at S07 frame t → world [X, H, Z, r] */
-export function leafPoint(a: number, rho: number, alpha: number, t: number, out: Float32Array | number[]) {
-  const K = K06(t);
-  const w = wOpen(t);
-  const th = alpha + K * g06(rho) + spin06(t);
-  const phi = -th + w * leafDelta(a, rho, t);
-  const r = rho * lerp(pull06(rho, K), 1, w);
-  out[0] = r * Math.cos(phi);
-  out[1] = funnel(r) * w;
-  out[2] = r * Math.sin(phi);
-  out[3] = r;
-}
 
 export interface VParts {
   R: Float32Array;
@@ -160,29 +151,21 @@ export function vRadius(P: VParts, i: number, tau: number): number {
   return Math.sqrt(Math.max(rEnd * rEnd, R * R - P.q[i] * tau));
 }
 
-/** world angle of particle i (cycle c, age τ, radius r) */
-function vAngle(P: VParts, i: number, c: number, tau: number, r: number): number {
-  const birth = vBirth(P, i, c);
-  const t = birth + tau;
+/** world angle of particle i (cycle c, age τ, radius r); rot = extra rotation of the arm pattern */
+function vAngle(P: VParts, i: number, c: number, r: number, rot: number): number {
   const a = P.arm[i];
-  if (a < 0) return P.th[i] + c * GOLDEN + wind(P.R[i], r, kAt(t, P.outer[i] === 1));
-  const thv = armBase()[a] + V.Om * birth + P.sp[i] + wind(P.R[i], r, V.k);
-  const w = wOpen(t);
-  if (w >= 1) return thv;
-  // S06 leaf geometry: on the twisted midrib, spread across the blade
-  const th06 = -(midrib06(a, r, t) + Math.atan2(P.lt[i] * 0.85 * blade06(a, r), Math.max(1, r)));
-  return th06 + (thv - th06) * w;
+  if (a < 0) return P.th[i] + c * GOLDEN + wind(P.R[i], r, V.k);
+  return armBase()[a] + V.Om * vBirth(P, i, c) + rot + P.sp[i] + wind(P.R[i], r, V.k);
 }
 
 export const funnel = (r: number) => -V.Hf / (1 + (r / V.rc) * (r / V.rc));
 
-/** World position of particle i at age τ of cycle c. out = [X, H, Z, r, θ] (θ unwrapped) */
-export function vPos(P: VParts, i: number, c: number, tau: number, out: Float32Array): void {
+/** World position of particle i at age τ of cycle c. out = [X, H, Z, r, θ] (θ unwrapped). rot: see vAngle. */
+export function vPos(P: VParts, i: number, c: number, tau: number, out: Float32Array, rot = 0): void {
   const r = vRadius(P, i, tau);
-  const th = vAngle(P, i, c, tau, r);
-  const t = vBirth(P, i, c) + tau;
+  const th = vAngle(P, i, c, r, rot);
   out[0] = r * Math.cos(th);
-  out[1] = funnel(r) * wOpen(t);
+  out[1] = funnel(r);
   out[2] = r * Math.sin(th);
   out[3] = r;
   if (out.length > 4) out[4] = th;
@@ -196,12 +179,6 @@ export function vFade(P: VParts, i: number, tau: number, r: number): number {
   const eye = Math.sqrt(smoothstep(V.rEye, V.rc * 1.05, r));
   if (P.arm[i] >= 0) return smoothstep(P.R[i], P.R[i] - 120, r) * eye;
   return smoothstep(0, 0.07, tau / P.L[i]) * eye;
-}
-
-/** the feeder arms grow out of S06's leaf tips to the edge of the frame (f4–40) */
-export function armExtent(a: number, t: number): number {
-  const tip = rosette06().leaves[a].tip + 20;
-  return lerp(tip, 1150, smoothstep(10, 42, t));
 }
 
 /** Census: was (i, c) inside the vortex (r ≤ R0) at the tag instant? */

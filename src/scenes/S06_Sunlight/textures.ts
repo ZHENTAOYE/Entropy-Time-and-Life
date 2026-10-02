@@ -60,92 +60,25 @@ export const granTex = () =>
     return c;
   });
 
-/** Heat-death grey: #5C5C5C ± ~6 % gaussian luminance noise (tileable 256²). Several variants for boiling. */
-export const greyTiles = () =>
-  memo('s06:grey', () => {
-    const out: HTMLCanvasElement[] = [];
-    for (let k = 0; k < 4; k++) {
-      const S = 256;
-      const c = mk(S, S);
-      const ctx = c.getContext('2d', { willReadFrequently: true })!;
-      const img = ctx.createImageData(S, S);
-      const r = mulberry32(900 + k * 17);
-      for (let i = 0; i < S * S; i++) {
-        const g = (r() + r() + r() - 1.5) / 0.5; // ~N(0,1)
-        const v = 92 + g * 5.5;
-        img.data[i * 4] = v;
-        img.data[i * 4 + 1] = v;
-        img.data[i * 4 + 2] = v;
-        img.data[i * 4 + 3] = 255;
-      }
-      ctx.putImageData(img, 0, 0);
-      out.push(c);
-    }
-    return out;
-  });
-
 /** Very faint interstellar dust (blue/violet), 270×480, drawn upscaled. */
 export const nebulaTex = () =>
   memo('s06:neb', () => {
-    const W = 126;
-    const H = 224;
+    const W = 63;
+    const H = 112;
     const c = mk(W, H);
     const ctx = c.getContext('2d', { willReadFrequently: true })!;
     const img = ctx.createImageData(W, H);
     const n = makeNoise(77);
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        const v = n.fbm2(x / 49, y / 49, 4);
-        const w = n.fbm2(x / 21 + 9, y / 21, 3);
+        const v = n.fbm2(x / 24.5, y / 24.5, 4);
+        const w = n.fbm2(x / 10.5 + 9, y / 10.5, 3);
         const d = Math.max(0, v * 0.9 + w * 0.35 + 0.05);
         const i = (y * W + x) * 4;
         img.data[i] = 40 + w * 40;
         img.data[i + 1] = 60;
         img.data[i + 2] = 140;
         img.data[i + 3] = Math.min(255, d * 120);
-      }
-    ctx.putImageData(img, 0, 0);
-    return c;
-  });
-
-/** Land seen from low orbit at dusk: fbm relief hillshaded by a low Sun from the top of the frame — olive / umber
- *  slopes catching warm light, slate shadows (mean luminance ~0.3). 320², drawn with a soft circular edge. */
-export const terrainTex = () =>
-  memo('s06:terrain', () => {
-    const S = 320;
-    const c = mk(S, S);
-    const ctx = c.getContext('2d', { willReadFrequently: true })!;
-    const img = ctx.createImageData(S, S);
-    const n = makeNoise(1717);
-    const h = new Float32Array(S * S);
-    for (let y = 0; y < S; y++)
-      for (let x = 0; x < S; x++) {
-        const v = n.fbm2(x / 70, y / 70, 5);
-        const rid = 1 - Math.abs(n.fbm2(x / 34 + 5, y / 34 - 3, 3));
-        h[y * S + x] = v * 0.7 + rid * rid * 0.45;
-      }
-    for (let y = 0; y < S; y++)
-      for (let x = 0; x < S; x++) {
-        const i = y * S + x;
-        const hx = h[y * S + Math.min(S - 1, x + 1)] - h[y * S + Math.max(0, x - 1)];
-        const hy = h[Math.min(S - 1, y + 1) * S + x] - h[Math.max(0, y - 1) * S + x];
-        // light from the top of the frame, low (dusk): slopes facing up catch it
-        const shade = Math.max(0, Math.min(1, 0.55 + hy * 9 - hx * 2.5));
-        const moist = n.fbm2(x / 52 + 20, y / 52, 3) * 0.5 + 0.5;
-        const t = Math.max(0, Math.min(1, (h[i] + 0.4) / 1.1));
-        // olive lowlands → umber uplands; slate in shadow, warm amber where lit
-        const br = [62 + 40 * (1 - moist) + 30 * t, 70 + 22 * moist - 6 * t, 40 + 10 * moist];
-        const sh = [26, 32, 40];
-        const k = 0.25 + 0.95 * shade;
-        const j = i * 4;
-        img.data[j] = sh[0] + (br[0] * 1.35 - sh[0]) * k + 40 * Math.pow(shade, 3);
-        img.data[j + 1] = sh[1] + (br[1] * 1.3 - sh[1]) * k + 24 * Math.pow(shade, 3);
-        img.data[j + 2] = sh[2] + (br[2] * 1.2 - sh[2]) * k;
-        // soft circular edge (alpha) so it melts into the planet around it
-        const dx = (x + 0.5) / S - 0.5;
-        const dy = (y + 0.5) / S - 0.5;
-        const rr = Math.sqrt(dx * dx + dy * dy) * 2;
-        img.data[j + 3] = Math.round(255 * Math.max(0, Math.min(1, (1 - rr) / 0.35)));
       }
     ctx.putImageData(img, 0, 0);
     return c;

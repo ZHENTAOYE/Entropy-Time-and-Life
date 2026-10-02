@@ -10,11 +10,12 @@
 //     scattered fat / collagen (τ ≈ 250 d).
 // → originals left: ≈ 77 % on day 7, ≈ 42 % on day 34, ≈ 33 % on day 90 (steepest at the start, then a plateau):
 //   by 第90天 the flesh is new (gold) around a persisting original (cyan) skeleton.
-// At an exchange the newcomer arrives at the seat (mouth → intake thread → vessel tree → seat) exactly when the old
-// atom leaves through the skin (heat · CO₂ · H₂O). A sampled quarter of these journeys is drawn as the in/out streams.
+// At an exchange the newcomer arrives at the seat (intake thread → mouth → throat/lungs → heart → vessel tree → seat)
+// exactly when the old atom leaves (heat through the whole skin; CO₂ · H₂O are breathed out, breath.ts). A sampled
+// quarter of these journeys is drawn as the in/out streams.
 import { memo, smoothstep } from '../../lib/math';
 import { hash01, mulberry32 } from '../../lib/random';
-import { BodyData, bodyData, MOUTH, N_BODY } from './body';
+import { BodyData, bodyData, GUT, MOUTH, N_BODY } from './body';
 import { T } from './timing';
 
 function rate(t: number): number {
@@ -57,10 +58,10 @@ export const dayAt = (t: number) => {
   return Math.max(0, Math.min(90, (flowTime(t) - a) / dayFlow())) | 0;
 };
 
-// ------------------------------------------------------------- intake: one ordered thread from above
-// Food, water and air all enter through the mouth: a narrow, ordered gold thread descending into the face —
-// low entropy in — while the warm, disordered plume rises out of the head.
-const INTAKE: [[number, number], [number, number], [number, number]] = [[330, 1960], [150, 1250], MOUTH];
+// ------------------------------------------------------------- intake: one ordered thread into the mouth
+// Food, water and air all enter through the mouth: a narrow, ordered gold thread arriving from the side at mouth
+// height — low entropy in — while heat leaves through the whole skin and CO₂ · H₂O leave with the breath.
+const INTAKE: [[number, number], [number, number], [number, number]] = [[-760, MOUTH[1] + 40], [-280, MOUTH[1] + 12], MOUTH];
 export const INTAKE_PTS = INTAKE;
 export const V_EXT = 62;
 const intakeLut = () =>
@@ -101,15 +102,16 @@ export function intakePoint(i: number, c: number, u: number): [number, number, n
   }
   const t = (lo + Math.min(1, Math.max(0, (d - l[lo]) / Math.max(1e-6, l[hi] - l[lo])))) / n;
   const p = bez(INTAKE, t);
-  const w = 1 - u * 0.8;
+  // a braided stream that narrows into the mouth (spread across the thread: in H and in depth)
+  const w = 1 - u * 0.85;
   const g1 = hash01(i * 3 + c * 17, 81) + hash01(i * 11 + c * 7, 84) - 1;
   const g2 = hash01(i * 7 + c * 31, 83) - 0.5;
-  return [p[0] + g1 * 18 * w, p[1], g2 * 14 * w];
+  return [p[0], p[1] + g1 * 22 * w, g2 * 18 * w];
 }
 
 // ------------------------------------------------------------- turnover
 export const V_INT = 46;
-export const T_OUT = 22;
+export const T_OUT = 30;
 /** fraction of exchange journeys drawn as in/out stream particles */
 export const KEEP = 0.26;
 export const POOL_WATER = 0;
@@ -131,8 +133,15 @@ export interface Turnover {
 }
 
 export const tEnter = () => intakeLen() / V_EXT;
-/** flow time from the top of the intake thread to the seat */
-export const tIn = (B: BodyData, slot: number) => tEnter() + B.plen[slot] / V_INT;
+/** length of the mouth → throat → heart segment (GUT) */
+export const gutLen = () =>
+  memo('s07:gutlen', () => {
+    let L = 0;
+    for (let k = 1; k < GUT.length; k++) L += Math.hypot(GUT[k][0] - GUT[k - 1][0], GUT[k][1] - GUT[k - 1][1]);
+    return L;
+  });
+/** flow time from the start of the intake thread to the seat */
+export const tIn = (B: BodyData, slot: number) => tEnter() + (gutLen() + B.plen[slot]) / V_INT;
 
 export const turnover = (): Turnover =>
   memo('s07:turnover', () => {
@@ -217,7 +226,26 @@ export function incomingPos(i: number, m: number, slot: number, tau: number, out
     out[4] = tau / tE;
     return;
   }
-  const dInt = (tau - tE) * V_INT;
+  const dAll = (tau - tE) * V_INT;
+  const LG = gutLen();
+  out[3] = ST_TREE;
+  out[4] = dAll / Math.max(1e-3, LG + B.plen[slot]);
+  if (dAll < LG) {
+    // mouth → throat → heart (gut and lungs: where food, water and O₂ enter the blood)
+    let d = dAll;
+    for (let k = 1; k < GUT.length; k++) {
+      const L = Math.hypot(GUT[k][0] - GUT[k - 1][0], GUT[k][1] - GUT[k - 1][1]);
+      if (d <= L || k === GUT.length - 1) {
+        const u = Math.min(1, d / L);
+        out[0] = GUT[k - 1][0] + (GUT[k][0] - GUT[k - 1][0]) * u;
+        out[1] = GUT[k - 1][1] + (GUT[k][1] - GUT[k - 1][1]) * u;
+        out[2] = 0;
+        return;
+      }
+      d -= L;
+    }
+  }
+  const dInt = dAll - LG;
   const nd = B.node[slot];
   if (dInt >= B.tdist[nd]) {
     const seglen = Math.max(1e-3, B.plen[slot] - B.tdist[nd]);
@@ -239,11 +267,9 @@ export function incomingPos(i: number, m: number, slot: number, tau: number, out
     out[1] = B.th[n] + (B.th[prev] - B.th[n]) * u;
     out[2] = 0;
   }
-  out[3] = ST_TREE;
-  out[4] = (tau - tE) / Math.max(1e-3, B.plen[slot] / V_INT);
 }
 
-/** position of an OUTGOING atom leaving seat slot through the skin, u = 0..1 of its exit (seed i, m) */
+/** position of an OUTGOING atom leaving seat slot through the skin as heat, u = 0..1 of its exit (seed i, m) */
 export function outgoingPos(i: number, m: number, slot: number, u: number, out: Float32Array) {
   const B = bodyData();
   const nx = B.nx[slot];
@@ -256,11 +282,12 @@ export function outgoingPos(i: number, m: number, slot: number, u: number, out: 
     X = B.sx[slot] + nx * k;
     H = B.sh[slot] + nh * k;
   } else {
+    // out through the skin, then carried up by the warm air around the body (convection), wavering
     const v = (u - 0.3) / 0.7;
-    const d = v * 70 + v * v * 70;
-    const w = Math.sin(m * 2.1 + i * 0.7 + v * 5) * 12 * v;
+    const d = v * 70 + v * v * 40;
+    const w = Math.sin(m * 2.1 + i * 0.7 + v * 6) * 11 * v;
     X = B.sx[slot] + nx * (dep + d) - nh * w;
-    H = B.sh[slot] + nh * (dep + d) + nx * w + v * v * 60;
+    H = B.sh[slot] + nh * (dep + d) + nx * w + v * 30 + v * v * 190;
   }
   out[0] = X;
   out[1] = H;

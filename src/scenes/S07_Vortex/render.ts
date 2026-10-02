@@ -1,15 +1,16 @@
 // Main renderers of S07 for frame f (called from Layers.tsx in one layout effect).
 import { memo, seg, smoothstep } from '../../lib/math';
 import { hash01 } from '../../lib/random';
-import { N_BODY } from './body';
-import { drawBody, drawVessels, morphStarted, poolAlpha } from './bodyDraw';
+import { bodyOf, drawBody, drawSpoutGlow, drawVessels, morphStart, poolAlpha } from './bodyDraw';
 import { Cam, camAt } from './camera';
 import { offscreen } from './gfx';
 import { drawThermal } from './thermal';
 import { drawIRWaves, drawScanLine, scanY } from './thermalFx';
 import { T } from './timing';
 import { beatFlash } from './heart';
-import { drawCensus, drawEye, drawS06Inflow, drawS06Leaves, drawS06Sparks, drawTracer, drawVortex } from './vortexDraw';
+import { drawExhale } from './breath';
+import { drawCensus, drawEye, drawTracer, drawVortex } from './vortexDraw';
+import { drawS06, drawS06Motes, drawS06Sparks } from './s06';
 
 /** dev-only switches for profiling (always all-on in the film) */
 export const DEV = { vortex: true, motes: true, eye: true, tracer: true };
@@ -62,7 +63,9 @@ export function layerState(f: number): LayerState {
   if (f < T.scan0) {
     // the morph's turning column is dense: less bloom while it stands up
     const m = smoothstep(T.morph0, T.morph0 + 12, f) * (1 - smoothstep(T.morph0 + 60, T.morph0 + 80, f));
-    return { thermal: 0, bloomA: 0.85 - 0.35 * m, bloomB: 0.6 - 0.25 * m };
+    // at the cut: S06 blooms only its glow pass (inflow, sparks, sink), not its veins → a softer bloom first
+    const cut = 1 - smoothstep(4, 40, f);
+    return { thermal: 0, bloomA: 0.85 - 0.35 * m - 0.45 * cut, bloomB: 0.6 - 0.25 * m - 0.3 * cut };
   }
   const end = 1 - smoothstep(T.tilt2a + 10, T.tilt2b - 4, f); // the final floor must be exactly #05030F
   return {
@@ -85,9 +88,10 @@ function thermalBodyOpts(f: number) {
   return {
     alpha: 1,
     dot: 0.06 + 0.04 * restart,
-    ext: 0.12 + 0.88 * ledger + 0.5 * restart,
+    // the sensor sees no intake (it is not warm): the thread returns as the ledger's 吃进低熵
+    ext: (0.9 * ledger + 0.5 * restart) * (1 - smoothstep(T.dissolve0 - 12, T.dissolve0 + 4, f)),
     tree: 0.15 + 0.45 * ledger + 0.4 * restart,
-    out: 0.25 + 0.85 * ledger + 0.5 * restart,
+    out: 0.08 + 0.42 * ledger + 0.3 * restart,
     stillDots: 0.5 * frozen,
     cold: frozen,
   };
@@ -100,19 +104,27 @@ export function renderMain(ctx: CanvasRenderingContext2D, f: number) {
   const thermalOn = f >= T.scan0;
   // ---------------- the whirlpool
   if (pool > 0.003) {
-    // S06's last image (the vein rosette, its inflow) under the whirlpool it winds up into
-    if (f < 40) {
-      drawS06Leaves(ctx, f, cam);
-      drawS06Inflow(ctx, f, cam);
-    }
     if (DEV.eye) drawEye(ctx, f, cam, pool);
     if (DEV.vortex)
       drawVortex(ctx, f, cam, {
         alpha: 1,
-        skip: morphing ? (i) => morphStarted(i, f) : undefined,
-        poolFrom: morphing ? N_BODY : 1e9,
+        skip: morphing
+          ? (j) => {
+              const b = bodyOf(j);
+              return b >= 0 && f >= morphStart(b);
+            }
+          : undefined,
+        isPool: morphing ? (j) => bodyOf(j) < 0 : undefined,
         poolAlpha: pool,
         trail: 3,
+      });
+    // S06's last image over the whirlpool it hands over to (same log spiral, same sense of rotation)
+    if (f < 40)
+      drawS06(ctx, f, cam, {
+        inflow: 1 - smoothstep(4, 34, f),
+        veins: 1 - smoothstep(2, 28, f),
+        land: 1 - smoothstep(0, 18, f),
+        stream: 1 - smoothstep(4, 30, f),
       });
     drawS06Sparks(ctx, f, cam);
     drawCensus(ctx, f, cam);
@@ -126,8 +138,10 @@ export function renderMain(ctx: CanvasRenderingContext2D, f: number) {
         : 0.12 + 0.3 * smoothstep(T.gauge0, T.gauge0 + 20, f) - 0.3 * smoothstep(T.freeze0, T.freeze1, f) + 0.25 * smoothstep(T.restart, T.restart + 20, f);
     const vA = vesselA * (1 + 1.1 * beatFlash(f)) * (1 - smoothstep(T.dissolve0, T.dissolve0 + 30, f));
     if (!thermalOn) {
+      drawSpoutGlow(ctx, f, cam);
       if (f >= T.treeGrow0) drawVessels(ctx, f, cam, vA);
       drawBody(ctx, f, cam, { alpha: 1 });
+      drawExhale(ctx, f, cam, smoothstep(T.flowOn0, T.flowOn1 + 10, f));
     } else if (f < T.scan1) {
       // during the scan: flow view below the line, thermal overlay above
       const sy = scanY(f);
@@ -147,6 +161,7 @@ export function renderMain(ctx: CanvasRenderingContext2D, f: number) {
     } else {
       drawVessels(ctx, f, cam, Math.max(0, vA));
       drawBody(ctx, f, cam, thermalBodyOpts(f));
+      drawExhale(ctx, f, cam, 0.3 * (1 - smoothstep(T.dissolve0, T.dissolve0 + 20, f)));
     }
   }
   // ---------------- thermal overlays
@@ -159,4 +174,5 @@ export function renderMain(ctx: CanvasRenderingContext2D, f: number) {
     drawScanLine(ctx, f);
   }
   if (DEV.motes) drawMotes(ctx, f, cam, smoothstep(10, 50, f) * (1 - seg(f, T.scan0, T.scan1)));
+  if (f < 32) drawS06Motes(ctx, f, 1 - smoothstep(0, 30, f));
 }

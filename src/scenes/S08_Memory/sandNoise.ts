@@ -1,4 +1,4 @@
-// S08 — low-frequency sand noise as a tileable 256×256 RGBA texture (one texture fetch instead of six value-noise
+// S08 — low-frequency sand noise as a tileable 128×128 RGBA texture (one texture fetch instead of six value-noise
 // evaluations in the shader — the shader compiles once per render tab, and its size dominates that cost).
 //   R,G = gradient of the broad dune undulation (analytic derivative of quintic value noise, encoded ×1/4 + ½)
 //   B   = light-pool / colour-patch noise      A = drifting veil of blown sand
@@ -7,7 +7,7 @@ import { memo } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 
 export const NOISE_WORLD = 4096;
-const N = 256;
+const N = 128; // low-frequency content, linearly filtered: 128² is plenty (and 4× cheaper to build per tab)
 
 /** periodic quintic value noise on a P×P lattice over [0,1)²: [value, d/du, d/dv] in lattice units */
 function pnoise(u: number, v: number, P: number, seed: number): [number, number, number] {

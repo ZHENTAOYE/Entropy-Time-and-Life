@@ -1,11 +1,13 @@
 // Photons as wave packets. ENERGY = number of crests (E = h·f at equal packet duration):
 //   sunlight   0.5 µm  → one tight gold packet with 20 crests
 //   infrared  10   µm  → 20 lazy red packets with ONE crest each (λ ×20).
-import { clamp, ease, lerp, memo, mixHex, seg } from '../../lib/math';
+import { clamp, ease, lerp, memo, mixHex, seg, smoothstep } from '../../lib/math';
 import { hash01, mulberry32 } from '../../lib/random';
 import { Cam, applyWorld } from './camera';
-import { EARTH, LIMB_Y, P, SUN_BOTTOM, limbY } from './palette';
-import { earthGeom, sunGeom } from './sky';
+import { EARTH, LANE, LIMB_Y, P, SUN_BOTTOM, limbY } from './palette';
+import { sunGeom } from './sky';
+import { earthGeom } from './earth';
+import { ANN_Y, COL_IN, COL_OUT, ledgerFade } from './ledger';
 import { T, unzipAt } from './timing';
 import { tintDot } from './textures';
 import { FONT } from '../../lib/fonts';
@@ -428,28 +430,38 @@ export function drawGhostFans(ctx: CanvasRenderingContext2D, frame: number, cam:
   ctx.restore();
 }
 
+// ---------------------------------------------------------------- B5: one direction in, all directions out
+// The Sun's light arrives as a PARALLEL beam (it subtends 0.5°: one direction). Every gold packet (8 crests, λ 8 px)
+// that lands on the limb bursts into 8 one-crest red wavelets (λ ×20 ≈ 160 px — B3's bookkeeping: energy = crests)
+// that leave over the whole hemisphere (Lambertian: sin φ uniform), travel to the top and the sides of the frame and
+// thin out with distance: the same energy, spread over every direction.
+const BEAM_N = 30;
+const BEAM_V = 30; // px/frame
+const BEAM_L = 64; // 8 crests × λ 8
+const BEAM_TOP = SUN_BOTTOM - 6;
+const beamX = (i: number) => 130 + (820 * (i + 0.5)) / BEAM_N;
+export const beamOn = (frame: number) => Math.min(ease.inOutQuad(seg(frame, T.beamIn, T.beamIn + 30)), 1 - seg(frame, T.diveStart + 6, T.diveStart + 34));
+
 /** Beat 5: the ordered beam — parallel rays from one direction (low entropy: concentrated, all aligned). */
 export function drawBeam(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, glow = false) {
-  const on = Math.min(ease.inOutQuad(seg(frame, T.beamIn, T.beamIn + 30)), 1 - seg(frame, T.diveStart + 6, T.diveStart + 34));
+  const on = beamOn(frame);
   if (on <= 0) return;
   ctx.save();
   applyWorld(ctx, cam);
   ctx.globalCompositeOperation = 'lighter';
-  const N = 30;
-  const top = SUN_BOTTOM - 6;
   const rays = new Path2D();
   const packets = new Path2D();
   const heads = new Path2D();
-  for (let i = 0; i < N; i++) {
-    const x = 130 + (820 * (i + 0.5)) / N;
+  for (let i = 0; i < BEAM_N; i++) {
+    const x = beamX(i);
     const bottom = limbY(x) - 2;
-    const span = bottom - top;
-    rays.moveTo(x, top);
+    const span = bottom - BEAM_TOP;
+    rays.moveTo(x, BEAM_TOP);
     rays.lineTo(x, bottom);
-    const L = 70;
+    const L = BEAM_L;
     for (let k = 0; k < 2; k++) {
-      const yh = top + ((frame * 30 + (hash01(i, 3) + k * 0.5) * (span + L)) % (span + L));
-      const s0 = clamp((top - (yh - L)) / L);
+      const yh = BEAM_TOP + ((frame * BEAM_V + (hash01(i, 3) + k * 0.5) * (span + L)) % (span + L));
+      const s0 = clamp((BEAM_TOP - (yh - L)) / L);
       const s1 = clamp((bottom - (yh - L)) / L);
       if (s1 <= s0) continue;
       wavePath(packets, x, yh - L, 0, 1, L, 8, 3, 0, 0.5, s0, s1);
@@ -457,7 +469,7 @@ export function drawBeam(ctx: CanvasRenderingContext2D, frame: number, cam: Cam,
     }
   }
   if (!glow) {
-    const g = ctx.createLinearGradient(0, top, 0, LIMB_Y);
+    const g = ctx.createLinearGradient(0, BEAM_TOP, 0, LIMB_Y);
     g.addColorStop(0, `rgba(255,214,140,${0.16 * on})`);
     g.addColorStop(1, `rgba(255,201,74,${0.07 * on})`);
     ctx.strokeStyle = g;
@@ -474,12 +486,131 @@ export function drawBeam(ctx: CanvasRenderingContext2D, frame: number, cam: Cam,
   ctx.restore();
 }
 
-// ---------------------------------------------------------------- labels riding on the photons (canvas text)
+const IR_LIFE = 112;
+const IR_M = 8;
+/** fraction of the landed packets whose re-emission we draw (the rest leave unseen: keeps every fan legible) */
+const IR_SHOW = 0.16;
+/** how much the sky has filled with infrared (B5) */
+export const irFill = (frame: number) => ease.inOutSine(seg(frame, T.irStart + 10, T.irStart + 90)) * (1 - seg(frame, T.diveStart + 4, T.diveStart + 40));
+
+/** The red fans: a landed beam packet → 8 wavelets over the whole hemisphere (closed form in t). */
+export function drawIR(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, glow = false) {
+  if (frame < T.irStart || frame > T.diveStart + 40 + IR_LIFE) return;
+  ctx.save();
+  applyWorld(ctx, cam);
+  ctx.globalCompositeOperation = 'lighter';
+  const NBK = 4;
+  const W: Path2D[] = Array.from({ length: NBK }, () => new Path2D());
+  const beads = new Path2D();
+  const flashes = new Path2D();
+  // the dive leaves the fans behind (they would fly at the camera ×36 magnified)
+  const diveOut = 1 - ease.inOutSine(seg(frame, T.diveStart, T.diveStart + 22));
+  if (diveOut <= 0.01) {
+    ctx.restore();
+    return;
+  }
+  for (let i = 0; i < BEAM_N; i++) {
+    const x = beamX(i);
+    const bottom = limbY(x) - 2;
+    const span = bottom - BEAM_TOP;
+    const Ps = span + BEAM_L;
+    const nx = (x - EARTH.cx) / EARTH.r;
+    const nrmA = Math.atan2(-Math.sqrt(Math.max(0, 1 - nx * nx)), nx); // outward normal angle (screen)
+    for (let k = 0; k < 2; k++) {
+      // landing n of packet k: frame·V + (h + k/2)·Ps ≡ span (mod Ps)
+      const ph = (hash01(i, 3) + k * 0.5) * Ps;
+      const nMax = Math.floor((frame * BEAM_V + ph - span) / Ps);
+      for (let n = nMax; n > nMax - 5; n--) {
+        const tl = (span - ph + n * Ps) / BEAM_V; // landing frame (head reaches the limb)
+        const age = frame - tl;
+        if (age < 0 || age > IR_LIFE) continue;
+        const seed = i * 7919 + k * 104729 + n * 31337;
+        if (hash01(seed, 500) > IR_SHOW) continue;
+        const on = beamOn(tl) * seg(tl, T.irStart, T.irStart + 8);
+        if (on <= 0.02) continue;
+        if (age < 6 && !glow) {
+          const fk = 1 - age / 6;
+          flashes.rect(x - 3 * fk - 0.6, bottom - 3 * fk - 0.6, 6 * fk + 1.2, 6 * fk + 1.2);
+        }
+        const life = IR_LIFE * (0.8 + 0.2 * hash01(seed, 505));
+        if (age > life) continue;
+        const fade = 0.85 * (1 - smoothstep(0.62 * life, life, age));
+        // one burst = an expanding HALF-RING of 8 quanta (same speed, evenly spread over ±85°, slightly turned):
+        // its circumference grows, its count does not — the same energy, ever thinner, in every direction
+        const vB = 6.4 + 3.2 * hash01(seed, 506);
+        const turn = (hash01(seed, 507) - 0.5) * 0.35;
+        for (let m = 0; m < IR_M; m++) {
+          const u = hash01(seed + m, 501);
+          const phi = ((-85 + (170 * (m + 0.5 + (u - 0.5) * 0.35)) / IR_M) * Math.PI) / 180 + turn;
+          const ang = nrmA + phi;
+          const dx = Math.cos(ang);
+          const dy = Math.sin(ang);
+          const v = vB * (0.96 + 0.08 * hash01(seed + m, 502));
+          const L = 130 + 60 * hash01(seed + m, 503);
+          const amp = 7 + 4 * hash01(seed + m, 504);
+          const d = v * age; // head distance
+          const tail = d - L;
+          const s0 = tail < 0 ? -tail / L : 0;
+          if (s0 >= 0.97) continue;
+          // the same energy spread over ever more sky: the ring's quanta drift apart (dilution = spacing), each
+          // stays visible to the frame edges; the crowded first ~120 px at the limb are softened
+          let a = on * fade * (0.35 + 0.65 * smoothstep(0, 140, d)) * clamp(d / 40) * (0.78 + 0.22 / (1 + d / 380));
+          const cym = bottom + dy * (tail + L * 0.5);
+          if (cym > LANE.y0 - 40 && cym < LANE.y1 + 40) a *= 0.25; // keep the narration lane calm
+          a *= diveOut;
+          if (a < 0.03) continue;
+          const b = Math.min(NBK - 1, Math.floor(a * NBK));
+          wletPath(W[b], x + dx * tail, bottom + dy * tail, dx, dy, L, amp, s0);
+          if (!glow && s0 < 0.5 && a > 0.15) {
+            const cxm = x + dx * (tail + L * 0.5);
+            const bx = cxm - dy * amp;
+            const by = cym + dx * amp;
+            beads.rect(bx - 1.4, by - 1.4, 2.8, 2.8);
+          }
+        }
+      }
+    }
+  }
+  for (let b = 0; b < NBK; b++) {
+    const a = (b + 0.5) / NBK;
+    ctx.strokeStyle = glow ? `rgba(255,59,47,${(0.5 * a).toFixed(3)})` : `rgba(255,84,64,${(0.9 * a).toFixed(3)})`;
+    ctx.lineWidth = glow ? 6 : 1.5;
+    ctx.stroke(W[b]);
+  }
+  if (!glow) {
+    ctx.fillStyle = 'rgba(255,214,196,0.85)';
+    ctx.fill(beads);
+    ctx.fillStyle = 'rgba(255,236,190,0.9)';
+    ctx.fill(flashes);
+  }
+  ctx.restore();
+}
+
+/** single-crest wavelet path from s0 (fraction of its length already emerged) to its head */
+function wletPath(path: Path2D, x0: number, y0: number, dx: number, dy: number, L: number, amp: number, s0: number) {
+  const nx = -dy;
+  const ny = dx;
+  const N = Math.max(6, Math.ceil(((1 - s0) * L) / 8));
+  for (let k = 0; k <= N; k++) {
+    const u = s0 + ((1 - s0) * k) / N;
+    const env = Math.pow(Math.sin(Math.PI * u), 1.3);
+    const off = amp * env * Math.cos(TAU * (u - 0.5));
+    const x = x0 + dx * u * L + nx * off;
+    const y = y0 + dy * u * L + ny * off;
+    if (k === 0) path.moveTo(x, y);
+    else path.lineTo(x, y);
+  }
+}
+
+// ---------------------------------------------------------------- labels: ride the photons, then pin into the ledger
+// 阳光 · 0.5 µm rides the falling gold packet, 红外 · 10 µm one outgoing red packet; both then glide into the ledger
+// under their counters (IN 1 | OUT 20) with λ ×20 between them, and stay until the ledger leaves (f306).
 export const LABEL_FONTS: Array<[string, string]> = [
-  [`400 22px ${FONT.mono}`, '·0.5µm10 '],
-  [`600 24px ${FONT.serif}`, '阳光红外'],
+  [`400 24px ${FONT.mono}`, '·0.5µm10 λ×'],
+  [`600 28px ${FONT.serif}`, '阳光红外'],
+  [`400 26px ${FONT.mono}`, 'λ×20'],
 ];
-export const labelsOn = (f: number) => f >= T.photonEmit && f < T.ghostEnd - 40;
+export const labelsOn = (f: number) => f >= T.photonEmit && f < T.ledgerOut + 28;
 
 /** the red packet that carries the 红外 label: the one heading closest to 55° right */
 const labelPick = () =>
@@ -490,51 +621,87 @@ const labelPick = () =>
     return best;
   });
 
-function tag(ctx: CanvasRenderingContext2D, x: number, y: number, cn: string, rest: string, color: string, glow: string, a: number, align: 'left' | 'right') {
+function tagWidth(ctx: CanvasRenderingContext2D, cn: string, rest: string) {
+  ctx.save();
+  ctx.font = `600 28px ${FONT.serif}`;
+  (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
+  const w1 = ctx.measureText(cn).width;
+  ctx.font = `400 24px ${FONT.mono}`;
+  (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
+  const w2 = ctx.measureText(rest).width;
+  ctx.restore();
+  return { w1, w2, W: w1 + 10 + w2 };
+}
+
+/** a tag centred at (x, y) */
+function tag(ctx: CanvasRenderingContext2D, x: number, y: number, cn: string, rest: string, color: string, glow: string, a: number) {
+  const { w1, W } = tagWidth(ctx, cn, rest);
+  const x0 = x - W / 2;
   ctx.save();
   ctx.globalAlpha = a;
-  ctx.font = `600 24px ${FONT.serif}`;
-  const w1 = ctx.measureText(cn).width;
-  ctx.font = `400 22px ${FONT.mono}`;
-  (ctx as unknown as { letterSpacing: string }).letterSpacing = '3px';
-  const w2 = ctx.measureText(rest).width;
-  const W = w1 + 8 + w2;
-  const x0 = align === 'left' ? x : x - W;
-  // dark pill so the tag stays legible while it crosses the ledger
-  ctx.fillStyle = 'rgba(4,5,11,0.72)';
+  // dark pill so the tag stays legible over the photons and the ledger
+  ctx.fillStyle = 'rgba(4,5,11,0.85)';
   ctx.beginPath();
-  ctx.roundRect(x0 - 10, y - 19, W + 20, 38, 19);
+  ctx.roundRect(x0 - 14, y - 22, W + 28, 44, 22);
   ctx.fill();
+  ctx.strokeStyle = glow.replace(/[\d.]+\)$/, '0.35)');
+  ctx.lineWidth = 1;
+  ctx.stroke();
   ctx.shadowColor = glow;
   ctx.shadowBlur = 10;
   ctx.fillStyle = color;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.font = `600 24px ${FONT.serif}`;
+  ctx.font = `600 28px ${FONT.serif}`;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
   ctx.fillText(cn, x0, y + 1);
-  ctx.font = `400 22px ${FONT.mono}`;
-  (ctx as unknown as { letterSpacing: string }).letterSpacing = '3px';
-  ctx.fillText(rest, x0 + w1 + 8, y + 1);
+  ctx.font = `400 24px ${FONT.mono}`;
+  (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
+  ctx.fillText(rest, x0 + w1 + 10, y + 1);
   ctx.restore();
 }
 
-/** 阳光 · 0.5 µm on the falling packet (gone before it lands), 红外 · 10 µm on one outgoing red packet */
+const glide = (a: [number, number], b: [number, number], t: number): [number, number] => {
+  const e = ease.inOutCubic(clamp(t));
+  return [lerp(a[0], b[0], e), lerp(a[1], b[1], e)];
+};
+
 export function drawPhotonLabels(ctx: CanvasRenderingContext2D, frame: number, cam: Cam) {
   if (!labelsOn(frame)) return;
-  const a = Math.min(seg(frame, T.photonEmit + 2, T.photonEmit + 7), 1 - seg(frame, T.photonLand - 12, T.photonLand - 6));
-  if (a > 0.01) {
-    const hy = heroHead(frame);
-    const [sx, sy] = worldToScreen(cam, HERO.x + 30, hy - 120);
-    tag(ctx, sx, sy, '阳光', '· 0.5 µm', P.gold, 'rgba(255,201,74,0.6)', a, 'left');
+  const lf = ledgerFade(frame);
+  if (lf.vis <= 0.01) return;
+  // 阳光 · 0.5 µm: rides the packet's tail, waits by the impact, glides under the IN counter
+  const aIn = seg(frame, T.photonEmit + 2, T.photonEmit + 8) * lf.vis;
+  if (aIn > 0.01) {
+    const hy = Math.min(heroHead(frame), LIMB_Y - 2);
+    const ride = worldToScreen(cam, HERO.x + 150, hy - 150);
+    const [x, y] = glide(ride, [COL_IN, ANN_Y], seg(frame, T.photonLand + 8, T.photonLand + 34));
+    tag(ctx, x, y + lf.dy, '阳光', '· 0.5 µm', P.gold, 'rgba(255,201,74,0.6)', aIn);
   }
+  // 红外 · 10 µm: rides one red packet, then glides under the OUT counter
   const pick = labelPick();
   const rp = redPacket(pick, frame);
-  const ra = rp ? Math.min(seg(frame, unzipAt(pick) + 10, unzipAt(pick) + 18), 1 - seg(frame, T.ghostEnd - 66, T.ghostEnd - 48)) : 0;
-  if (rp && ra > 0.01) {
+  const aOut = rp ? seg(frame, unzipAt(pick) + 8, unzipAt(pick) + 14) * lf.vis : 0;
+  if (rp && aOut > 0.01) {
     const mid = HERO.redL * 0.5;
-    const [sx, sy] = worldToScreen(cam, rp.x + rp.dx * mid, rp.y + rp.dy * mid);
-    const side = rp.dx >= 0 ? 1 : -1;
-    tag(ctx, side > 0 ? Math.min(sx + 34, 760) : Math.max(110, sx - 34), sy, '红外', '· 10 µm', '#FF6A55', 'rgba(255,59,47,0.6)', ra * rp.a, side > 0 ? 'left' : 'right');
+    const [px, py] = worldToScreen(cam, rp.x + rp.dx * mid, rp.y + rp.dy * mid);
+    const ride: [number, number] = [Math.min(px + 120, 860), py - 40];
+    const [x, y] = glide(ride, [COL_OUT, ANN_Y], seg(frame, unzipAt(pick) + 22, unzipAt(19) + 12));
+    tag(ctx, x, y + lf.dy, '红外', '· 10 µm', '#FF6A55', 'rgba(255,59,47,0.6)', aOut);
+  }
+  // λ ×20 between them: the wavelength ratio (= the photon ratio at equal energy)
+  const aL = seg(frame, unzipAt(19) + 14, unzipAt(19) + 24) * lf.vis;
+  if (aL > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = aL;
+    ctx.font = `400 26px ${FONT.mono}`;
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '3px';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(243,239,230,0.9)';
+    ctx.shadowColor = 'rgba(243,239,230,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.fillText('λ ×20', 540, ANN_Y + 1 + lf.dy);
+    ctx.restore();
   }
 }

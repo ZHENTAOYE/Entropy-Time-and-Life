@@ -12,6 +12,8 @@ import { Cam, camAt, floorHit, project } from './camera';
 import { ST_EXT, ST_LINGER, ST_OUT, ST_TREE } from './flow';
 import { T } from './timing';
 import { beatPulse } from './heart';
+import { exhaleRate, forExhale } from './breath';
+import { flowTime } from './flow';
 
 export const TW = 360;
 export const TH = 640;
@@ -89,7 +91,10 @@ export function heatLevel(f: number): number {
 /** the frozen body's temperature index (cold violet) */
 const T_COLD = 0.3;
 /** skin temperature index of tissue warmth `warm` at heat mix hm (0.1 = frozen … 1 = alive) */
-const tissueT = (warm: number, hm: number) => T_COLD + (warm - T_COLD) * clamp((hm - 0.1) / 0.9);
+// the sensor auto-ranges its span to the scene: 26–37 °C (the room, ~22 °C, falls below the bottom of the bar).
+// skin index t on the 20–37 °C scale → displayed index (t − 0.353)/0.647
+const span = (t: number) => (t - 0.353) / 0.647;
+const tissueT = (warm: number, hm: number) => T_COLD + (span(warm) - T_COLD) * clamp((hm - 0.1) / 0.9);
 function restartWave(f: number, X: number, H: number): number {
   if (f < T.restart) return 0;
   const d = Math.hypot(X - HEART[0], H - HEART[1]);
@@ -176,7 +181,7 @@ export function renderThermalGrid(f: number, cam: Cam): Float32Array {
     if (w11[10] <= 0.002) continue;
     if (!project(cam, w11[0], w11[1], w11[2], pr, 0)) continue;
     const hm = Math.max(lvl, restartWave(f, B.sx[s], B.sh[s]));
-    const Tt = tissueT(B.warm[s] * (1 + 0.035 * beatPulse(f, B.sx[s], B.sh[s])), hm);
+    const Tt = tissueT(B.warm[s] * (1 + 0.09 * beatPulse(f, B.sx[s], B.sh[s])), hm);
     // a rising, dissolving body is warm air: its coverage thins out, its temperature stays
     const w = 0.82 * w11[10] * pr[2] * pr[2];
     splat(GW, pr[0], pr[1], w);
@@ -198,10 +203,17 @@ export function renderThermalGrid(f: number, cam: Cam): Float32Array {
     if (st === ST_TREE) {
       const w = 0.35 * k2;
       splat(GW, bf.sx[i], bf.sy[i], w);
-      splat(GT, bf.sx[i], bf.sy[i], w * tissueT(Math.min(0.92, B.warm[bf.slot[i]] + 0.05), hm));
+      splat(GT, bf.sx[i], bf.sy[i], w * tissueT(Math.min(0.95, B.warm[bf.slot[i]] + 0.04), hm));
     } else if (st === ST_OUT) splat(GF, bf.sx[i], bf.sy[i], 0.75 * (1 - bf.age[i]) * k2 * clamp((hm - 0.1) / 0.9));
     else splat(GF, bf.sx[i], bf.sy[i], 0.12 * k2);
   }
+  // ---- the breath: warm exhaled air (CO₂ · H₂O) leaving the mouth every 4 s
+  const brA = clamp((lvl - 0.1) / 0.9) * (1 - smoothstep(T.dissolve0, T.dissolve0 + 16, f));
+  if (brA > 0.01)
+    forExhale(f, (p, q, w) => {
+      if (!project(cam, p[0], p[1], p[2], pr, 0)) return;
+      splat(GF, pr[0], pr[1], 1.1 * brA * w * (1 - q) * (1 - 0.5 * q) * pr[2] * pr[2]);
+    });
   // ---- residual-heat footprints (in the floor), added before the blur so they get the sensor's softness
   const fpH = footprintHeat(f);
   if (fpH > 0.002) {
@@ -253,7 +265,8 @@ export function drawThermal(ctx: CanvasRenderingContext2D, f: number) {
   const hp = new Float32Array(3);
   const headOn = project(cam, 0, 1010, 0, hp, 0);
   const plumeA = 0.36 * heatLevelSoft(f) * (1 - smoothstep(T.dissolve0, T.tilt2b - 10, f));
-  const breath = 0.6 + 0.4 * Math.pow(0.5 + 0.5 * Math.sin(((f - 470) / 120) * Math.PI * 2), 3);
+  // the plume swells after each exhale
+  const breath = 0.65 + 0.45 * exhaleRate(flowTime(f - 12));
   const sunA = smoothstep(T.sunIn0, T.sunIn0 + 12, f) * (1 - smoothstep(T.sunOut0 + 10, T.sunOut1, f));
   const sy = sunY(f);
   const t3 = f * 0.012;

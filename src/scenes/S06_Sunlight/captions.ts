@@ -1,8 +1,10 @@
 // The five narration cards of S06 (text locked by docs/screenplay.md v1; curly quotes U+201C/U+201D).
-// Timing (timing.ts CAP): per-line stagger; every second line holds fully formed ≥ 1.5 s, C3's ≥ 2 s.
+// Timing (timing.ts CAP): screenplay v1 ±0.5 s; per-line stagger; C5's second line is formed by local ~30.
 import { CaptionSpec } from './RichCaption';
 import { P } from './palette';
 import { CAP, YOU_AT } from './timing';
+import { floodR } from './sky';
+import { seg } from '../../lib/math';
 
 const RED_DEEP = '#F0342C';
 
@@ -11,6 +13,8 @@ export const CAPTIONS: CaptionSpec[] = [
     from: CAP.c1.at,
     dur: CAP.c1.dur,
     lineDelay: [0, 6],
+    // no dark smudge on the uniform grey: the backdrop arrives once the light has cleared the lower third
+    backdropGate: (f) => seg(floodR(f), 700, 1150),
     lines: [
       [{ text: '地球不“攒”阳光：' }],
       [{ text: '收', color: P.gold, glow: 0.35 }, { text: '多少，几乎就' }, { text: '还', color: '#FF5A48', glow: 0.35 }, { text: '多少。' }],
@@ -53,6 +57,7 @@ export const CAPTIONS: CaptionSpec[] = [
     from: CAP.c5.at,
     dur: CAP.c5.dur,
     lineDelay: [0, 6],
+    stagger: 0.8,
     lines: [
       [{ text: '这一“散”的' }, { text: '差价', color: P.leaf, glow: 0.3 }, { text: '，' }],
       [{ text: '养活了绿叶，也养活了' }, { text: '你', fx: 'bright', fxAt: YOU_AT - CAP.c5.at }, { text: '。' }],

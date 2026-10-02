@@ -10,4 +10,4 @@ export const CAP = {
 /** the f478 pulse (and its +7 tap) launches the 回声 echo copies; fainter again on the next pulse */
 export const ECHO_F = 478;
 /** ◀◀ rewind attempt [start, fail] */
-export const REWIND: readonly [number, number] = [310, 326];
+export const REWIND: readonly [number, number] = [310, 330];

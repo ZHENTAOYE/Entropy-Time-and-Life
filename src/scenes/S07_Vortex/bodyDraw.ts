@@ -3,31 +3,151 @@
 // (intake thread → vessel tree → seat), the atoms they replace leaving through the skin (heat · CO₂ · H₂O).
 import { clamp, ease, seg, smoothstep } from '../../lib/math';
 import { hash01 } from '../../lib/random';
-import { bodyData, N_BODY } from './body';
+import { bodyData, GUT, N_BODY } from './body';
 import { Cam, project } from './camera';
 import { drawn, flowTime, incomingPos, outgoingPos, ST_EXT, ST_LINGER, ST_OUT, ST_TREE, T_OUT, tIn, turnover } from './flow';
 import { hex, mixArr, rgbaArr, Strokes } from './gfx';
 import { T } from './timing';
-import { V, vCycle, vparts, vPos } from './vortex';
+import { funnel, NV, V, vCycle, vparts, vPos, vRadius } from './vortex';
+import { memo } from '../../lib/math';
 
 /** seat of body particle i */
 export const slotOf = (i: number) => turnover().slot[i];
 
-let MT: Float32Array | null = null;
-/** morph start of body particle i (bottom of the figure first) */
-export function morphStart(i: number): number {
-  if (!MT) {
+// ---------------------------------------------------------------- the waterspout (morph)
+// The whirlpool stands up: from T.morph0 the innermost 10 000 drops stop draining and spiral (along their own log-spiral
+// streamlines, ever faster) into a tight vertical vortex column over the eye — the eye water first, the rim last — rise
+// up it as a constant-pitch helix (all trails parallel) and peel off into their seats, the feet first: the column
+// grows upward like a waterspout and leaves the person behind it. Rank pairing: the innermost drop takes the lowest
+// seat, so the figure fills from the floor up, strictly in time.
+const COL_R = 56; // column radius (world px, ≈ the figure's half-width at the hips)
+const VH = 46; // rise speed (world px / frame)
+const OMEGA = -0.5; // column spin (rad / frame): the whirlpool's sense
+const RAMP = 4; // frames for the rise to reach full speed
+const DC = 9; // peel-off into the seat (frames)
+const HB = funnel(COL_R); // the column starts down in the drain
+
+interface Spout {
+  /** body index → vortex particle index, and back (−1 = not a body particle) */
+  VI: Int32Array;
+  BI: Int32Array;
+  tA: Float32Array;
+  r0: Float32Array;
+  th0: Float32Array;
+  h0: Float32Array;
+  dA: Float32Array;
+  phiArr: Float32Array;
+  tArr: Float32Array;
+  tSeat: Float32Array;
+  tDone: Float32Array;
+}
+const vt = new Float32Array(5);
+export const spout = (): Spout =>
+  memo('s07:spout', () => {
+    const P = vparts();
     const B = bodyData();
     const TO = turnover();
-    MT = new Float32Array(N_BODY);
-    for (let j = 0; j < N_BODY; j++) MT[j] = T.morph0 + T.morphSpan * clamp(B.sh[TO.slot[j]] / 1000) + 4 * hash01(j, 301);
-  }
-  return MT[i];
+    const rad = new Float32Array(NV);
+    for (let j = 0; j < NV; j++) {
+      const [, tau] = vCycle(P, j, T.morph0);
+      rad[j] = vRadius(P, j, tau);
+    }
+    const near = Array.from({ length: NV }, (_, j) => j).sort((x, y) => rad[x] - rad[y]);
+    const bodies = Array.from({ length: N_BODY }, (_, b) => b);
+    const key = new Float32Array(N_BODY);
+    for (let b = 0; b < N_BODY; b++) key[b] = B.sh[TO.slot[b]] + (hash01(b, 311) - 0.5) * 140;
+    bodies.sort((x, y) => key[x] - key[y]);
+    const VI = new Int32Array(N_BODY);
+    const BI = new Int32Array(NV).fill(-1);
+    for (let k = 0; k < N_BODY; k++) {
+      VI[bodies[k]] = near[k];
+      BI[near[k]] = bodies[k];
+    }
+    const rmax = rad[near[N_BODY - 1]];
+    const tA = new Float32Array(N_BODY);
+    const r0 = new Float32Array(N_BODY);
+    const th0 = new Float32Array(N_BODY);
+    const h0 = new Float32Array(N_BODY);
+    const dA = new Float32Array(N_BODY);
+    const phiArr = new Float32Array(N_BODY);
+    const tArr = new Float32Array(N_BODY);
+    const tSeat = new Float32Array(N_BODY);
+    const tDone = new Float32Array(N_BODY);
+    for (let b = 0; b < N_BODY; b++) {
+      const j = VI[b];
+      tA[b] = T.morph0 + 2 * hash01(b, 312);
+      const [c, tau] = vCycle(P, j, tA[b]);
+      vPos(P, j, c, tau, vt);
+      r0[b] = vt[3];
+      th0[b] = Math.atan2(vt[2], vt[0]);
+      h0[b] = vt[1];
+      dA[b] = 3 + 19 * Math.min(1, r0[b] / rmax);
+      phiArr[b] = r0[b] > COL_R ? th0[b] + V.k * Math.log(r0[b] / COL_R) : th0[b] + OMEGA * dA[b];
+      tArr[b] = tA[b] + dA[b];
+      const rise = B.sh[TO.slot[b]] - HB;
+      const sRise = rise >= (VH * RAMP) / 2 ? rise / VH + RAMP / 2 : Math.sqrt((2 * RAMP * rise) / VH);
+      tSeat[b] = tArr[b] + sRise;
+      tDone[b] = tSeat[b] + DC;
+    }
+    return { VI, BI, tA, r0, th0, h0, dA, phiArr, tArr, tSeat, tDone };
+  });
+
+/** start of body particle i's journey into the spout */
+export const morphStart = (i: number) => spout().tA[i];
+/** body particle i is seated from this frame on */
+export const morphDone = (i: number) => spout().tDone[i];
+/** body index of vortex particle j, or −1 */
+export const bodyOf = (j: number) => spout().BI[j];
+
+/** column point of body particle i, s frames after it reached the column */
+function columnAt(S: Spout, i: number, s: number, out: Float32Array) {
+  const phi = S.phiArr[i] + OMEGA * s;
+  out[0] = COL_R * Math.cos(phi);
+  out[1] = HB + (s < RAMP ? (VH * s * s) / (2 * RAMP) : VH * (s - RAMP / 2));
+  out[2] = COL_R * Math.sin(phi);
 }
 
-export const morphStarted = (i: number, f: number) => i < N_BODY && f >= morphStart(i);
+/** Morph of body particle i at (fractional) frame f → out[0..2] = [X, H, Z]; returns the phase (0 drain, 1 column,
+ *  2 peel-off) and writes the phase progress into out[3]. */
+function morphPos(i: number, f: number, out: Float32Array): number {
+  const S = spout();
+  if (f < S.tArr[i]) {
+    // A: along its own streamline into the column, accelerating (like the drain)
+    const u = clamp((f - S.tA[i]) / S.dA[i]);
+    const e = u * (0.55 + 0.45 * u);
+    const r0 = S.r0[i];
+    let r: number;
+    let th: number;
+    if (r0 > COL_R) {
+      r = r0 * Math.pow(COL_R / r0, e);
+      th = S.th0[i] + V.k * e * Math.log(r0 / COL_R);
+    } else {
+      r = r0 + (COL_R - r0) * e;
+      th = S.th0[i] + OMEGA * (f - S.tA[i]);
+    }
+    out[0] = r * Math.cos(th);
+    out[1] = funnel(r);
+    out[2] = r * Math.sin(th);
+    out[3] = u;
+    return 0;
+  }
+  columnAt(S, i, f - S.tArr[i], out);
+  if (f < S.tSeat[i]) {
+    out[3] = (f - S.tArr[i]) / Math.max(1, S.tSeat[i] - S.tArr[i]);
+    return 1;
+  }
+  // C: peel off the column into the seat
+  const B = bodyData();
+  const sl = slotOf(i);
+  const u = clamp((f - S.tSeat[i]) / DC);
+  const e = ease.outCubic(u);
+  out[0] += (B.sx[sl] - out[0]) * e;
+  out[1] += (B.sh[sl] - out[1]) * e;
+  out[2] += (B.sz[sl] - out[2]) * e;
+  out[3] = u;
+  return 2;
+}
 
-const vt = new Float32Array(5);
 const st5 = new Float32Array(5);
 
 /** The end: the figure rises away as heat, head first. Shifts out[0..2] and writes the fade into out[10]. */
@@ -40,42 +160,6 @@ export function dissolve(seed: number, f: number, out: Float32Array) {
   out[0] += Math.sin(seed * 0.37 + a * 0.08) * a * 1.6;
   out[2] += Math.cos(seed * 0.53 + a * 0.07) * a * 1.6;
   out[10] = Math.max(0, 1 - a / 22);
-}
-
-/** Morph of particle i at (fractional) frame f: from its whirlpool position into its seat — a waterspout.
- *  All atoms share one coherent turn (¾ of a turn, the whirlpool's way) while the water lifts into a spinning column;
- *  each atom's own correction to its seat angle is applied late, when it is already close to the axis — so the streaks
- *  stay parallel (a spinning column of water) instead of crossing like straw. → [X,H,Z]; returns the turning angle;
- *  m in out[3] (0..1). */
-const TURN = -1.5 * Math.PI;
-function morphPos(i: number, f: number, out: Float32Array): number {
-  const B = bodyData();
-  const t0 = morphStart(i);
-  const m = clamp((f - t0) / T.morphLen);
-  const P = vparts();
-  const [c, tau] = vCycle(P, i, t0);
-  vPos(P, i, c, tau, vt);
-  const r0 = vt[3];
-  const th0 = Math.atan2(vt[2], vt[0]);
-  const h0 = vt[1];
-  const s0 = slotOf(i);
-  const bx = B.sx[s0];
-  const bh = B.sh[s0];
-  const bz = B.sz[s0];
-  const rb = Math.hypot(bx, bz);
-  const ab = Math.atan2(bz, bx);
-  const TAU = Math.PI * 2;
-  let d = ab - (th0 + TURN);
-  d -= Math.round(d / TAU) * TAU; // shortest correction, −π … π
-  const a = th0 + TURN * ease.inOutSine(m) + d * smoothstep(0.4, 1, m);
-  // the column first gathers to ~half the whirlpool's radius while it rises, then closes onto the seat
-  const rCol = Math.max(rb, 0.45 * r0);
-  const rho = m < 0.5 ? r0 + (rCol - r0) * ease.inOutSine(m / 0.5) : rCol + (rb - rCol) * ease.inOutCubic((m - 0.5) / 0.5);
-  out[0] = rho * Math.cos(a);
-  out[1] = h0 + (bh - h0) * ease.inOutSine(clamp(m / 0.8)) + Math.sin(m * Math.PI) * 40;
-  out[2] = rho * Math.sin(a);
-  out[3] = m;
-  return a;
 }
 
 // ---------------------------------------------------------------- per-frame cache (shared with the thermal splat)
@@ -183,36 +267,32 @@ export function bodyFrame(f: number, cam: Cam, trailDt = 2): BodyFrame {
   const TO = turnover();
   const s = flowTime(f);
   const sP = flowTime(f - trailDt);
+  // the heat leaving the skin gets longer trails (it must read as a stream, as strong as the intake)
+  const sPo = flowTime(f - 3.5);
   const flowOn = smoothstep(T.flowOn0, T.flowOn1, f);
   const treeReveal = ease.inOutSine(seg(f, T.treeGrow0, T.treeGrow1)) * B.tmax;
   // ---- seats
+  const SP = spout();
   for (let i = 0; i < N_BODY; i++) {
     c.mn[i] = 0;
-    if (!morphStarted(i, f)) {
+    if (f < SP.tA[i]) {
       c.state[i] = -2;
       c.vis[i] = 0;
       continue;
     }
     const sl = TO.slot[i];
     c.slot[i] = sl;
-    c.arm[i] = vparts().arm[i] >= 0 ? 1 : 0;
-    const t0 = morphStart(i);
-    if (f < t0 + T.morphLen) {
-      // morphing: a finely sampled arc of its turning path (no straight chords across the column)
-      const a1 = morphPos(i, f, bw);
-      c.state[i] = -1;
-      c.m[i] = bw[3];
+    c.arm[i] = vparts().arm[SP.VI[i]] >= 0 ? 1 : 0;
+    if (f < SP.tDone[i]) {
+      // on its way: drain → spout → seat. Trails ≤ 1 frame, sampled as a short arc
+      const ph = morphPos(i, f, bw);
+      c.state[i] = ph === 2 ? -3 : -1;
+      c.m[i] = ph === 2 ? bw[3] : ph === 0 ? 0.3 * bw[3] : 0.3 + 0.7 * bw[3];
       c.orig[i] = 1;
       c.age[i] = 0;
       if (!put(c, i, f, i)) continue;
-      let tr = Math.min(1.5, f - t0);
-      const a0 = morphPos(i, f - tr, st5);
-      let sweep = Math.abs(a1 - a0);
-      if (sweep > 0.3) {
-        tr *= 0.3 / sweep;
-        sweep = 0.3;
-      }
-      const n = Math.min(MPTS, Math.max(2, Math.ceil(sweep / 0.08) + 1));
+      const tr = Math.min(1, f - SP.tA[i]);
+      const n = ph === 0 ? 4 : 3;
       const o = i * MPTS * 2;
       c.mp[o] = c.sx[i];
       c.mp[o + 1] = c.sy[i];
@@ -247,7 +327,7 @@ export function bodyFrame(f: number, cam: Cam, trailDt = 2): BodyFrame {
   let e = N_BODY;
   if (flowOn > 0.001) {
     for (let i = 0; i < N_BODY && e < NE; i++) {
-      if (f < morphStart(i)) continue;
+      if (f < SP.tDone[i]) continue;
       const sl = TO.slot[i];
       const tin = tIn(B, sl);
       const a = TO.exOff[i];
@@ -311,7 +391,7 @@ export function bodyFrame(f: number, cam: Cam, trailDt = 2): BodyFrame {
           c.arm[e] = 0;
           if (!put(c, e, f, seed)) continue;
           c.fade[e] *= flowOn;
-          const uP = (sP - E) / T_OUT;
+          const uP = (sPo - E) / T_OUT;
           if (uP >= 0) {
             outgoingPos(i, m, sl, uP, st5);
             bw[0] = st5[0];
@@ -366,7 +446,7 @@ const COL = [
   hex('#FF3B2F'), // leaving (heat, CO₂, H₂O)
 ];
 // the turning column is dense: each morphing atom stays faint so the column reads as water, not as a white blob
-const BASE_A = [0.13, 0.15, 0.85, 0.72, 0.46, 0.28, 0.34, 0.2];
+const BASE_A = [0.2, 0.22, 0.85, 0.72, 0.46, 0.28, 0.3, 0.5];
 
 export interface BodyDrawOpts {
   alpha: number;
@@ -399,9 +479,14 @@ export function drawBody(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o: 
     let inten = 0.75 + 0.5 * hash01(bf.seed[i], 303);
     let dot = false;
     if (s === -1) {
+      // in the drain / up the spout: a dim streak of water (the column is dense)
       kind = bf.arm[i] ? K_MORPH_A : K_MORPH_W;
-      // bright while it flies, settling softly into its seat (the arrival front must not pile up into a white blob)
-      inten *= (0.85 + 0.35 * Math.sin(bf.m[i] * Math.PI)) * (1 - 0.6 * smoothstep(0.45, 1, bf.m[i]));
+      inten *= 0.8 + 0.3 * Math.sin(bf.m[i] * Math.PI);
+    } else if (s === -3) {
+      // peeling off into its seat: lights up as it lands
+      dot = true;
+      kind = K_ORIG;
+      inten *= (0.2 + 0.8 * bf.m[i]) * dotA;
     } else if (s === ST_LINGER) {
       dot = true;
       if (bf.orig[i]) kind = K_ORIG;
@@ -415,7 +500,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o: 
       inten *= extA * (0.55 + 0.45 * smoothstep(0.5, 1, bf.age[i]));
     } else {
       kind = K_OUT;
-      inten *= outA * (1 - ease.inQuad(bf.age[i]));
+      inten *= outA * (1 - ease.inQuad(bf.age[i])) * smoothstep(0, 0.12, bf.age[i]);
     }
     if (still > 0 && s >= 0) {
       dot = true;
@@ -424,7 +509,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o: 
     inten *= o.alpha * bf.fade[i];
     if (s === -1) {
       // energy-conserving: a fast arc spreads the same light over its length
-      inten *= Math.min(1, Math.max(0.12, 18 / (bf.mlen[i] + 1)));
+      inten *= Math.min(1, Math.max(0.3, 30 / (bf.mlen[i] + 1)));
     } else if (!dot && kind !== K_EXT) {
       const len = Math.abs(bf.sx[i] - bf.px[i]) + Math.abs(bf.sy[i] - bf.py[i]);
       inten *= Math.min(1, Math.max(0.15, 16 / (len + 1)));
@@ -451,8 +536,14 @@ export function drawBody(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o: 
     const a = ((b % LV) + 0.5) / LV;
     const col = cold > 0 ? mixArr(COL[kind], COLD, cold) : COL[kind];
     const al = BASE_A[kind] * (0.35 + 0.65 * a);
-    S.stroke(ctx, b, rgbaArr(col, al), kind === K_TREE ? 1.3 : kind === K_OUT ? 1.2 : kind === K_EXT ? 1.8 : kind <= K_MORPH_A ? 1.3 : 1.5);
+    S.stroke(ctx, b, rgbaArr(col, al), kind === K_TREE ? 1.3 : kind === K_OUT ? 1.6 : kind === K_EXT ? 1.6 : kind <= K_MORPH_A ? 1.3 : 1.5);
     D.fill(ctx, b, rgbaArr(col, al));
+  }
+  // a diffuse red halo around the heat leaving the skin
+  for (let l = 0; l < LV; l++) {
+    const b = K_OUT * LV + l;
+    const col = cold > 0 ? mixArr(COL[K_OUT], COLD, cold) : COL[K_OUT];
+    S.stroke(ctx, b, rgbaArr(col, BASE_A[K_OUT] * 0.13 * (0.35 + (0.65 * (l + 0.5)) / LV)), 7);
   }
   ctx.restore();
 }
@@ -476,11 +567,58 @@ export function drawVessels(ctx: CanvasRenderingContext2D, f: number, cam: Cam, 
     const u = Math.min(1, reveal - B.tstep[i] + 1);
     S.seg(g, a[0], a[1], a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u);
   }
+  // mouth → throat → heart (gut / lungs): drawn first, from the mouth down; the tree then grows out of the heart
+  const ug = clamp(reveal / (0.18 * B.tmax));
+  let len = 0;
+  for (let k = 1; k < GUT.length; k++) len += Math.hypot(GUT[k][0] - GUT[k - 1][0], GUT[k][1] - GUT[k - 1][1]);
+  let rem = ug * len;
+  for (let k = 1; k < GUT.length && rem > 0; k++) {
+    const L = Math.hypot(GUT[k][0] - GUT[k - 1][0], GUT[k][1] - GUT[k - 1][1]);
+    const u = Math.min(1, rem / L);
+    rem -= L;
+    if (!project(cam, GUT[k - 1][0], GUT[k - 1][1], 0, a, 0) || !project(cam, GUT[k][0], GUT[k][1], 0, b, 0)) continue;
+    S.seg(buckets - 1, a[0], a[1], a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u);
+  }
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
   for (let g = 0; g < buckets; g++) {
     S.stroke(ctx, g, `rgba(255,${190 + g * 12},${90 + g * 30},${(0.1 + g * 0.08) * alpha})`, (0.8 + g * 0.9) * cam.zoom);
+  }
+  ctx.restore();
+}
+
+/** The waterspout's glowing core: a soft column of water light between the drain and the top of the rising spout. */
+export function drawSpoutGlow(ctx: CanvasRenderingContext2D, f: number, cam: Cam) {
+  const t = f - T.morph0;
+  if (t < 2 || t > 62) return;
+  const top = Math.min(1000, HB + VH * Math.max(0, t - 4));
+  const bot = HB + VH * Math.max(0, t - 26);
+  if (top - bot < 20) return;
+  const a = smoothstep(2, 10, t) * (1 - smoothstep(44, 62, t));
+  const p0 = new Float32Array(3);
+  const p1 = new Float32Array(3);
+  if (!project(cam, 0, bot, 0, p0, 0) || !project(cam, 0, top, 0, p1, 0)) return;
+  const k = 0.5 * (p0[2] + p1[2]);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  // tapered: a gradient along the axis (bright where it is fed, fading at the leading tip)
+  for (const [w, al] of [
+    [COL_R * 3.2, 0.045],
+    [COL_R * 1.7, 0.07],
+    [COL_R * 0.55, 0.09],
+  ] as const) {
+    const gg = ctx.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+    gg.addColorStop(0, `rgba(127,227,240,${al * a})`);
+    gg.addColorStop(0.75, `rgba(150,236,248,${al * a})`);
+    gg.addColorStop(1, 'rgba(190,246,255,0)');
+    ctx.strokeStyle = gg;
+    ctx.lineWidth = w * k;
+    ctx.beginPath();
+    ctx.moveTo(p0[0], p0[1]);
+    ctx.lineTo(p1[0], p1[1]);
+    ctx.stroke();
   }
   ctx.restore();
 }

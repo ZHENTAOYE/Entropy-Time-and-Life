@@ -4,9 +4,10 @@ import { Composition, registerRoot } from 'remotion';
 import { censusFraction, censusZero } from '../vortex';
 import { BEATS } from '../heart';
 import { dayAt, dayFlow, flowTime, originalFraction, turnover } from '../flow';
-import { morphStart } from '../bodyDraw';
+import { morphDone, morphStart } from '../bodyDraw';
 import { bodyData, N_BODY } from '../body';
 import { T } from '../timing';
+import { exhaleOnsets } from '../breath';
 
 const D: React.FC = () => {
   const ref = useRef<HTMLDivElement>(null);
@@ -32,13 +33,14 @@ const D: React.FC = () => {
     }
     L.push('days ' + days.join(' '));
     let mn = 1e9;
-    let mx = 0;
+    const done: number[] = [];
     for (let i = 0; i < N_BODY; i++) {
-      const m = morphStart(i);
-      mn = Math.min(mn, m);
-      mx = Math.max(mx, m);
+      mn = Math.min(mn, morphStart(i));
+      done.push(morphDone(i));
     }
-    L.push(`morph ${mn.toFixed(0)}..${mx.toFixed(0)}`);
+    done.sort((a, b) => a - b);
+    const pc = (q: number) => done[Math.min(done.length - 1, Math.floor(q * done.length))].toFixed(0);
+    L.push(`morph start ${mn.toFixed(0)} seated 10% ${pc(0.1)} 50% ${pc(0.5)} 70% ${pc(0.7)} 90% ${pc(0.9)} 100% ${pc(0.9999)}`);
     const B = bodyData();
     const TO = turnover();
     let nb = 0;
@@ -50,6 +52,7 @@ const D: React.FC = () => {
     const dpf = dayFlow();
     L.push(`dayFlow ${dpf.toFixed(3)} s0 ${D0.toFixed(2)} s(899) ${flowTime(899).toFixed(1)}`);
     L.push('orig ' + [0, 7, 14, 34, 60, 90].map((d) => `d${d}:${(originalFraction(D0 + d * dpf) * 100).toFixed(1)}%`).join(' '));
+    L.push('exhale ' + exhaleOnsets(372, 899).join(' '));
     if (ref.current) ref.current.innerText = L.join('\n');
   });
   return <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#000', color: '#fff', fontSize: 30, fontFamily: 'monospace', padding: 40, whiteSpace: 'pre-wrap', width: 1000 }} />;

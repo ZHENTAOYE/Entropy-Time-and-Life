@@ -19,7 +19,7 @@
 //   canvas), then <Vignette strength={0.5} color="14,8,4" /> on top. Background FIGURE_S08.bg = #0A0705.
 import { FIGURE_S08 } from '../../lib/handoff';
 import { HUMAN_PATH } from '../../lib/human';
-import { clamp, ease, memo, seg } from '../../lib/math';
+import { clamp, ease, memo, seg, smoothstep } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 import { ECHOES, NET_SPEED, PULSE_PERIOD, PULSE_T0, axonGeom, boxToFinal, getNet, pulseAt } from './network';
 import { K_N, MACRO_K } from './trail';
@@ -38,6 +38,8 @@ export interface FigureOpts {
   outline?: number;
   /** multiply network brightness */
   network?: number;
+  /** dev profiling hook */
+  mark?: (label: string) => void;
 }
 
 const GOLD = '#FFC94A';
@@ -134,8 +136,9 @@ const B = (pts: number[][]) => {
 function nerves(): Nerve[] {
   return memo('S08:nerves', () => {
     const spine = B([[300, 236], [300, 300], [300, 480], [300, 700], [300, 862]]);
-    const armR = [[300, 268], [326, 286], [370, 298], [410, 316], [436, 356], [448, 432], [456, 532], [470, 642], [488, 752], [503, 832]];
-    const legR = [[300, 862], [330, 892], [360, 980], [366, 1100], [358, 1220], [352, 1320], [362, 1392]];
+    // limb centre lines (midway between HUMAN_PATH's outer and inner contour)
+    const armR = [[300, 268], [336, 282], [384, 298], [422, 330], [438, 392], [445, 462], [452, 530], [461, 590], [471, 650], [482, 716], [492, 772], [497, 822], [500, 846]];
+    const legR = [[300, 862], [334, 896], [364, 960], [363, 1050], [361, 1130], [356, 1230], [350, 1320], [358, 1388]];
     const mir = (a: number[][]) => a.map(([x, y]) => [600 - x, y]);
     const sp = 34; // final px / frame
     const tShoulder = (32 * 0.9673) / sp;
@@ -197,6 +200,13 @@ function pointAt(p: Poly, d: number): [number, number] {
   return [P[lo * 2] + (P[hi * 2] - P[lo * 2]) * t, P[lo * 2 + 1] + (P[hi * 2 + 1] - P[lo * 2 + 1]) * t];
 }
 
+function axonPoly(): Poly {
+  return memo('S08:axonPoly', () => {
+    const g = axonGeom();
+    return { pts: g.axon, cum: new Float32Array(Array.from(g.axonD, (v) => v * K_N)), len: g.axonD[g.axonD.length - 1] * K_N };
+  });
+}
+
 /** white-hot → gold radial glow (growth tips) */
 function tipSprite(): HTMLCanvasElement {
   return memo('S08:tipSprite', () => {
@@ -239,7 +249,9 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
   const TY = o.ty ?? 0;
   const alpha = o.alpha ?? 1;
   const netK = o.network ?? 1;
+  const mark = o.mark;
   const net = getNet();
+  mark?.('f.getNet');
 
   ctx.save();
   if (o.background) {
@@ -284,11 +296,13 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
 
   // ---- axon (the trail) revealed top → bottom by the ignition front
   const axFront = (t - pres.T) * (net.axonBeadEnd / 36);
+  // at the figure scale the axon thins and dims so the dendrite glow dominates (no "crack" through the skull)
+  const axK = smoothstep(1.2, 3, S);
   if (axFront > 0) {
     const d = Math.min(axFront, net.axonD[net.axonD.length - 1]);
-    const axPoly: Poly = { pts: net.axon, cum: new Float32Array(net.axonD.map((v) => v * K_N)), len: net.axonD[net.axonD.length - 1] * K_N };
-    ctx.strokeStyle = 'rgba(255,201,74,0.85)';
-    ctx.lineWidth = 2.6 * ws * px;
+    const axPoly: Poly = axonPoly();
+    ctx.strokeStyle = `rgba(255,201,74,${(0.85 * (0.62 + 0.38 * axK)).toFixed(3)})`;
+    ctx.lineWidth = 2.6 * ws * (0.55 + 0.45 * axK) * px;
     strokePoly(ctx, axPoly, 0, d * K_N);
     // travelling ignition head
     if (axFront < net.axonD[net.axonD.length - 1] + 200) {
@@ -305,8 +319,8 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
       }
     }
     if (doBloom) {
-      g.strokeStyle = 'rgba(255,190,80,0.8)';
-      g.lineWidth = 7 * ws * px;
+      g.strokeStyle = `rgba(255,190,80,${(0.8 * (0.5 + 0.5 * axK)).toFixed(3)})`;
+      g.lineWidth = 7 * ws * (0.6 + 0.4 * axK) * px;
       strokePoly(g, axPoly, 0, d * K_N);
     }
     // pulses along the axon
@@ -322,6 +336,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
 
+  mark?.('f.axon');
   // ---- dendrites, bucketed by brightness × width
   const NB = BUCKET_COL.length;
   const paths: Path2D[] = [];
@@ -366,6 +381,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
       gp.lineTo(x1, y1);
     }
   }
+  mark?.('f.dendBuild');
   const widths = [0.55, 1.0, 1.8];
   for (let bi = 0; bi < NB; bi++)
     for (let wi = 0; wi < 3; wi++) {
@@ -375,6 +391,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
       ctx.stroke(paths[bi * 3 + wi]);
     }
   ctx.globalAlpha = alpha;
+  mark?.('f.dendStroke');
   // white-hot growth tips: small radial glow dots (never relies on stroke saturation)
   if (tips.length) {
     const spr = tipSprite();
@@ -403,6 +420,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
 
+  mark?.('f.tips+gbloom');
   // ---- somas (beads, the present, other cells)
   for (const s of net.somas) {
     const age = t - s.T;
@@ -432,6 +450,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
 
+  mark?.('f.somas');
   // ---- echo rings from the present (main pulse + two decaying echoes)
   if (t >= PULSE_T0) {
     const jMax = Math.floor((t - PULSE_T0) / PULSE_PERIOD);
@@ -462,7 +481,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
         for (let k = 0; k < 12; k++) {
           const age = t - f0 - 4 - hash01(j * 31 + k, 511) * 10;
           if (age < 0 || age > 34) continue;
-          const ang = hash01(j * 31 + k, 512) * Math.PI * 2;
+          const ang = Math.PI * (0.88 + 1.24 * hash01(j * 31 + k, 512)); // up and sideways, never down the body
           const r0 = 40 + 20 * hash01(j * 31 + k, 513);
           const rr = r0 + age * (1.6 + 1.2 * hash01(j * 31 + k, 514));
           const al = 0.85 * irA * (1 - age / 34) * Math.min(1, age / 3);
@@ -482,6 +501,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
       }
   }
 
+  mark?.('f.rings+IR');
   // ---- the gold-line figure
   if (outlineP > 0) {
     // faint inner body light (volume), strongest at the head
@@ -545,13 +565,17 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
 
+  mark?.('f.outline');
   // ---- nervous system + pulses running down the body (the echo inside you)
   const nerveA = ease.inOutSine(seg(t, 466, 530));
   if (nerveA > 0) {
     const nv = nerves();
-    ctx.strokeStyle = `rgba(255,201,74,${0.2 * nerveA})`;
-    ctx.lineWidth = 1.1 * px;
-    for (const n of nv) strokePoly(ctx, n.poly, 0, n.poly.len);
+    // the static nerves stay a whisper (the travelling pulses reveal them): spine 0.1, limbs 0.06
+    ctx.lineWidth = 1.0 * px;
+    nv.forEach((n, i) => {
+      ctx.strokeStyle = `rgba(255,201,74,${((i === 0 ? 0.1 : 0.06) * nerveA).toFixed(3)})`;
+      strokePoly(ctx, n.poly, 0, n.poly.len);
+    });
     // pulses: soma fires at f0, wave reaches the neck after axonExitDelay()
     const exitD = axonExitDelay();
     const jMax = Math.floor((t - PULSE_T0) / PULSE_PERIOD);
@@ -586,33 +610,31 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
           }
         }
       }
-      // every signal is dissipative: the pulse sheds faint infrared (waste-red) sparks along its way
-      for (let ni = 0; ni < nv.length; ni++) {
+      // every signal is dissipative: each pulse sheds two infrared (waste-red) embers from a limb nerve as it
+      // passes; they drift out of the body and are gone within ~22 f (no speckle left on the figure)
+      for (let k = 0; k < 2; k++) {
+        const h0 = hash01(j * 131 + k, 500);
+        const ni = 1 + Math.floor(hash01(j * 131 + k, 503) * 4); // an arm or a leg
         const n = nv[ni];
-        const NS = ni === 0 ? 5 : 4;
-        for (let k = 0; k < NS; k++) {
-          const dk = ((k + 0.5) / NS) * n.poly.len;
-          const tb = f0 + exitD + n.delay + dk / n.speed;
-          const age = t - tb;
-          if (age < 0 || age > 28) continue;
-          const h1 = hash01(j * 131 + ni * 17 + k, 501);
-          const h2 = hash01(j * 131 + ni * 17 + k, 502);
-          const [px0, py0] = pointAt(n.poly, dk);
-          const ang = h1 * Math.PI * 2;
-          const dist = age * (0.9 + 1.4 * h2);
-          const al = 0.9 * nerveA * (1 - age / 28) * Math.min(1, age / 2);
-          const ex = px0 + Math.cos(ang) * dist;
-          const ey = py0 + Math.sin(ang) * dist - age * 0.4;
-          ctx.fillStyle = `rgba(255,${Math.round(60 + 50 * (1 - age / 28))},40,${al})`;
-          ctx.beginPath();
-          ctx.arc(ex, ey, 2.2 * px, 0, Math.PI * 2);
-          ctx.fill();
-          if (doBloom) {
-            g.fillStyle = `rgba(255,60,30,${al * 0.8})`;
-            g.beginPath();
-            g.arc(ex, ey, 9 * px, 0, Math.PI * 2);
-            g.fill();
-          }
+        const dk = (0.25 + 0.6 * h0) * n.poly.len;
+        const tb = f0 + exitD + n.delay + dk / n.speed;
+        const age = t - tb;
+        if (age < 0 || age > 22) continue;
+        const [px0, py0] = pointAt(n.poly, dk);
+        const out = px0 >= 540 ? 1 : -1;
+        const sp = 1.4 + 1.2 * hash01(j * 131 + k, 502);
+        const al = 0.75 * nerveA * (1 - age / 22) * Math.min(1, age / 2);
+        const ex = px0 + out * (6 + age * sp);
+        const ey = py0 - age * 0.5;
+        ctx.fillStyle = `rgba(255,${Math.round(60 + 50 * (1 - age / 22))},40,${al.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(ex, ey, 2.0 * px, 0, Math.PI * 2);
+        ctx.fill();
+        if (doBloom) {
+          g.fillStyle = `rgba(255,60,30,${(al * 0.7).toFixed(3)})`;
+          g.beginPath();
+          g.arc(ex, ey, 8 * px, 0, Math.PI * 2);
+          g.fill();
         }
       }
       // ground ripple when a pulse reaches the feet (rhymes with the footprints)
@@ -632,6 +654,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
 
+  mark?.('f.nerves');
   ctx.setTransform(base);
   // ---- bloom composite
   if (doBloom) {
@@ -658,6 +681,7 @@ export function drawFigureS08(ctx: CanvasRenderingContext2D, t: number, o: Figur
     }
   }
   ctx.restore();
+  mark?.('f.bloomComp');
 }
 
 /** pulse frames (for the score): every soma firing at or after `from` up to `to` */

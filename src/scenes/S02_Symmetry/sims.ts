@@ -252,11 +252,13 @@ export const GAS_R = 4;
 export const GAS_FRAMES = 122;
 export const GAS_N = 400;
 export const GAS_DISC = { x: 232, y: 225 };
+export const GAS_SEED = 20402;
+export const GAS_SUBSTEPS = 6;
 
 /** The N = 400 recording, guaranteed simulated up to recorded frame `upTo` (default: all of it). */
 export function gasRun(upTo: number = GAS_FRAMES - 1): DiscRun {
   const rc = memo('S02:gas400', () => {
-    const rnd = mulberry32(20402);
+    const rnd = mulberry32(GAS_SEED);
     const gauss = () => {
       const u = Math.max(1e-9, rnd());
       const v = rnd();
@@ -283,10 +285,18 @@ export function gasRun(upTo: number = GAS_FRAMES - 1): DiscRun {
         m: 1,
       });
     }
-    return recorder(balls, GAS_FRAMES, 6, 2 * r + 1);
+    return recorder(balls, GAS_FRAMES, GAS_SUBSTEPS, 2 * r + 1);
   });
   rc.advance(upTo);
   return rc.run;
+}
+/** A cheap fingerprint of the N = 400 initial state (positions + velocities of recorded frame 0): it changes whenever
+ * the drop, the seed or the velocity model changes. Used to validate baked data derived from the recording. */
+export function gasFingerprint(): string {
+  const run = gasRun(0);
+  let h = 0;
+  for (let i = 0; i < run.n * 2; i++) h += run.pos[i] * ((i % 7) + 1) + run.vel[i] * ((i % 5) + 1) * 10;
+  return h.toFixed(1);
 }
 export const gasDiscRadius = () => {
   const run = gasRun(0);

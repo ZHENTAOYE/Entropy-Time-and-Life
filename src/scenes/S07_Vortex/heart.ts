@@ -5,7 +5,7 @@ import { T } from './timing';
 
 export const BEATS: number[] = (() => {
   const b: number[] = [];
-  for (let t = 396; t < T.freeze0; t += 30) b.push(t);
+  for (let t = 396; t < T.freeze0 - 8; t += 30) b.push(t);
   for (let t = T.restart; t < T.dissolve0 + 10; t += 30) b.push(t);
   return b;
 })();

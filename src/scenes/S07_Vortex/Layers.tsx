@@ -12,6 +12,9 @@ import { LAYERS } from './devflags';
 import { offscreen } from './gfx';
 import { layerState, renderMain, renderThermal } from './render';
 import { drawFootprints } from './thermal';
+import { drawS06Vignette } from './s06';
+import { smoothstep } from '../../lib/math';
+import { T } from './timing';
 
 export const S07Layers: React.FC = () => {
   const f = useCurrentFrame();
@@ -19,14 +22,28 @@ export const S07Layers: React.FC = () => {
   useLayoutEffect(() => {
     const c = main.current;
     if (!c) return;
+    // the thermal phase is a soft sensor image: its raster runs at 0.75 resolution (the end — the footprints for the
+    // S08 match cut — at full resolution again)
+    const k = LAYERS.scale || (f >= T.scan0 && f < T.tilt2a + 16 ? 0.75 : 1);
+    const W = Math.round(1080 * k);
+    const H = Math.round(1920 * k);
+    if (c.width !== W || c.height !== H) {
+      c.width = W;
+      c.height = H;
+    }
     const ctx = c.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
     const st = layerState(f);
+    if (!LAYERS.draw) {
+      ctx.clearRect(0, 0, W, H);
+      return;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.filter = 'none';
-    ctx.clearRect(0, 0, 1080, 1920);
+    ctx.clearRect(0, 0, W, H);
+    ctx.setTransform(k, 0, 0, k, 0, 0);
     // 1. particles, lines, glows (additive onto transparent)
     renderMain(ctx, f);
     // 2. bloom source = the emissive layer only (the sensor image must keep its calibrated colours)
@@ -37,7 +54,7 @@ export const S07Layers: React.FC = () => {
       bx.setTransform(1, 0, 0, 1, 0, 0);
       bx.globalCompositeOperation = 'copy';
       bx.filter = 'none';
-      bx.drawImage(c, 0, 0, 1080, 1920, 0, 0, 270, 480);
+      bx.drawImage(c, 0, 0, W, H, 0, 0, 270, 480);
       wx.setTransform(1, 0, 0, 1, 0, 0);
       wx.globalCompositeOperation = 'copy';
       wx.filter = 'blur(2px)';
@@ -80,6 +97,8 @@ export const S07Layers: React.FC = () => {
       ctx.drawImage(bc, 0, 0, 1080, 1920);
       ctx.restore();
     }
+    // 5. S06's vignette at the cut (S07's own vignette lives in the water shader)
+    if (f < 48) drawS06Vignette(ctx, 1 - smoothstep(6, 46, f));
   });
   return <canvas ref={main} width={1080} height={1920} style={{ position: 'absolute', left: 0, top: 0, width: 1080, height: 1920 }} />;
 };

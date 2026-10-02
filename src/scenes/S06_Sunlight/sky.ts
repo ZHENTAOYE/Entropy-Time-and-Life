@@ -1,13 +1,12 @@
-// Side-view world: deep space, stars, the Sun (top) and the Earth (bottom), the heat-death grey that the opening
-// floods away, and the cloud deck the camera falls through during the dive.
+// Side-view world: deep space, stars, the Sun (top), and the heat-death grey that the opening dissolves away.
+// (The Earth and the dive: earth.ts.)
 import { GOLD_POINT } from '../../lib/handoff';
 import { clamp, ease, lerp, memo, seg } from '../../lib/math';
 import { makeNoise } from '../../lib/noise';
 import { hash01, mulberry32 } from '../../lib/random';
-import { Cam, DIVE_T, ZF, applyWorld } from './camera';
-import { EARTH_CAP, earthCap } from './earthGL';
-import { EARTH, P, SUN } from './palette';
-import { cloudPuffs, granTex, greyTiles, nebulaTex, terrainTex } from './textures';
+import { Cam, DIVE_T, applyWorld } from './camera';
+import { P, SUN } from './palette';
+import { granTex, nebulaTex } from './textures';
 import { T } from './timing';
 
 const noise = makeNoise(6006);
@@ -22,13 +21,8 @@ export function sunGeom(frame: number) {
   return { cx: SUN.cx, cy: bottom - r, r, p };
 }
 
-export function earthGeom(frame: number) {
-  const e = ease.outCubic(seg(frame, T.earthRiseStart, T.earthRiseEnd));
-  return { cx: EARTH.cx, cy: lerp(EARTH.cy + 760, EARTH.cy, e), r: EARTH.r, e };
-}
-
 /** colour-flood radius around the gold point (screen px): the front leaves the frame at ~f26 */
-export const floodR = (frame: number) => 1500 * ease.inOutSine(seg(frame, T.floodStart, 34)) + 30 * ease.outQuad(seg(frame, T.floodStart, T.floodStart + 6));
+export const floodR = (frame: number) => 1660 * ease.inOutSine(seg(frame, T.floodStart, 36)) + 30 * ease.outQuad(seg(frame, T.floodStart, T.floodStart + 6));
 
 const sunScreen = (frame: number, cam: Cam): [number, number] => {
   const s = sunGeom(frame);
@@ -81,23 +75,20 @@ export function drawBackground(ctx: CanvasRenderingContext2D, frame: number, cam
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 1080, 1920);
   }
-  // DAWN: the returning light floods out of the point — luminous and saturated (never a dimming), white-gold at the
-  // centre → orange → rose → ultramarine at the front; relaxes into deep space as the Sun condenses (f22–50).
-  const dawn = Math.min(seg(frame, T.floodStart, T.floodStart + 3), 1 - ease.inOutSine(seg(frame, 22, 50)));
+  // the point's warm light spreads into the cleared space (sun palette only; a soft glow, never a hard disc); it
+  // relaxes into the zodiacal light as the Sun condenses (f22–50)
+  const dawn = Math.min(seg(frame, T.floodStart, T.floodStart + 4), 1 - ease.inOutSine(seg(frame, 22, 50)));
   if (dawn > 0.01) {
-    const Rd = Math.max(30, R);
+    const Rd = Math.max(80, Math.min(R, 1400) * 0.95);
     const g = ctx.createRadialGradient(px, py, 0, px, py, Rd);
-    g.addColorStop(0, `rgba(255,248,226,${dawn})`);
-    g.addColorStop(0.1, `rgba(255,232,170,${0.97 * dawn})`);
-    g.addColorStop(0.3, `rgba(255,170,90,${0.9 * dawn})`);
-    g.addColorStop(0.56, `rgba(214,96,104,${0.8 * dawn})`);
-    g.addColorStop(0.8, `rgba(84,86,190,${0.75 * dawn})`);
-    g.addColorStop(0.95, `rgba(40,62,160,${0.6 * dawn})`);
-    g.addColorStop(1, 'rgba(26,42,106,0)');
+    g.addColorStop(0, `rgba(255,247,224,${0.9 * dawn})`);
+    g.addColorStop(0.03, `rgba(255,222,150,${0.62 * dawn})`);
+    g.addColorStop(0.12, `rgba(255,190,90,${0.34 * dawn})`);
+    g.addColorStop(0.32, `rgba(255,150,50,${0.17 * dawn})`);
+    g.addColorStop(0.6, `rgba(200,100,40,${0.07 * dawn})`);
+    g.addColorStop(1, 'rgba(80,40,20,0)');
     ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(px, py, Rd, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(0, 0, 1080, 1920);
   }
   // stars (they pop in just behind the front)
   const S = stars();
@@ -156,10 +147,12 @@ const sunDiscCache = (variant: number) =>
   memo('s06:sunDisc:' + variant, () => {
     const r = SUN.r;
     const R = Math.ceil(r * 1.08);
+    // ½ resolution (drawn at full size): 4× cheaper to build per tab; the limb stays clean under the chromosphere
     const c = document.createElement('canvas');
-    c.width = 2 * R;
-    c.height = 2 * R;
+    c.width = R;
+    c.height = R;
     const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    ctx.scale(0.5, 0.5);
     const cx = R;
     const cy = R;
     const d = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -203,7 +196,7 @@ const sunHaloCache = () =>
   memo('s06:sunHalo', () => {
     const r = SUN.r;
     const H = Math.ceil(r * 2.4 + 40);
-    const k = 0.5;
+    const k = 0.25; // a soft glow: ¼ resolution is plenty
     const c = document.createElement('canvas');
     c.width = Math.ceil(2 * H * k);
     c.height = Math.ceil(2 * H * k);
@@ -339,150 +332,192 @@ export function drawSun(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, 
   ctx.restore();
 }
 
-// ---------------------------------------------------------------- the Earth
-/** how far behind the planet the Sun sits (terminator just under the narration lane) */
-const BETA = 1.42;
-
-export function drawEarth(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, irGlow: number) {
-  const e = earthGeom(frame);
-  ctx.save();
-  applyWorld(ctx, cam);
-  const { cx, cy, r } = e;
-  const dy = cy - EARTH.cy;
-  const zk = Math.max(1, cam.z);
-  // atmosphere outer glow (forward-scattered sunlight above the limb)
-  const ag = ctx.createRadialGradient(cx, cy, r - 2, cx, cy, r + 120);
-  ag.addColorStop(0, 'rgba(150,225,255,0.62)');
-  ag.addColorStop(0.06, 'rgba(91,200,255,0.3)');
-  ag.addColorStop(0.32, 'rgba(60,140,255,0.07)');
-  ag.addColorStop(1, 'rgba(40,100,255,0)');
-  ctx.fillStyle = ag;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 120, Math.PI, 2 * Math.PI);
-  ctx.fill();
-  // IR aura (the Earth glows in the infrared)
-  if (irGlow > 0.001) {
-    const ig = ctx.createRadialGradient(cx, cy, r, cx, cy, r + 300);
-    ig.addColorStop(0, `rgba(255,59,47,${0.22 * irGlow})`);
-    ig.addColorStop(0.25, `rgba(200,30,40,${0.08 * irGlow})`);
-    ig.addColorStop(1, 'rgba(120,14,26,0)');
-    ctx.fillStyle = ig;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 300, Math.PI, 2 * Math.PI);
-    ctx.fill();
-  }
-  // the planet: GPU-shaded cap (map-projected clouds & continents, terminator, Rayleigh limb)
-  if (cam.lz < 0.5) {
-    const cap = earthCap(frame, BETA);
-    ctx.drawImage(cap, 0, EARTH_CAP.y0 + dy, EARTH_CAP.w * 2, EARTH_CAP.h * 2);
-  }
-  // land under the dive target, lit at dusk, fading in as we descend (soft circular edge)
-  const terrA = clamp((cam.lz - 0.05) / 0.2);
-  if (terrA > 0.01) {
-    const half = (1300 * 13) / ZF;
-    ctx.save();
-    ctx.globalAlpha = terrA;
-    ctx.drawImage(terrainTex(), DIVE_T.x - half, DIVE_T.y + dy - half, 2 * half, 2 * half);
-    ctx.restore();
-  }
-  // crisp atmosphere rim
-  ctx.strokeStyle = 'rgba(190,236,255,0.95)';
-  ctx.lineWidth = 2 / zk;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 1, Math.PI * 1.05, Math.PI * 1.95);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(91,200,255,0.3)';
-  ctx.lineWidth = 10 / Math.sqrt(zk);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 5, Math.PI * 1.05, Math.PI * 1.95);
-  ctx.stroke();
-  ctx.restore();
-}
-
-/** The cloud deck: the camera falls through it during the dive (screen-space parallax, faster than the ground). */
-export function drawDiveClouds(ctx: CanvasRenderingContext2D, frame: number, cam: Cam) {
-  if (frame < T.diveStart + 8 || frame > T.diveStart + 44) return;
-  const puffs = cloudPuffs();
-  const cx = cam.sx;
-  const cy = cam.sy;
-  ctx.save();
-  // a thin veil while we are inside the deck
-  const veil = Math.exp(-(((frame - (T.diveStart + 27)) / 7) ** 2)) * 0.22;
-  if (veil > 0.01) {
-    ctx.fillStyle = `rgba(190,205,225,${veil})`;
-    ctx.fillRect(0, 0, 1080, 1920);
-  }
-  for (let i = 0; i < 16; i++) {
-    const t0 = T.diveStart + 10 + hash01(i, 91) * 22;
-    const age = frame - t0;
-    if (age < 0 || age > 18) continue;
-    const s = Math.exp(age * 0.16);
-    const a = Math.sin(Math.PI * (age / 18)) * (0.55 + 0.3 * hash01(i, 92));
-    const ang = hash01(i, 93) * Math.PI * 2;
-    const d0 = 60 + 260 * hash01(i, 94);
-    const x = cx + Math.cos(ang) * d0 * s;
-    const y = cy + Math.sin(ang) * d0 * s * 0.8;
-    const w = (260 + 220 * hash01(i, 95)) * s;
-    ctx.globalAlpha = a;
-    ctx.drawImage(puffs[i % 3], x - w / 2, y - w * 0.4, w, w * 0.8);
-  }
-  ctx.restore();
-}
-
 // ---------------------------------------------------------------- heat-death grey (opening)
-/** Grey noise covering everything outside the expanding colour flood. */
-export function drawGrey(ctx: CanvasRenderingContext2D, frame: number) {
-  const R = floodR(frame);
-  if (R > 1400) return;
-  const tiles = greyTiles();
-  const tile = tiles[frame % tiles.length];
-  const r = mulberry32(frame * 131 + 7);
-  const ox = -Math.floor(r() * 256);
-  const oy = -Math.floor(r() * 256);
-  ctx.imageSmoothingEnabled = false;
-  for (let y = oy * 2; y < 1920; y += 512) for (let x = ox * 2; x < 1080; x += 512) ctx.drawImage(tile, x, y, 512, 512);
-  ctx.imageSmoothingEnabled = true;
-  if (R < 1) return;
-  // punch the flood hole (soft edge just inside the light front)
-  ctx.globalCompositeOperation = 'destination-out';
-  const cx = GOLD_POINT.x;
-  const cy = GOLD_POINT.y;
-  const edge = 14 + R * 0.04;
-  const g = ctx.createRadialGradient(cx, cy, Math.max(0, R - edge), cx, cy, R + 2);
-  g.addColorStop(0, 'rgba(0,0,0,1)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(cx, cy, R + 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
-}
+// The grey DISSOLVES GRAIN BY GRAIN (S05's random walk run backwards): every ½-res grain has a threshold
+//   T = d / m(θ)·(1 + 16 % warp) + W(d)·(g − ½) + 36·(c − ½)
+// (d = distance from the point, m(θ) = 1 + 7 % fbm on the circle — an organic, angle-dependent front; g = the grain's
+// own random number; c = clumps of grains; W widens with d). A grain clears when the light radius R(t) passes its T;
+// grains within a few px of R glint warm white-gold — the light reaching them. No ring, no disc.
+const GW = 540;
+const GH = 960;
+const CS = 4; // coarse grid step (½-res px) of the smooth part of T
+const TL = 24; // tile size (½-res px): only tiles on the light front are computed per pixel
+const NTX = Math.ceil(GW / TL);
+const NTY = Math.ceil(GH / TL);
+/** the grain's own random number (stable per ½-res pixel) */
+const grain = (i: number) => {
+  let h = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+};
+const greyField = () =>
+  memo('s06:greyField', () => {
+    const nz = makeNoise(5055);
+    const ang = new Float32Array(1024);
+    for (let k = 0; k < 1024; k++) {
+      const a = (k / 1024) * Math.PI * 2;
+      ang[k] = 1 + 0.1 * nz.fbm2(Math.cos(a) * 2.2 + 3, Math.sin(a) * 2.2 - 1, 4);
+    }
+    // the smooth part of T (organic front + clumps) and the grain spread W, on a coarse grid
+    const r = mulberry32(5150);
+    const CW = Math.ceil(GW / CS) + 1;
+    const CH = Math.ceil(GH / CS) + 1;
+    const SM = new Float32Array(CW * CH);
+    const WW = new Float32Array(CW * CH);
+    const LW = 55;
+    const LH = 97;
+    const cl = new Float32Array(LW * LH);
+    const wp = new Float32Array(LW * LH);
+    for (let j = 0; j < LH; j++)
+      for (let i = 0; i < LW; i++) {
+        cl[j * LW + i] = r();
+        wp[j * LW + i] = nz.fbm2(i / 9 + 7.3, j / 9 - 2.1, 4);
+      }
+    const bilL = (A: Float32Array, fx: number, fy: number) => {
+      const x0 = Math.min(LW - 2, Math.floor(fx));
+      const y0 = Math.min(LH - 2, Math.floor(fy));
+      const tx = fx - x0;
+      const ty = fy - y0;
+      const a = A[y0 * LW + x0] + (A[y0 * LW + x0 + 1] - A[y0 * LW + x0]) * tx;
+      const b = A[(y0 + 1) * LW + x0] + (A[(y0 + 1) * LW + x0 + 1] - A[(y0 + 1) * LW + x0]) * tx;
+      return a + (b - a) * ty;
+    };
+    for (let gy = 0; gy < CH; gy++)
+      for (let gx = 0; gx < CW; gx++) {
+        const x = gx * CS;
+        const y = gy * CS;
+        const dx = x * 2 + 1 - GOLD_POINT.x;
+        const dy = y * 2 + 1 - GOLD_POINT.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const k = Math.floor(((Math.atan2(dy, dx) + Math.PI) / (Math.PI * 2)) * 1024) & 1023;
+        const fx = Math.min(x / GW, 1) * (LW - 1);
+        const fy = Math.min(y / GH, 1) * (LH - 1);
+        SM[gy * CW + gx] = (d / ang[k]) * (1 + 0.16 * bilL(wp, fx, fy)) + 36 * (bilL(cl, fx, fy) - 0.5);
+        WW[gy * CW + gx] = 26 + 0.075 * d;
+      }
+    // per-tile bounds of T
+    const tMin = new Float32Array(NTX * NTY);
+    const tMax = new Float32Array(NTX * NTY);
+    let maxT = 0;
+    for (let ty = 0; ty < NTY; ty++)
+      for (let tx = 0; tx < NTX; tx++) {
+        let lo = 1e9;
+        let hi = -1e9;
+        for (let gy = (ty * TL) / CS; gy <= Math.min(CH - 1, ((ty + 1) * TL) / CS); gy++)
+          for (let gx = (tx * TL) / CS; gx <= Math.min(CW - 1, ((tx + 1) * TL) / CS); gx++) {
+            const g = gy * CW + gx;
+            lo = Math.min(lo, SM[g] - WW[g] / 2);
+            hi = Math.max(hi, SM[g] + WW[g] / 2);
+          }
+        tMin[ty * NTX + tx] = lo - 2;
+        tMax[ty * NTX + tx] = hi + 2;
+        maxT = Math.max(maxT, hi + 2);
+      }
+    // boiling luminance noise — S05's own law: #5C5C5C + (a + b − 1)·15.3 per ½-res pixel (σ ≈ 6 %), upscaled with
+    // smoothing: four 256² tiles (bytes + canvases), a new tile + offset every frame
+    const tiles: Uint8Array[] = [];
+    const tileCv: HTMLCanvasElement[] = [];
+    for (let t = 0; t < 4; t++) {
+      const rr = mulberry32(900 + t * 17);
+      const a = new Uint8Array(256 * 256);
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const cx = c.getContext('2d', { willReadFrequently: true })!;
+      const im = cx.createImageData(256, 256);
+      for (let i = 0; i < a.length; i++) {
+        a[i] = Math.max(0, Math.min(255, Math.round(92 + (rr() + rr() - 1) * 15.3)));
+        im.data[i * 4] = a[i];
+        im.data[i * 4 + 1] = a[i];
+        im.data[i * 4 + 2] = a[i];
+        im.data[i * 4 + 3] = 255;
+      }
+      cx.putImageData(im, 0, 0);
+      tiles.push(a);
+      tileCv.push(c);
+    }
+    const cv = document.createElement('canvas');
+    cv.width = GW;
+    cv.height = GH;
+    const cx = cv.getContext('2d', { willReadFrequently: true })!;
+    return { SM, WW, CW, tMin, tMax, maxT, tiles, tileCv, cv, cx, img: cx.createImageData(TL, TL) };
+  });
 
-/** The light front of the flood: an additive white-gold shock ring, clearly brighter than the grey, with a thin
- *  blue fringe outside. Drawn on the main canvas (and into the bloom source). */
-export function drawFloodFront(ctx: CanvasRenderingContext2D, frame: number, k = 1) {
-  const R = floodR(frame);
-  if (R < 6 || R > 1400) return;
-  const fade = Math.min(1, R / 30) * (1 - seg(R, 1150, 1400));
-  const cx = GOLD_POINT.x;
-  const cy = GOLD_POINT.y;
-  const w = 30 + R * 0.024;
-  const r0 = Math.max(0, R - w);
-  const g = ctx.createRadialGradient(cx, cy, r0, cx, cy, R + 16);
-  const span = R + 16 - r0;
-  const at = (rr: number) => clamp((rr - r0) / span);
-  g.addColorStop(0, 'rgba(255,220,150,0)');
-  g.addColorStop(at(R - w * 0.45), `rgba(255,226,160,${0.35 * fade * k})`);
-  g.addColorStop(at(R - 3), `rgba(255,241,200,${0.8 * fade * k})`);
-  g.addColorStop(at(R + 3), `rgba(200,225,255,${0.5 * fade * k})`);
-  g.addColorStop(at(R + 9), `rgba(110,160,255,${0.28 * fade * k})`);
-  g.addColorStop(1, 'rgba(91,140,255,0)');
+/** the grey is drawn until the light radius has passed its last grain (~f33) */
+export const greyOn = (frame: number) => frame < T.floodEnd && (frame < T.floodStart || floodR(frame) < greyField().maxT + 10);
+
+/** Draw the dissolving grey (logical coordinates; its own ½-res raster upscaled ×2 like S05's). The boiling noise
+ *  is blitted natively; only the tiles the light front is crossing are computed grain by grain. */
+export function drawGrey(ctx: CanvasRenderingContext2D, frame: number) {
+  if (!greyOn(frame)) return;
+  const G = greyField();
+  const R = frame < T.floodStart ? -1e9 : floodR(frame);
+  const tile = G.tiles[frame & 3];
+  const rr = mulberry32(frame * 131 + 7);
+  const ox = Math.floor(rr() * 256);
+  const oy = Math.floor(rr() * 256);
+  const g = G.cx;
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, GW, GH);
+  for (let y = -oy; y < GH; y += 256) for (let x = -ox; x < GW; x += 256) g.drawImage(G.tileCv[frame & 3], x, y);
+  const D = G.img.data;
+  const CW = G.CW;
+  for (let ty = 0; ty < NTY; ty++)
+    for (let tx = 0; tx < NTX; tx++) {
+      const ti = ty * NTX + tx;
+      if (G.tMin[ti] - R > 8) continue; // still fully grey
+      const x0 = tx * TL;
+      const y0 = ty * TL;
+      if (G.tMax[ti] - R < -10) {
+        g.clearRect(x0, y0, TL, TL); // fully cleared
+        continue;
+      }
+      for (let yy = 0; yy < TL; yy++) {
+        const y = y0 + yy;
+        const fy = y / CS;
+        const gy = Math.floor(fy);
+        const wy = fy - gy;
+        const row = ((y + oy) & 255) << 8;
+        for (let xx = 0; xx < TL; xx++) {
+          const x = x0 + xx;
+          const o = (yy * TL + xx) * 4;
+          if (x >= GW || y >= GH) {
+            D[o + 3] = 0;
+            continue;
+          }
+          const fx = x / CS;
+          const gx = Math.floor(fx);
+          const wx = fx - gx;
+          const q = gy * CW + gx;
+          const sm0 = G.SM[q] + (G.SM[q + 1] - G.SM[q]) * wx;
+          const sm1 = G.SM[q + CW] + (G.SM[q + CW + 1] - G.SM[q + CW]) * wx;
+          const w0 = G.WW[q] + (G.WW[q + 1] - G.WW[q]) * wx;
+          const w1 = G.WW[q + CW] + (G.WW[q + CW + 1] - G.WW[q + CW]) * wx;
+          const t = sm0 + (sm1 - sm0) * wy + (w0 + (w1 - w0) * wy) * (grain(y * GW + x) - 0.5) - R;
+          const v = tile[row | ((x + ox) & 255)];
+          if (t > 7) {
+            D[o] = v;
+            D[o + 1] = v;
+            D[o + 2] = v;
+            D[o + 3] = 255;
+          } else if (t > -9) {
+            // the grain the light is reaching: it flares warm and goes
+            const gl = 1 - Math.abs(t + 1) / 8;
+            const k = gl * gl;
+            D[o] = v + (255 - v) * k;
+            D[o + 1] = v + (226 - v) * k;
+            D[o + 2] = v + (150 - v) * k;
+            D[o + 3] = Math.round(255 * Math.min(1, t > 0 ? 1 : k));
+          } else D[o + 3] = 0;
+        }
+      }
+      g.putImageData(G.img, x0, y0);
+    }
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(cx, cy, R + 16, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.imageSmoothingEnabled = true; // as S05 (bilinear upscale of its ½-res grain)
+  ctx.drawImage(G.cv, 0, 0, 1080, 1920);
   ctx.restore();
 }
 
@@ -509,10 +544,10 @@ export function drawGoldPoint(ctx: CanvasRenderingContext2D, frame: number) {
 
 /** Horizontal anamorphic flare on the point while it ignites (screen space). */
 export function drawIgnitionFlare(ctx: CanvasRenderingContext2D, frame: number, cam: Cam) {
-  const k = Math.min(seg(frame, 2, 12), 1 - seg(frame, 26, 56));
+  const k = 0.6 * Math.min(seg(frame, 2, 10), 1 - seg(frame, 18, 40));
   if (k <= 0) return;
   const [x, y] = sunScreen(frame, cam);
-  const L = 160 + 900 * ease.outCubic(seg(frame, 2, 30));
+  const L = 90 + 330 * ease.outCubic(seg(frame, 2, 30));
   const g = ctx.createLinearGradient(x - L, y, x + L, y);
   g.addColorStop(0, 'rgba(255,190,90,0)');
   g.addColorStop(0.5, `rgba(255,236,190,${0.55 * k})`);

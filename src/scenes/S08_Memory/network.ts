@@ -9,6 +9,7 @@ import { makeNoise } from '../../lib/noise';
 import { hash01, mulberry32 } from '../../lib/random';
 import { FIN_C, K_N, MACRO_K, M_WORLD, PRINTS, Z_NET } from './trail';
 import { cpuCanvas } from './CpuCanvas';
+import { NET_DATA } from './netData';
 
 const SF = FIGURE_S08.height / 1344;
 export const boxToFinal = (bx: number, by: number): [number, number] => [
@@ -70,7 +71,58 @@ function headPath(): Path2D {
 }
 
 export function getNet(): Net {
-  return memo('S08:net', () => buildNet());
+  return memo('S08:net', () => decodeNet() ?? buildNet());
+}
+
+// ---- baked network (netData.ts): every render tab / still would otherwise rebuild it (~90 ms). The bake is used
+// only if its fingerprint matches the current inputs (trail geometry, figure frame, growth version); otherwise the
+// network is grown at runtime exactly as before. Re-bake after changing any input (see netData.ts header).
+const NET_VERSION = 'v2';
+export function netFingerprint(): string {
+  const parts: number[] = [Z_NET, K_N, FIN_C[0], FIN_C[1], M_WORLD[0], M_WORLD[1], FIGURE_S08.cx, FIGURE_S08.groundY, FIGURE_S08.height];
+  for (const p of PRINTS.slice(0, MACRO_K + 1)) parts.push(p.x, p.y);
+  return NET_VERSION + ':' + parts.map((v) => v.toFixed(4)).join(',');
+}
+const F32_KEYS = ['x', 'y', 'r', 'tA', 'dist', 'seedH', 'firstKid'] as const;
+function b64ToBytes(b: string): Uint8Array {
+  const bin = atob(b);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function bytesToB64(u: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function decodeNet(): Net | null {
+  const d = NET_DATA;
+  if (!d || d.fp !== netFingerprint()) return null;
+  const f32 = (k: string) => new Float32Array(b64ToBytes(d.arrays[k]).buffer);
+  const axg = axonGeom();
+  return {
+    n: d.n,
+    x: f32('x'),
+    y: f32('y'),
+    r: f32('r'),
+    tA: f32('tA'),
+    dist: f32('dist'),
+    seedH: f32('seedH'),
+    firstKid: f32('firstKid'),
+    parent: new Int32Array(b64ToBytes(d.arrays.parent).buffer),
+    somas: d.somas.map((s) => ({ ...s })),
+    axon: axg.axon,
+    axonD: axg.axonD,
+    axonBeadEnd: axg.beadEnd,
+  };
+}
+/** dev: serialise a freshly grown network for netData.ts */
+export function bakeNet(): string {
+  const net = buildNet();
+  const arrays: Record<string, string> = {};
+  for (const k of F32_KEYS) arrays[k] = bytesToB64(new Uint8Array(net[k].buffer.slice(0)));
+  arrays.parent = bytesToB64(new Uint8Array(net.parent.buffer.slice(0)));
+  return JSON.stringify({ fp: netFingerprint(), n: net.n, somas: net.somas, arrays });
 }
 
 /** HUMAN_PATH rasterised (box px 0..600 × 0..300: the head and shoulders) — a fast inside test */
@@ -324,18 +376,20 @@ function ghostImage(): HTMLCanvasElement {
 
 /**
  * Out-of-focus "other memories" behind the network (depth layer): the same arbor, rotated and magnified, drawn as
- * one dim blurred image. `s` = final→screen scale of the main network (parallax: the ghost scales slower).
+ * one dim blurred image, anchored to the network (its centre rides the network's centre FIN_C under the current
+ * final→screen transform xf) with a gentle parallax (scale ∝ s^0.9). Used only while the network stands alone.
  */
-export function drawNetGhost(ctx: CanvasRenderingContext2D, t: number, s: number, alpha: number) {
+export function drawNetGhost(ctx: CanvasRenderingContext2D, xf: [number, number, number], alpha: number) {
   if (alpha <= 0.002) return;
+  const [s, tx, ty] = xf;
   const img = ghostImage();
-  const sg = Math.pow(s, 0.82) * 1.5;
+  const sg = Math.pow(s, 0.9) * 1.3;
   ctx.save();
-  ctx.translate(540, 940);
+  ctx.translate(s * FIN_C[0] + tx, s * (FIN_C[1] + 8) + ty);
   ctx.rotate(2.55);
   ctx.scale(sg / GH_K, sg / GH_K);
   ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = Math.min(1, alpha * 1.6);
+  ctx.globalAlpha = Math.min(1, alpha);
   ctx.drawImage(img, -GH_SIZE / 2, -GH_SIZE / 2);
   ctx.restore();
 }

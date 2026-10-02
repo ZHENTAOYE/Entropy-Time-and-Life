@@ -9,7 +9,6 @@ import {
   drawEscalationHud,
   drawGutterAxis,
   drawLawHud,
-  drawAuditLabel,
   drawPanelHud,
   drawPhysicsArrow,
   drawQStamps,
@@ -21,7 +20,7 @@ import {
 } from './hud';
 import { drawOpening, introOf } from './opening';
 import { Ctx, drawPanelChrome, glow, gridCanvas, lightTableSprite, rgbaHex, vignetteSprite } from './paint';
-import { drawAudit, drawGas, drawRack, drawTwo, pushInB, Stage, stageAt, Which } from './stages';
+import { drawGas, drawRack, drawTwo, pushInB, Stage, stageAt, Which } from './stages';
 import { GAS_DISC } from './sims';
 
 const EQ_SIZE = 84;
@@ -82,7 +81,7 @@ function annihilationFlash(ctx: Ctx, f: number, mx: number, my: number, glowLaye
 }
 
 // ------------------------------------------------------------------ panels
-function drawStage(ctx: Ctx, s: Stage, w: Which, f: number, P: { x: number; y: number }, glowLayer: boolean) {
+function drawStage(ctx: Ctx, s: Stage, w: Which, f: number, P: { x: number; y: number }, glowLayer: boolean, alpha = 1) {
   if (s === 2) drawTwo(ctx, w, f, P.x, P.y, glowLayer, introOf(f));
   else if (s === 10) drawRack(ctx, w, f, P.x, P.y, glowLayer);
   else {
@@ -90,7 +89,7 @@ function drawStage(ctx: Ctx, s: Stage, w: Which, f: number, P: { x: number; y: n
     // once the swarm starts, a ball leaves panel A's gas on its own launch frame (drawSwarm takes it over): until
     // then it keeps the gas look and stays clipped to the panel, under the HUD
     const launch = w === 'A' && f >= T.swarm ? swarmPlan().launch : null;
-    drawGas(ctx, w, f, P.x, P.y, glowLayer, 1, fringe, launch ? (i) => f >= launch[i] : undefined);
+    drawGas(ctx, w, f, P.x, P.y, glowLayer, alpha, fringe, launch ? (i) => f >= launch[i] : undefined);
   }
 }
 
@@ -106,7 +105,7 @@ function applyZoom(ctx: Ctx, w: Which, f: number) {
   ctx.translate(-cx, -cy);
 }
 
-function panelContent(ctx: Ctx, w: Which, f: number, glowLayer: boolean) {
+function panelContent(ctx: Ctx, w: Which, f: number, glowLayer: boolean, alpha = 1) {
   const P = w === 'A' ? PA : PB;
   const st = stageAt(f);
   if (w === 'A' && f >= T.swarm + 8) return; // every ball has launched: the swarm owns panel A's balls now
@@ -121,13 +120,13 @@ function panelContent(ctx: Ctx, w: Which, f: number, glowLayer: boolean) {
       ctx.beginPath();
       ctx.rect(P.x - 40, ys, PANEL_W + 80, P.y + PANEL_H + 40 - ys);
       ctx.clip();
-      drawStage(ctx, st.prev, w, f, P, true);
+      drawStage(ctx, st.prev, w, f, P, true, alpha);
       ctx.restore();
       ctx.beginPath();
       ctx.rect(P.x - 40, P.y - 40, PANEL_W + 80, ys - P.y + 40);
       ctx.clip();
-      drawStage(ctx, st.cur, w, f, P, true);
-    } else drawStage(ctx, st.cur, w, f, P, true);
+      drawStage(ctx, st.cur, w, f, P, true, alpha);
+    } else drawStage(ctx, st.cur, w, f, P, true, alpha);
     ctx.restore();
     return;
   }
@@ -173,12 +172,23 @@ function offscreen(): HTMLCanvasElement {
 }
 function bGlitchAmount(f: number): number {
   const rev = seg(f, T.verdict2, T.verdict2 + 3) * (1 - seg(f, T.verdict2 + 3, T.verdict2 + 12));
-  const out = seg(f, T.panelsOut - 4, T.panelsOut + 16);
+  const out = seg(f, T.panelsOut - 4, T.panelsOut + 6);
   return Math.max(rev, out);
 }
+/** B's tape ejection: 0 -> 1 over panelsOut-4 .. panelsOut+10 (f422-436). The recording does not fade in place: it
+ * is pulled out of the panel to the right in torn slices (each band at its own speed), its bloom travels with it,
+ * and everything is gone by f436 — before card 7 condenses over the spot. */
+const EJECT_TO = T.panelsOut + 10;
+const bEject = (f: number) => seg(f, T.panelsOut - 4, EJECT_TO);
+/** x offset of the ejected tape (px); band b gets its own multiplier so the slices shear apart as they leave */
+const ejectDx = (f: number, band = -1) => {
+  const e = ease.inCubic(bEject(f));
+  const m = band < 0 ? 1 : 0.75 + 0.5 * hash01(band, 91);
+  return 760 * e * m;
+};
 function panelBWithGlitch(ctx: Ctx, f: number) {
   const g = bGlitchAmount(f);
-  const out = seg(f, T.panelsOut - 4, T.panelsOut + 18);
+  const out = bEject(f);
   if (g <= 0.001) {
     panelContent(ctx, 'B', f, false);
     return;
@@ -195,17 +205,23 @@ function panelBWithGlitch(ctx: Ctx, f: number) {
   const bh = off.height / bands;
   const fr = Math.floor(f);
   ctx.save();
+  // the slices stay inside the panel's slot while they are pulled out (a tape leaving its deck)
+  if (out > 0) {
+    ctx.beginPath();
+    ctx.rect(PB.x - 40, PB.y - 40, 1080 - (PB.x - 40), off.height);
+    ctx.clip();
+  }
   ctx.globalAlpha = 1 - ease.inQuad(out);
   for (let b = 0; b < bands; b++) {
     const r = hash01(fr * 31 + b, 77);
-    const shift = (r - 0.5) * 90 * g * (r > 0.45 ? 1 : 0.15);
+    const shift = (r - 0.5) * 90 * g * (r > 0.45 ? 1 : 0.15) + (out > 0 ? ejectDx(f, b) : 0);
     const sy = b * bh;
     ctx.drawImage(off, 0, sy, off.width, bh, PB.x - 40 + shift, PB.y - 40 + sy, off.width, bh);
   }
   // RGB ghost copies
   ctx.globalCompositeOperation = 'lighter';
   ctx.globalAlpha = 0.35 * g * (1 - out);
-  ctx.drawImage(off, PB.x - 40 + 7 * g, PB.y - 40);
+  ctx.drawImage(off, PB.x - 40 + 7 * g + (out > 0 ? ejectDx(f) : 0), PB.y - 40);
   ctx.restore();
 }
 
@@ -312,8 +328,6 @@ function drawWorld(ctx: Ctx, f: number) {
     panelBWithGlitch(ctx, f);
   }
   scanBeams(ctx, f);
-  drawAudit(ctx, 'A', f, false);
-  drawAudit(ctx, 'B', f, false);
   // the law
   if (eqVisible(f)) {
     for (const w of ['A', 'B'] as const) {
@@ -331,7 +345,6 @@ function drawWorld(ctx: Ctx, f: number) {
   drawPanelHud(ctx, f);
   drawCountdown(ctx, f, false);
   drawQStamps(ctx, f, false);
-  drawAuditLabel(ctx, f);
   drawLawHud(ctx, f, false);
   drawEscalationHud(ctx, f, false);
   drawVerdictStamps(ctx, f, false);
@@ -384,7 +397,18 @@ export function drawGlow(ctx: Ctx, f: number) {
   drawOpening(ctx, f, true);
   if (f >= 38) {
     panelContent(ctx, 'A', f, true);
-    if (bGlitchAmount(f) < 0.5 || f < T.panelsOut) panelContent(ctx, 'B', f, true);
+    // B's bloom leaves with its ejected tape slices (same slide), fading a little ahead of them so the torn
+    // slices — not a soft glow disc — carry the drop out of the panel (gone by f436)
+    const bA = (1 - ease.inQuad(bEject(f))) * (1 - bEject(f));
+    if (bA > 0.003) {
+      const dx = ejectDx(f);
+      if (dx > 0.01) {
+        ctx.save();
+        ctx.translate(dx, 0);
+        panelContent(ctx, 'B', f, true, bA);
+        ctx.restore();
+      } else panelContent(ctx, 'B', f, true, bA);
+    }
   }
   if (eqVisible(f)) {
     for (const w of ['A', 'B'] as const) {
@@ -395,8 +419,6 @@ export function drawGlow(ctx: Ctx, f: number) {
   }
   drawCountdown(ctx, f, true);
   drawQStamps(ctx, f, true);
-  drawAudit(ctx, 'A', f, true);
-  drawAudit(ctx, 'B', f, true);
   drawEscalationHud(ctx, f, true);
   drawVerdictStamps(ctx, f, true);
   drawPhysicsArrow(ctx, f, true);

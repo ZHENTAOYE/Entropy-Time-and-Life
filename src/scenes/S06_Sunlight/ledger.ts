@@ -19,13 +19,14 @@ const RULE_Y = 372;
 const E_Y = 414;
 const TILE_A_Y = 506;
 export const ROW_A = 610;
-const SEP_Y = 676;
-const TILE_B_Y = 736;
-export const ROW_B = 832;
-const DBL_Y = 892;
+/** the wavelength annotations (阳光 0.5 µm | λ ×20 | 红外 10 µm) under the photon counters */
+export const ANN_Y = 686;
+const SEP_Y = 716;
+const TILE_B_Y = 776;
+export const ROW_B = 868;
+const DBL_Y = 926;
 const HALF = 420;
-/** bottom of the ledger block (photons dim above this) */
-export const LEDGER_BOTTOM = 905;
+const SPINE_END = 940;
 
 const FLAP_NOISE = '光能熵子量多少';
 const RED_TXT = '#FF4A3A';
@@ -39,6 +40,12 @@ export const LEDGER_FONTS: Array<[string, string]> = [
 ];
 
 export const ledgerOn = (f: number) => f >= T.ledgerIn - 2 && f <= T.ledgerOut + 28;
+
+/** the ledger's exit (dissolves upward): opacity and lift, shared with the pinned photon labels */
+export const ledgerFade = (f: number) => {
+  const q = seg(f, T.ledgerOut, T.ledgerOut + 26);
+  return { vis: 1 - ease.inQuad(q), dy: -q * 30, q };
+};
 
 let XB = 0; // extra blur applied to every element (whole-ledger dissolve)
 const filt = (b: number) => {
@@ -218,9 +225,8 @@ function hline(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number,
 
 export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   if (!ledgerOn(frame)) return;
-  const vis = 1 - ease.inQuad(seg(frame, T.ledgerOut, T.ledgerOut + 26));
+  const { vis, q: outQ } = ledgerFade(frame);
   if (vis <= 0.001) return;
-  const outQ = seg(frame, T.ledgerOut, T.ledgerOut + 26);
   XB = outQ * 8;
   ctx.save();
   ctx.globalAlpha = vis;
@@ -237,9 +243,9 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(SPINE - 4, 290);
-  ctx.lineTo(SPINE - 4, 290 + 615 * spine);
+  ctx.lineTo(SPINE - 4, 290 + (SPINE_END - 290) * spine);
   ctx.moveTo(SPINE + 4, 290);
-  ctx.lineTo(SPINE + 4, 290 + 615 * spine);
+  ctx.lineTo(SPINE + 4, 290 + (SPINE_END - 290) * spine);
   ctx.stroke();
   hline(ctx, SPINE - HALF * ruleB, SPINE + HALF * ruleB, SEP_Y, 'rgba(243,239,230,0.2)');
   hline(ctx, SPINE - HALF * dbl, SPINE + HALF * dbl, DBL_Y, 'rgba(243,239,230,0.62)', 1.3);

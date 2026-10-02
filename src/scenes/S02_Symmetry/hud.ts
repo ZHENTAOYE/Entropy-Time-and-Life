@@ -33,8 +33,8 @@ export function drawGutterAxis(ctx: Ctx, f: number) {
 
 // ------------------------------------------------------------------ countdown 3·2·1 and the gutter "?"
 export function drawCountdown(ctx: Ctx, f: number, glowLayer: boolean) {
-  // leaves the gutter centre before the audit label (T.audit + 4) takes it
-  const a = win(f, 67, T.audit + 6, 5, 8);
+  // leaves the gutter centre (f152-160) before the law's 「t → −t」 plate takes it (T.subst - 6)
+  const a = win(f, 67, T.subst - 6, 5, 8);
   if (a <= 0) return;
   const cx = 540;
   const cy = GUTTER_Y;
@@ -90,13 +90,15 @@ export function drawCountdown(ctx: Ctx, f: number, glowLayer: boolean) {
 }
 
 // ------------------------------------------------------------------ the big "?" stamps in both panels
-/** The "?" lands big on both panels (f134), then retreats into the top-right corner as a badge while the
- * conservation audit is drawn at the panel centre (f146-156) — the verdict is still "?" — and leaves with the law. */
+/** The "?" lands big on both panels (f134), holds, then retreats into the top-right corner as a badge (f144-154)
+ * to make room for the law, which writes on at the panel centre from f150 (the verdict is still "?"); the badges
+ * leave as B's substitution t -> (−t) begins (f164-174). */
+const Q_RETREAT = T.qStamp + 10;
 export function drawQStamps(ctx: Ctx, f: number, glowLayer: boolean) {
-  const a = win(f, T.qStamp, T.eqIn + 2, 5, 12);
+  const a = win(f, T.qStamp, T.subst + 8, 5, 10);
   if (a <= 0) return;
   const t = seg(f, T.qStamp, T.qStamp + 7);
-  const mv = ease.inOutCubic(seg(f, T.audit, T.audit + 10));
+  const mv = ease.inOutCubic(seg(f, Q_RETREAT, Q_RETREAT + 10));
   const sc = lerp(1.7, 1, ease.outBack(t)) * lerp(1, 0.26, mv);
   for (const [P, rot] of [
     [PA, -0.05],
@@ -128,71 +130,20 @@ export function drawQStamps(ctx: Ctx, f: number, glowLayer: boolean) {
   }
 }
 
-// ------------------------------------------------------------------ audit verdict (both recordings are lawful)
-const AUDIT_PARTS: Array<[string, 'A' | 'B' | null]> = [
-  ['A · Σp ', null],
-  ['', 'A'],
-  ['  ΣE ', null],
-  ['', 'A'],
-  ['   |   B · Σp ', null],
-  ['', 'B'],
-  ['  ΣE ', null],
-  ['', 'B'],
-];
-export function drawAuditLabel(ctx: Ctx, f: number) {
-  const a = win(f, T.audit + 4, T.eqIn, 4, 10);
-  if (a <= 0) return;
-  ctx.save();
-  ctx.font = mono(26, 400);
-  const ck = 26; // width reserved for a check mark
-  const widths = AUDIT_PARTS.map(([s, slot]) => (slot ? ck : ctx.measureText(s).width));
-  const w = widths.reduce((p, q) => p + q, 0);
-  const x0 = Math.round(540 - w / 2);
-  ctx.fillStyle = rgbaHex(C.bg, 0.9 * a);
-  ctx.fillRect(x0 - 24, GUTTER_Y - 27, w + 48, 54);
-  const done = f >= T.auditLand;
-  ctx.strokeStyle = rgbaHex(done ? '#FFFFFF' : C.cyan, 0.45 * a);
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x0 - 24 + 0.5, GUTTER_Y - 27 + 0.5, w + 48, 54);
-  // types on left to right (the check slots count as one character each)
-  let budget = Math.floor((f - T.audit - 4) * 2.5);
-  let x = x0;
-  ctx.textAlign = 'left';
-  AUDIT_PARTS.forEach(([s, slot], i) => {
-    if (slot) {
-      const land = slot === 'A' ? T.auditLandA : T.auditLand;
-      const k = seg(f, land, land + 5);
-      if (k > 0) checkMark(ctx, x + ck / 2, GUTTER_Y, 22 * (1 + 0.4 * (1 - ease.outCubic(k))), slot === 'A' || done ? '#FFFFFF' : C.cyan, a, k * 1.4);
-      else if (budget > 0) {
-        ctx.fillStyle = rgbaHex(C.cyan, 0.45 * a);
-        ctx.fillText('·', x + ck / 2 - 7, GUTTER_Y + 9);
-      }
-      budget -= 1;
-    } else if (budget > 0) {
-      const ch = Array.from(s);
-      const shown = ch.slice(0, Math.max(0, budget)).join('');
-      ctx.fillStyle = rgbaHex(C.cyan, 0.95 * a);
-      ctx.fillText(shown, x, GUTTER_Y + 9);
-      budget -= ch.length;
-    }
-    x += widths[i];
-  });
-  ctx.restore();
-}
-
 // ------------------------------------------------------------------ t → −t (gutter) during the law
 export function drawLawHud(ctx: Ctx, f: number, glowLayer: boolean) {
-  // fully shown f244-256 (T.invariant + 8 .. T.eqOut - 2), gone by f266, before the N plate fades in (T.eqOut + 2)
+  // writes on f160-170; 「：不变 ✓」 completes f204-212 and is held fully opaque to f252 (T.eqOut - 2), gone by f262,
+  // as the N plate fades in beside it (T.eqOut + 2, x 96-396 — no overlap)
   const a = win(f, T.subst - 6, T.eqOut + 8, 8, 10);
   if (a <= 0 || glowLayer) return;
-  const y = GUTTER_Y + 16;
+  const y = GUTTER_Y + 18;
   const k = ease.inOutCubic(seg(f, T.invariant, T.invariant + 8));
   ctx.save();
   const parts: Array<[string, string, string]> = [
-    ['t', latin(54, true, 600), C.core],
-    ['  →  ', latin(46, false, 600), C.cyan],
-    ['−', latin(54, false, 600), '#FF8FA3'],
-    ['t', latin(54, true, 600), C.core],
+    ['t', latin(62, true, 600), C.core],
+    ['  →  ', latin(52, false, 600), C.cyan],
+    ['−', latin(62, false, 600), '#FF8FA3'],
+    ['t', latin(62, true, 600), C.core],
   ];
   const widths = parts.map(([s, font]) => {
     ctx.font = font;
@@ -201,15 +152,15 @@ export function drawLawHud(ctx: Ctx, f: number, glowLayer: boolean) {
   const total = widths.reduce((p, q) => p + q, 0);
   const x0 = 540 - total / 2;
   // 「：不变 ✓」 layout
-  ctx.font = sans(38, 400);
+  ctx.font = sans(44, 400);
   const colonW = ctx.measureText('：').width;
   const xColon = x0 + total + 4;
   const xWord = xColon + colonW + 2;
   const wordW = ctx.measureText('不').width * 2 + 8;
-  const xTick = xWord + wordW + 22;
-  const right = lerp(x0 + total + 40, xTick + 58, k);
+  const xTick = xWord + wordW + 24;
+  const right = lerp(x0 + total + 40, xTick + 64, k);
   ctx.fillStyle = rgbaHex(C.bg, 0.86 * a);
-  ctx.fillRect(x0 - 40, GUTTER_Y - 40, right - (x0 - 40), 80);
+  ctx.fillRect(x0 - 40, GUTTER_Y - 45, right - (x0 - 40), 90);
   let x = x0;
   const shown = clamp((f - T.subst + 6) / 10);
   parts.forEach(([s, font, col], i) => {
@@ -220,12 +171,12 @@ export function drawLawHud(ctx: Ctx, f: number, glowLayer: boolean) {
     x += widths[i];
   });
   if (k > 0) {
-    ctx.font = sans(38, 400);
+    ctx.font = sans(44, 400);
     ctx.fillStyle = rgbaHex(C.cyan, a * k);
     ctx.fillText('：', xColon, y - 2);
     ctx.fillStyle = rgbaHex(C.core, a * k);
     trackedText(ctx, '不变', xWord, y - 2, 8, 'left');
-    checkMark(ctx, xTick + 15, y - 13, 30, C.cyan, a, clamp(k * 2 - 1));
+    checkMark(ctx, xTick + 17, y - 15, 34, C.cyan, a, clamp(k * 2 - 1));
   }
   ctx.restore();
 }
@@ -244,15 +195,19 @@ export function verdictAt(f: number): { glyph: string; col: string; since: numbe
   return null;
 }
 export function drawEscalationHud(ctx: Ctx, f: number, glowLayer: boolean) {
-  const a = win(f, T.eqOut + 2, T.panelsOut + 2, 8, 12);
-  if (a <= 0) return;
+  const a0 = win(f, T.eqOut + 2, T.panelsOut + 2, 8, 12);
+  if (a0 <= 0) return;
+  // after the answer the gutter clears so the eye goes t = 0 ghost -> gold arrow -> 方向→: the N plate and
+  // 能分辨吗？ leave right after the reveal (f396-404), the !! alone stays a beat longer (gone by f412)
+  const a = a0 * (1 - ease.inOutQuad(seg(f, T.reveal + 4, T.reveal + 12)));
+  const av = a0 * (1 - ease.inOutQuad(seg(f, T.reveal + 12, T.reveal + 20)));
   const y = GUTTER_Y;
   const v = verdictAt(f);
   if (glowLayer) {
-    if (v) {
+    if (v && av > 0) {
       const pop = 1 - seg(f, v.since, v.since + 16);
       const gc = v.glyph === '!!' ? C.red : C.cyan;
-      glow(ctx, gc, 892, y, 70 + 50 * pop, (0.18 + 0.5 * pop) * a);
+      glow(ctx, gc, 892, y, 70 + 50 * pop, (0.18 + 0.5 * pop) * av);
     }
     return;
   }
@@ -288,7 +243,7 @@ export function drawEscalationHud(ctx: Ctx, f: number, glowLayer: boolean) {
     trackedText(ctx, s, 586, y + 10, 28 * 0.15, 'left');
   }
   // verdict glyph
-  if (v) {
+  if (v && av > 0.003) {
     const t = seg(f, v.since - 1, v.since + 6);
     const sc = lerp(1.9, 1, ease.outBack(t));
     ctx.save();
@@ -298,10 +253,10 @@ export function drawEscalationHud(ctx: Ctx, f: number, glowLayer: boolean) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const jit = v.glyph === '!!' ? (hash01(f, 5) - 0.5) * 4 * (1 - seg(f, v.since, v.since + 20)) : 0;
-    ctx.fillStyle = rgbaHex(v.col, a * clamp(t * 2));
+    ctx.fillStyle = rgbaHex(v.col, av * clamp(t * 2));
     ctx.fillText(v.glyph, jit, 6);
     ctx.restore();
-    ring(ctx, 892, y, 36, 118, seg(f, v.since, v.since + 16), v.col, 0.7 * a, 1.4);
+    ring(ctx, 892, y, 36, 118, seg(f, v.since, v.since + 16), v.col, 0.7 * av, 1.4);
   }
   ctx.restore();
 }
@@ -323,7 +278,8 @@ export function revealK(f: number) {
 }
 export function drawPanelHud(ctx: Ctx, f: number) {
   const pa = panelsAlpha(f);
-  const on = seg(f, 32, 40) * pa;
+  // the clocks step back to 60 % while C6 「方向，出现了。」 is crisp (f404-412 ramp): they have given their answer
+  const on = seg(f, 32, 40) * pa * (1 - 0.4 * ease.inOutQuad(seg(f, T.reveal + 12, T.reveal + 20)));
   if (on <= 0) return;
   const rv = revealed(f);
   for (const w of ['A', 'B'] as const) {
@@ -347,8 +303,18 @@ export function drawPanelHud(ctx: Ctx, f: number) {
     ctx.fillStyle = rgbaHex(tint, on);
     ctx.fillText(w, P.x + 24, P.y + 49);
     ctx.font = mono(26, 400);
+    if (w === 'B' && rv) {
+      // the film-wide ◀◀ Timecode language (lib/hud.tsx): time tampered with = chromatic aberration, a
+      // 2 + 2·hash px red / cyan split that re-rolls every frame (same hash as the lib component)
+      const split = 2 + 2 * hash01(Math.floor(f), 77);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = `rgba(255,40,80,${(0.75 * on).toFixed(3)})`;
+      ctx.fillText(s, P.x + 64 + split, P.y + 46);
+      ctx.fillStyle = `rgba(40,220,255,${(0.75 * on).toFixed(3)})`;
+      ctx.fillText(s, P.x + 64 - split, P.y + 46);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ctx.fillStyle = rgbaHex(tint, 0.9 * on);
-    if (w === 'B' && rv && Math.floor(f / 8) % 2 === 1) ctx.fillStyle = rgbaHex(tint, 0.45 * on);
     ctx.fillText(s, P.x + 64, P.y + 46);
   }
 }

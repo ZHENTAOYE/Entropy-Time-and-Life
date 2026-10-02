@@ -139,9 +139,10 @@ export const RichCaption: React.FC<{
       shadows.push(`0 0 ${Math.round((L.size ?? 56) * 0.3)}px rgba(255,201,74,0.55)`, `0 0 ${Math.round((L.size ?? 56) * 0.8)}px rgba(255,170,60,0.3)`);
     }
     if (g.kind === 'ghost') {
+      // the unwritten future: cold and nearly invisible (opacity only — a permanent blur filter would cost a
+      // compositing surface per glyph for the whole card)
       c = ghost;
       extraOp = 0.2 + 0.04 * Math.sin(local * 0.21 + g.idx);
-      blur += 0.6;
     }
     if (shadow && g.kind !== 'ghost') shadows.push(`0 2px ${Math.round((L.size ?? 56) * 0.5)}px rgba(0,0,0,0.8)`);
     const tf = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;

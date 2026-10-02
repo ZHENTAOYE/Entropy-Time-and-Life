@@ -6,6 +6,7 @@ import { drawHuman, HUMAN_ANCHORS } from '../../lib/human';
 import { grow } from '../../lib/growth';
 import { clamp, memo, smoothstep } from '../../lib/math';
 import { hash01, mulberry32 } from '../../lib/random';
+import { skinTemp } from './anatomy';
 
 export const BODY_H = 1000;
 const MW = 640;
@@ -19,6 +20,8 @@ export const boxToWorld = (bx: number, by: number): [number, number] => [(bx - 3
 export const MOUTH = boxToWorld(HUMAN_ANCHORS.mouth[0], HUMAN_ANCHORS.mouth[1] + 6);
 export const HEART = boxToWorld(HUMAN_ANCHORS.heart[0], HUMAN_ANCHORS.heart[1]);
 export const HEAD = boxToWorld(300, 150);
+/** mouth → throat → heart: where the intake enters the blood (gut / lungs), the root of the vessel tree */
+export const GUT: Array<[number, number]> = [MOUTH, boxToWorld(300, 262), boxToWorld(312, 340), HEART];
 
 export interface BodyData {
   ns: number;
@@ -178,31 +181,22 @@ export const bodyData = (): BodyData =>
       const gl = Math.hypot(gx, gy) || 1;
       nx[s] = -gx / gl;
       nh[s] = gy / gl; // mask y is down, world H is up
-      // skin temperature as a thermal camera sees it, as an index on the 20–37 °C bar ((T − 20)/17):
-      // forehead/face ≈ 0.9 (35.4 °C), neck/trunk ≈ 0.8, upper arms/thighs ≈ 0.75, hands ≈ 0.62, feet ≈ 0.55.
-      // Smooth ramps only (no hard seams at the neck or hips); thin parts run cooler than thick ones.
-      const core = Math.min(1, dd / 34);
+      // skin temperature as a thermal camera sees it (index on the 20–37 °C bar, (T − 20)/17): anatomy.ts
       const X = sx[s];
       const Hh = sh[s];
-      const ax = Math.abs(X);
-      const trunk = smoothstep(380, 470, Hh) * (1 - smoothstep(850, 905, Hh)) * (1 - smoothstep(100, 125, ax));
-      const isHead = smoothstep(800, 860, Hh) * (1 - smoothstep(66, 92, ax));
-      const arm = smoothstep(100, 125, ax) * smoothstep(360, 420, Hh);
-      const armCool = arm * smoothstep(800, 430, Hh);
-      const legCool = smoothstep(470, 30, Hh);
-      warm[s] = clamp(0.6 + 0.08 * Math.sqrt(core) + 0.07 * trunk + 0.18 * isHead - 0.12 * armCool - 0.15 * legCool, 0.45, 0.92);
+      warm[s] = skinTemp(X / S + 300, 1402 - Hh / S, dd, X, Hh);
       const bx = X / S + 300;
       const by = 1402 - Hh / S;
       bone[s] = boneAt(bx, by) ? 1 : 0;
       if (sh[s] > 860 && dd > 8) head.push(s);
     }
 
-    // ---- vessel tree from the mouth (attractors: a subset of the slots)
+    // ---- vessel tree pumped from the heart (attractors: a subset of the slots)
     const attr: number[] = [];
     for (let s = 0; s < ns; s++) if (hash01(s, 91) < 0.34) attr.push(sx[s], sh[s]);
     const nodes = grow('s07-vessels', {
       attractors: new Float32Array(attr),
-      roots: [[MOUTH[0], MOUTH[1]]],
+      roots: [[HEART[0], HEART[1]]],
       step: 9,
       influence: 58,
       kill: 13,

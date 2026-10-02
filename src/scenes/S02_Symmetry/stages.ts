@@ -138,11 +138,10 @@ function massLabel(ctx: Ctx, w: Which, i: 0 | 1, x: number, y: number, R: number
 
 // ------------------------------------------------------------------ N = 2
 export function dim2(f: number): number {
-  // evidence dims under the stamps, again under the conservation audit, then under the law
+  // evidence dims under the stamps, then again under the law (the equation is written over the strobe exposure)
   const a = 1 - 0.45 * ease.inOutQuad(seg(f, T.qStamp, T.qStamp + 10));
-  const c = 1 - 0.4 * ease.inOutQuad(seg(f, T.audit, T.audit + 8));
-  const b = 1 - 0.25 * ease.inOutQuad(seg(f, T.eqIn - 6, T.eqIn + 6));
-  return a * b * c;
+  const b = 1 - 0.45 * ease.inOutQuad(seg(f, T.eqIn - 4, T.eqIn + 10));
+  return a * b;
 }
 
 export function drawTwo(ctx: Ctx, w: Which, f: number, px: number, py: number, glowLayer: boolean, intro: number) {
@@ -272,57 +271,13 @@ export function drawTwo(ctx: Ctx, w: Which, f: number, px: number, py: number, g
   }
 }
 
-// ------------------------------------------------------------------ conservation audit (why 2 balls can't be told apart)
-// A strobe exposure has no time order, so overlaying the two films proves nothing. What makes the reversed film
-// undetectable is that it is *also lawful*: in both panels the momenta, drawn tip to tail, close on the same Σp
-// before and after the contact, and the kinetic energy bars are equal. Numbers are the closed-form ones of TWO
-// (Σp = (3.680, 0.320), ΣE = 33.549 before and after). B shows its own before/after: before = −v′, after = −u.
-type V2 = [number, number];
-interface Audit {
-  before: [V2, V2];
-  after: [V2, V2];
-  Eb: [number, number];
-  Ea: [number, number];
-}
-export function auditOf(w: Which): Audit {
-  const [m1, m2] = TWO.m;
-  const s = w === 'A' ? 1 : -1;
-  const p = (m: number, v: V2): V2 => [m * v[0] * s, m * v[1] * s];
-  const e = (m: number, v: V2) => 0.5 * m * (v[0] * v[0] + v[1] * v[1]);
-  const [u1, u2] = TWO.u as [V2, V2];
-  const [v1, v2] = TWO.v as [V2, V2];
-  if (w === 'A') return { before: [p(m1, u1), p(m2, u2)], after: [p(m1, v1), p(m2, v2)], Eb: [e(m1, u1), e(m2, u2)], Ea: [e(m1, v1), e(m2, v2)] };
-  return { before: [p(m1, v1), p(m2, v2)], after: [p(m1, u1), p(m2, u2)], Eb: [e(m1, v1), e(m2, v2)], Ea: [e(m1, u1), e(m2, u2)] };
-}
-const AUD_SC = 34; // px per unit of momentum (mass · px/frame)
-const KE_SC = 9; // px per unit of kinetic energy
-const BALL_COL = [C.core, C.cyan] as const;
-export const auditStart = (w: Which) => (w === 'A' ? T.audit + 2 : T.audit + 8);
-export const auditLandOf = (w: Which) => (w === 'A' ? T.auditLandA : T.auditLand);
-export const auditAlpha = (f: number) => seg(f, T.audit, T.audit + 4) * (1 - ease.inOutQuad(seg(f, T.eqIn - 8, T.eqIn + 2)));
-
-/** italic m and v with mono subscripts: "m₁v₁" */
-function momLabel(ctx: Ctx, i: 0 | 1, x: number, y: number, a: number, col: string) {
-  const sub = i === 0 ? '1' : '2';
-  ctx.fillStyle = rgbaHex(col, a);
-  ctx.textAlign = 'left';
-  let cx = x;
-  for (const base of ['m', 'v']) {
-    ctx.font = latin(30, true, 600);
-    ctx.fillText(base, cx, y);
-    cx += ctx.measureText(base).width + 1;
-    ctx.font = mono(15, 700);
-    ctx.fillText(sub, cx, y + 6);
-    cx += ctx.measureText(sub).width + 3;
-  }
-}
-
+// ------------------------------------------------------------------ check mark (the law HUD's 不变 ✓)
 /** a vector check mark (font independent) centred at (x, y), height h */
 export function checkMark(ctx: Ctx, x: number, y: number, h: number, col: string, a: number, k = 1) {
   if (a <= 0.01 || k <= 0) return;
-  const p0: V2 = [x - h * 0.42, y + h * 0.02];
-  const p1: V2 = [x - h * 0.12, y + h * 0.32];
-  const p2: V2 = [x + h * 0.46, y - h * 0.38];
+  const p0: [number, number] = [x - h * 0.42, y + h * 0.02];
+  const p1: [number, number] = [x - h * 0.12, y + h * 0.32];
+  const p2: [number, number] = [x + h * 0.46, y - h * 0.38];
   const l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
   const l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
   const L = (l1 + l2) * clamp(k);
@@ -341,182 +296,6 @@ export function checkMark(ctx: Ctx, x: number, y: number, h: number, col: string
   ctx.stroke();
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'miter';
-}
-
-export function drawAudit(ctx: Ctx, w: Which, f: number, glowLayer: boolean) {
-  const A = auditAlpha(f);
-  if (A <= 0.003) return;
-  const P = w === 'A' ? PA : PB;
-  const au = auditOf(w);
-  const s0 = auditStart(w);
-  const land = auditLandOf(w);
-  const ox = P.x + TWO.contact[0];
-  const oy = P.y + TWO.contact[1];
-  const pt = (v: V2): V2 => [v[0] * AUD_SC, v[1] * AUD_SC];
-  const b1 = pt(au.before[0]);
-  const b2 = pt(au.before[1]);
-  const a1 = pt(au.after[0]);
-  const a2 = pt(au.after[1]);
-  const tip: V2 = [ox + b1[0] + b2[0], oy + b1[1] + b2[1]];
-  const kb1 = ease.outCubic(seg(f, s0, s0 + 4));
-  const kb2 = ease.outCubic(seg(f, s0 + 3, s0 + 7));
-  const kr = ease.inOutCubic(seg(f, s0 + 6, s0 + 9));
-  const ka1 = ease.outCubic(seg(f, land - 8, land - 4));
-  const ka2 = ease.inOutCubic(seg(f, land - 5, land));
-  const landed = f >= land;
-  const flash = landed ? 1 - seg(f, land, land + 14) : 0;
-  if (glowLayer) {
-    if (kb2 > 0) glow(ctx, C.core, tip[0], tip[1], 36, 0.3 * A * kb2);
-    if (flash > 0) glow(ctx, '#FFFFFF', tip[0], tip[1], 60 + 60 * (1 - flash), 0.55 * flash * A);
-    if (ka2 > 0 && ka2 < 1) glow(ctx, C.cyan, ox + a1[0] + a2[0] * ka2, oy + a1[1] + a2[1] * ka2, 40, 0.45 * A);
-    return;
-  }
-  ctx.save();
-  // origin: the contact point
-  ctx.fillStyle = rgbaHex(C.core, 0.9 * A);
-  ctx.beginPath();
-  ctx.arc(ox, oy, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-  const seg2 = (x0: number, y0: number, v: V2, k: number, col: string, a: number, dashed: boolean, lw: number) => {
-    if (k <= 0.001) return;
-    ctx.setLineDash(dashed ? [8, 5] : []);
-    arrow(ctx, x0, y0, x0 + v[0] * k, y0 + v[1] * k, 14, rgbaHex(col, a), lw);
-    ctx.setLineDash([]);
-  };
-  // the resultant Σp (closing side) is a broad translucent ribbon under the chains — a different kind of mark
-  // from the two momentum arrows; it brightens when both chains have landed on its tip
-  if (kr > 0) {
-    const ex = ox + (tip[0] - ox) * kr;
-    const ey = oy + (tip[1] - oy) * kr;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = rgbaHex('#FFFFFF', (landed ? 0.3 : 0.16) * A);
-    ctx.lineWidth = 12;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(ex, ey);
-    ctx.stroke();
-    ctx.lineCap = 'butt';
-    ctx.strokeStyle = rgbaHex('#FFFFFF', (landed ? 0.85 : 0.4) * A);
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(ex, ey);
-    ctx.stroke();
-  }
-  // BEFORE: dashed, dimmed
-  seg2(ox, oy, b1, kb1, BALL_COL[0], 0.7 * A, true, 2.2);
-  seg2(ox + b1[0], oy + b1[1], b2, kb2, BALL_COL[1], 0.7 * A, true, 2.2);
-  // AFTER: solid, bright
-  seg2(ox, oy, a1, ka1, BALL_COL[0], A, false, 3);
-  seg2(ox + a1[0], oy + a1[1], a2, ka2, BALL_COL[1], A, false, 3);
-  // labels on the bright chain: seg 1's label on the side away from the tip, seg 2's on the side away from the
-  // origin (keeps them apart even when the chain folds back on itself)
-  const la = seg(f, land - 2, land + 4) * A;
-  if (la > 0.01) {
-    const side = (x0: number, y0: number, v: V2, awayX: number, awayY: number): V2 => {
-      const L = Math.hypot(v[0], v[1]);
-      let nx = -v[1] / L;
-      let ny = v[0] / L;
-      if ((awayX - x0) * nx + (awayY - y0) * ny > 0) {
-        nx = -nx;
-        ny = -ny;
-      }
-      return [nx, ny];
-    };
-    const lab = (x0: number, y0: number, v: V2, i: 0 | 1, n: V2) => {
-      const mx = x0 + v[0] * 0.5 + n[0] * 30;
-      const my = y0 + v[1] * 0.5 + n[1] * 30;
-      momLabel(ctx, i, mx - 30, my + 10, 0.95 * la, BALL_COL[i]);
-    };
-    lab(ox, oy, a1, 0, side(ox, oy, a1, tip[0], tip[1]));
-    lab(ox + a1[0], oy + a1[1], a2, 1, side(ox + a1[0], oy + a1[1], a2, ox, oy));
-    // Σp beside the resultant's midpoint, on the side away from the bright chain's vertex
-    const rv: V2 = [tip[0] - ox, tip[1] - oy];
-    const rn = side(ox, oy, rv, ox + a1[0], oy + a1[1]);
-    const lx = ox + rv[0] * 0.5 + rn[0] * 36;
-    const ly = oy + rv[1] * 0.5 + rn[1] * 36;
-    ctx.font = latin(34, false, 600);
-    const sw = ctx.measureText('Σ').width;
-    ctx.font = latin(34, true, 600);
-    const pw = ctx.measureText('p').width;
-    ctx.fillStyle = rgbaHex('#FFFFFF', la);
-    ctx.textAlign = 'left';
-    const sx = lx - (sw + 1 + pw) / 2;
-    ctx.font = latin(34, false, 600);
-    ctx.fillText('Σ', sx, ly + 11);
-    ctx.font = latin(34, true, 600);
-    ctx.fillText('p', sx + sw + 1, ly + 11);
-  }
-  // registration at the shared tip
-  if (kb2 >= 1) {
-    ctx.strokeStyle = rgbaHex('#FFFFFF', (landed ? 0.9 : 0.4) * A);
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(tip[0], tip[1], 9, 0, Math.PI * 2);
-    ctx.moveTo(tip[0] - 16, tip[1]);
-    ctx.lineTo(tip[0] + 16, tip[1]);
-    ctx.moveTo(tip[0], tip[1] - 16);
-    ctx.lineTo(tip[0], tip[1] + 16);
-    ctx.stroke();
-  }
-  ring(ctx, tip[0], tip[1], 10, 70, seg(f, land, land + 14), '#FFFFFF', 0.9 * A, 2);
-
-  // kinetic-energy bars (lower left): dashed outline = before, solid = after; same total length
-  const bx = P.x + 168;
-  const rows: Array<[string, [number, number], number, boolean]> = [
-    ['BEFORE', au.Eb, ease.inOutCubic(seg(f, s0, s0 + 8)), true],
-    ['AFTER', au.Ea, ease.inOutCubic(seg(f, land - 8, land)), false],
-  ];
-  rows.forEach(([name, E, k, dashed], r) => {
-    const y = P.y + 352 + r * 44;
-    ctx.font = mono(22, 400);
-    ctx.fillStyle = rgbaHex(C.cyan, 0.75 * A * seg(f, s0 - 2, s0 + 2));
-    ctx.textAlign = 'right';
-    ctx.fillText(name, bx - 14, y + 8);
-    ctx.textAlign = 'left';
-    let x = bx;
-    for (const i of [0, 1] as const) {
-      const L = E[i] * KE_SC * k;
-      if (L > 0.5) {
-        if (dashed) {
-          ctx.fillStyle = rgbaHex(BALL_COL[i], 0.14 * A);
-          ctx.fillRect(x, y - 8, L, 16);
-          ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = rgbaHex(BALL_COL[i], 0.6 * A);
-          ctx.lineWidth = 1.2;
-          ctx.strokeRect(x + 0.5, y - 8 + 0.5, L - 1, 15);
-          ctx.setLineDash([]);
-        } else {
-          ctx.fillStyle = rgbaHex(BALL_COL[i], 0.85 * A);
-          ctx.fillRect(x, y - 8, L - 1, 16);
-        }
-      }
-      x += L;
-    }
-    if (k >= 1) {
-      ctx.font = mono(22, 700);
-      ctx.fillStyle = rgbaHex(dashed ? C.cyan : '#FFFFFF', (dashed ? 0.7 : 0.95) * A);
-      ctx.fillText((E[0] + E[1]).toFixed(2), x + 14, y + 8);
-    }
-  });
-  // the shared end of both bars: one hairline (equal totals)
-  const tot = (au.Eb[0] + au.Eb[1]) * KE_SC;
-  if (landed) {
-    ctx.strokeStyle = rgbaHex('#FFFFFF', (0.5 + 0.5 * flash) * A);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(bx + tot + 0.5, P.y + 352 - 18);
-    ctx.lineTo(bx + tot + 0.5, P.y + 352 + 44 + 18);
-    ctx.stroke();
-  }
-  ctx.fillStyle = rgbaHex(C.cyan, 0.8 * A * seg(f, s0 - 2, s0 + 2));
-  ctx.textAlign = 'left';
-  ctx.font = latin(30, false, 600);
-  ctx.fillText('Σ', bx, P.y + 352 - 22);
-  const ew = ctx.measureText('Σ').width;
-  ctx.font = latin(30, true, 600);
-  ctx.fillText('E', bx + ew + 1, P.y + 352 - 22);
-  ctx.restore();
 }
 
 // ------------------------------------------------------------------ N = 10 (9-ball diamond + cue)

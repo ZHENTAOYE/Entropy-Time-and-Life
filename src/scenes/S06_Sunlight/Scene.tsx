@@ -1,41 +1,43 @@
 // S06 阳光的账本 / The Sun's Ledger — 582 frames.
 // Visual language: double-entry bookkeeping written in light + wave optics. ENERGY = crests; one gold packet
-// (20 crests, 0.5 µm) comes in, twenty one-crest red packets (10 µm) go out. Then the spreading (ink rhyme),
-// a dive into the Earth, and the branching flows of life (leaf veins) that wind into the vortex of S07.
-// See timing.ts for the beat sheet.
+// (20 crests, 0.5 µm) comes in, twenty one-crest red packets (10 µm) go out. Then one direction in / all directions
+// out (a parallel gold beam vs. hemispherical half-rings of red wavelets), a dive onto the dusk land (rivers of light),
+// and the branching flows of life (leaf veins) that wind into the vortex of S07. See timing.ts for the beat sheet.
 //
-// Everything (world, bloom, ledger, labels, narration, vignette, the GPU vein layer) is composited into ONE canvas:
+// Everything (world, bloom, ledger, labels, narration, vignette, the vein network) is composited into ONE canvas —
+// no WebGL at all (a GL context + shader compile + readback costs ~300 ms per still):
 // every extra full-frame DOM layer — and DOM text with per-glyph CSS blur — costs far more in the software
 // compositor than drawing the same pixels ourselves.
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
-import { clamp, ease, seg } from '../../lib/math';
-import { camAt } from './camera';
+import { clamp, ease, seg, smoothstep } from '../../lib/math';
+import { Cam, camAt, worldToScreen } from './camera';
 import { CAPTIONS } from './captions';
+import { drawDiveClouds, drawEarth, drawLand, earthDisc, landAlpha, worldFade } from './earth';
 import { useFontGate } from './fontGate';
-import { renderGLRead } from './glOff';
-import { drawHaze } from './haze';
 import { LEDGER_FONTS, drawLedger, ledgerOn } from './ledger';
 import { Layer } from './Layer';
 import { drawMotes } from './motes';
-import { drawInflow, drawNetwork, drawRiver, drawStreamlines, netUniforms } from './network';
-import { NET_FRAG, netDmax, veinGlowTex, veinTex } from './netGL';
-import { P } from './palette';
-import { LABEL_FONTS, drawBeam, drawGhostFans, drawHero, drawImpact, drawPhotonLabels, drawRed, drawStreams, labelsOn } from './photons';
+import { drawInflow, drawNetwork, drawRiver, drawStreamlines } from './network';
+import { P, SUN } from './palette';
+import { LABEL_FONTS, drawBeam, drawGhostFans, drawHero, drawIR, drawImpact, drawPhotonLabels, drawRed, drawStreams, irFill, labelsOn } from './photons';
 import { captionFonts, capOn, drawCaption } from './RichCaption';
-import { drawBackground, drawDiveClouds, drawEarth, drawFloodFront, drawGoldPoint, drawGrey, drawIgnitionFlare, drawSun } from './sky';
+import { drawBackground, drawGoldPoint, drawGrey, drawIgnitionFlare, drawSun, greyOn, sunGeom } from './sky';
 import { scratch } from './textures';
 import { T } from './timing';
-import { pEnd, pMark, pStart } from './dev/profmark';
+import { drawVeins } from './veins';
 
 /** IR aura strength of the Earth over the scene */
-const irGlow = (f: number) => 0.35 * seg(f, T.ledgerIn, T.ledgerIn + 30) + 0.65 * seg(f, T.photonLand, T.photonLand + 30) + 0.8 * seg(f, T.hazeStart, T.hazeStart + 40);
+const irGlow = (f: number) => 0.35 * seg(f, T.ledgerIn, T.ledgerIn + 30) + 0.65 * seg(f, T.photonLand, T.photonLand + 30) + 0.6 * seg(f, T.irStart, T.irStart + 40);
 
 /** ground-network visibility during/after the dive */
 const netAlpha = (f: number) => clamp((camAt(f).lz - 0.55) / 0.3);
-const riverAlpha = (f: number) => {
-  const c = camAt(f);
-  return Math.min(clamp((c.lz - 0.02) / 0.12), 1 - 0.55 * clamp((c.lz - 0.6) / 0.22) - 0.45 * clamp((c.lz - 0.86) / 0.12));
+/** rivers of light on the land: from the start of the dive, handing over to the rosette at its end (frame-based) */
+const riverAlpha = (f: number, c: Cam) => Math.min(clamp((c.lz - 0.02) / 0.12), 1 - smoothstep(T.diveStart + 38, T.diveStart + 66, f));
+/** is (any of) the Sun on screen? */
+const sunVisible = (f: number, c: Cam) => {
+  const s = sunGeom(f);
+  return worldToScreen(c, SUN.cx, s.cy + s.r * 1.6)[1] > -10;
 };
 
 /** Draw `fn` into a reusable offscreen canvas at `k` × resolution (logical coordinates), return it. */
@@ -70,78 +72,87 @@ function drawVignette(ctx: CanvasRenderingContext2D, f: number) {
 }
 
 function drawComposite(ctx: CanvasRenderingContext2D, f: number) {
-  pStart();
   const c = camAt(f);
+  const na = netAlpha(f);
   // background (soft content at half resolution)
   ctx.drawImage(
     pass('bg', 0.5, (b) => {
       drawBackground(b, f, c);
-      drawRiver(b, f, c, netAlpha(f) * 1.6, 2.4, 'far');
+      // the out-of-focus river web behind the rosette leaves before the cut (S07's first frame has none)
+      drawRiver(b, f, c, na * 1.6 * (0.55 + 0.45 * smoothstep(470, 510, f)) * (1 - smoothstep(515, 572, f)), 2.4, 'far');
     }),
     0,
     0,
     1080,
     1920,
   );
-  pMark('bg');
-  // world
-  if (c.lz < 0.9) {
-    drawSun(ctx, f, c);
-    drawEarth(ctx, f, c, irGlow(f));
-  }
-  if (c.p > 0) {
-    // darken the Earth's face into the ground as we dive
-    ctx.fillStyle = `rgba(4,5,11,${clamp((c.lz - 0.62) / 0.36)})`;
-    ctx.fillRect(0, 0, 1080, 1920);
-  }
-  pMark('sunEarth');
-  drawRiver(ctx, f, c, riverAlpha(f), 13);
-  drawStreams(ctx, f, c);
-  drawBeam(ctx, f, c);
-  drawGhostFans(ctx, f, c);
-  drawImpact(ctx, f, c);
-  drawRed(ctx, f, c);
-  drawStreamlines(ctx, f, c);
-  drawInflow(ctx, f, c);
-  const na = netAlpha(f);
-  if (na > 0.005) {
-    // the vein network on the GPU, rendered in a 1080² box around the sink and read back
-    const y0 = Math.round(c.sy - 540);
-    ctx.drawImage(renderGLRead(NET_FRAG, { ...netUniforms(f, c, na, netDmax()), u_y0: y0 }, { u_vein: veinTex(), u_glow: veinGlowTex() }, 1080, 1080), 0, y0);
-    pMark('gl');
-  }
-  drawNetwork(ctx, f, c, na);
-  pMark('fx');
-  // infrared haze (soft)
-  drawHaze(ctx, f, c);
-  pMark('haze');
-  // the camera passes through a cloud deck during the dive (parallax, in front of the ground)
-  drawDiveClouds(ctx, f, c);
-  // heat-death grey with the colour-flood hole + the gold point (opening only)
-  if (f < T.floodEnd + 4)
+  // world: the Sun, the Earth (and, during the dive, its land and rivers — clipped to the planet)
+  const sunOn = sunVisible(f, c);
+  if (sunOn) drawSun(ctx, f, c);
+  drawEarth(ctx, f, c, irGlow(f), irFill(f));
+  const la = landAlpha(f, c);
+  if (la > 0.004) {
+    ctx.save();
+    ctx.globalAlpha = la;
     ctx.drawImage(
-      pass('grey', 0.5, (g) => {
-        drawGrey(g, f);
-        drawGoldPoint(g, f);
-      }),
+      pass('land', 0.5, (g) => drawLand(g, f, c, 1)),
       0,
       0,
       1080,
       1920,
     );
-  drawFloodFront(ctx, f);
-  pMark('grey');
+    ctx.restore();
+  }
+  const ra = riverAlpha(f, c);
+  if (ra > 0.01) {
+    ctx.save();
+    if (worldFade(f) > 0.001) {
+      const [ex, ey, er] = earthDisc(f, c);
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, 0, Math.PI * 2);
+      ctx.clip();
+    }
+    drawRiver(ctx, f, c, ra, 13, 'water');
+    ctx.restore();
+  }
+  drawStreams(ctx, f, c);
+  drawBeam(ctx, f, c);
+  drawIR(ctx, f, c);
+  drawGhostFans(ctx, f, c);
+  drawImpact(ctx, f, c);
+  drawRed(ctx, f, c);
+  drawStreamlines(ctx, f, c);
+  drawInflow(ctx, f, c);
+  drawVeins(ctx, f, c, na);
+  drawNetwork(ctx, f, c, na);
+  // the camera passes through a cloud deck during the dive (parallax, in front of the ground)
+  drawDiveClouds(ctx, f, c);
+  // heat-death grey dissolving grain by grain + the gold point (opening only)
+  if (greyOn(f)) {
+    drawGrey(ctx, f);
+    drawGoldPoint(ctx, f);
+  }
   // bloom: emissive elements again at ¼ res, blurred twice, screened
   const gl = pass('glowSrc', 0.25, (g) => {
-    if (c.lz < 0.9) drawSun(g, f, c, true);
+    if (sunOn) drawSun(g, f, c, true);
     drawStreams(g, f, c, true);
     drawBeam(g, f, c, true);
+    drawIR(g, f, c, true);
     drawImpact(g, f, c);
     drawRed(g, f, c, true);
     drawHero(g, f, c, true);
     drawInflow(g, f, c, true);
+    drawVeins(g, f, c, na, true);
     drawNetwork(g, f, c, na, true);
-    drawFloodFront(g, f, 1.6);
+    if (ra > 0.01 && worldFade(f) > 0.001) {
+      g.save();
+      const [ex, ey, er] = earthDisc(f, c);
+      g.beginPath();
+      g.arc(ex, ey, er, 0, Math.PI * 2);
+      g.clip();
+      drawRiver(g, f, c, ra * 0.8, 13, 'glow');
+      g.restore();
+    }
     drawIgnitionFlare(g, f, c);
   });
   const blurred = pass('glowBlur', 0.25, (g) => {
@@ -156,21 +167,18 @@ function drawComposite(ctx: CanvasRenderingContext2D, f: number) {
   });
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = seg(f, 2, 10);
+  // no bloom at f0 (S05 match); softer at the end so the whirlpool's eye does not blow out (S07's first frame)
+  ctx.globalAlpha = seg(f, 2, 10) * (1 - 0.3 * smoothstep(520, 572, f));
   ctx.drawImage(blurred, 0, 0, 1080, 1920);
   ctx.restore();
-  pMark('bloom');
   if (f < 60) drawIgnitionFlare(ctx, f, c);
   drawMotes(ctx, f, c);
   drawVignette(ctx, f);
-  pMark('motes');
   // ---- text & HUD (needs the font slices of this frame)
   drawLedger(ctx, f);
   drawHero(ctx, f, c);
   drawPhotonLabels(ctx, f, c);
   for (const cap of CAPTIONS) drawCaption(ctx, cap, f);
-  pMark('text');
-  pEnd(f);
 }
 
 /** the font slices needed at frame f */

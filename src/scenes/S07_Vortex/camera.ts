@@ -47,14 +47,18 @@ const KEYS: Key[] = [
   // tilt 90°: top view → side view (and unroll)
   { f: 340, phi: 13, th: 500, ax: 540, ay: 812, zoom: 1.0, roll: 0, e: ease.inOutCubic },
   { f: 456, phi: 12, th: 500, ax: 540, ay: 800, zoom: 1.08, roll: 0, e: ease.inOutSine },
-  { f: 566, phi: 11, th: 500, ax: 540, ay: 800, zoom: 1.13, roll: 0, e: ease.inOutSine },
-  { f: 600, phi: 11, th: 500, ax: 540, ay: 918, zoom: 0.76, roll: 0, e: ease.inOutCubic },
+  // C7: a slow push-in on the chest while the sensor reads the body (the camera holds through the scan first)
+  { f: 484, phi: 12, th: 500, ax: 540, ay: 800, zoom: 1.08, roll: 0, e: ease.linear },
+  { f: 568, phi: 11, th: 580, ax: 540, ay: 850, zoom: 1.27, roll: 0, e: ease.inOutSine },
+  // C8: pull back for the W/kg comparison (the Sun's limb enters at the top)
+  { f: 604, phi: 11, th: 500, ax: 540, ay: 918, zoom: 0.76, roll: 0, e: ease.inOutCubic },
   { f: 652, phi: 11, th: 500, ax: 540, ay: 918, zoom: 0.775, roll: 0, e: ease.linear },
-  { f: 692, phi: 11, th: 500, ax: 540, ay: 846, zoom: 0.93, roll: 0, e: ease.inOutCubic },
-  { f: 754, phi: 11, th: 500, ax: 540, ay: 846, zoom: 0.95, roll: 0, e: ease.outSine },
+  // C9: in again, drifting sideways
+  { f: 700, phi: 11, th: 500, ax: 536, ay: 846, zoom: 0.92, roll: 0, e: ease.inOutCubic },
+  { f: 758, phi: 11, th: 500, ax: 552, ay: 846, zoom: 0.95, roll: 0, e: ease.outSine },
   // the freeze: even the camera stops
-  { f: 812, phi: 11, th: 500, ax: 540, ay: 846, zoom: 0.95, roll: 0, e: ease.linear },
-  { f: 852, phi: 12, th: 500, ax: 540, ay: 846, zoom: 0.985, roll: 0, e: ease.inOutSine },
+  { f: 822, phi: 11, th: 500, ax: 552, ay: 846, zoom: 0.95, roll: 0, e: ease.linear },
+  { f: 854, phi: 12, th: 500, ax: 546, ay: 846, zoom: 0.985, roll: 0, e: ease.inOutSine },
   // tilt 2: down to the floor, top view, footprints at FEET
   { f: 896, phi: 90, th: 0, ax: 541, ay: 970, zoom: 41 / 49, roll: 0, e: ease.inOutCubic },
   { f: 900, phi: 90, th: 0, ax: 541, ay: 970, zoom: 41 / 49, roll: 0, e: ease.linear },

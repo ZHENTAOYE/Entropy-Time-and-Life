@@ -42,6 +42,8 @@ export interface CaptionSpec {
   shadow?: boolean;
   /** backdrop darkness multiplier */
   backdrop?: number;
+  /** extra 0..1 factor on the backdrop at scene frame f (e.g. none while the heat-death grey is still there) */
+  backdropGate?: (f: number) => number;
   seed?: number;
 }
 
@@ -154,7 +156,7 @@ export function drawCaption(ctx: CanvasRenderingContext2D, c: CaptionSpec, f: nu
   const { glyphs, top, H } = layout(ctx, c);
 
   // one soft dark backdrop behind the whole block
-  const bdA = c.shadow === false ? 0 : Math.min(seg(local, 0, enterLen + 6), 1 - seg(local, exitStart + 4, c.dur));
+  const bdA = c.shadow === false ? 0 : Math.min(seg(local, 0, enterLen + 6), 1 - seg(local, exitStart + 4, c.dur)) * (c.backdropGate ? c.backdropGate(f) : 1);
   if (bdA > 0.01) {
     const bk = Math.max(1, c.backdrop ?? D.backdrop);
     const cx = c.x ?? D.x;

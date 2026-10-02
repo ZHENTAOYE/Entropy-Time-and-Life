@@ -5,11 +5,8 @@ import { clamp, ease, memo, seg, smoothstep } from '../../lib/math';
 import { hash01, mulberry32 } from '../../lib/random';
 import { SHADOW_LEVELS, drawPrintSprite, levelPick, shadowSprite } from './relief';
 import { cpuCanvas } from './CpuCanvas';
-import { Cam, FOOT_L, MACRO_K, PRINTS, Print, T_IMPACT } from './trail';
-
-/** shadow offset per unit height: −(horizontal sun direction) / tan(elevation) — same sun as the sand shader */
-export const SH_X = -4.524;
-export const SH_Y = 0.857;
+import { Cam, FOOT_L, MACRO_K, PRINTS, Print, T_IMPACT, rewindPull, sunAt } from './trail';
+import { REWIND } from './timing';
 /** narration band (no glitch tears across the captions) */
 const CAP_Y0 = 1330;
 const CAP_Y1 = 1560;
@@ -24,49 +21,49 @@ const GRAIN_COLS = [
   ['#E9DCC8', '#A89480', '#4A3E33'],
   ['#FBE3B8', '#D3A267', '#6A4628'],
 ];
-/** pre-shaded grain sprites at integer diameters 2..18 px per colour (blitted unscaled: fast in software raster) */
+/** pre-shaded grain sprites at integer diameters 2..18 px per colour (blitted unscaled: fast in software raster),
+ *  packed into ONE atlas canvas (cell (d, col) at x = d·20, y = col·20): one canvas instead of ~140 per tab */
 const D_MIN = 2;
 const D_MAX = 18;
-function grainAtlas(): HTMLCanvasElement[][] {
-  return memo('S08:grainAtlas', () =>
-    GRAIN_COLS.map(([hi, mid, lo]) => {
-      const row: HTMLCanvasElement[] = [];
-      for (let d = 0; d <= D_MAX; d++) {
-        const dd = Math.max(D_MIN, d);
-        const c = cpuCanvas(dd, dd);
-        const ctx = c.getContext('2d', { willReadFrequently: true })!;
-        const r = dd / 2;
-        const g = ctx.createRadialGradient(r * 1.32, r * 0.7, r * 0.05, r, r, r);
+const CELL = 20;
+function grainAtlas(): HTMLCanvasElement {
+  return memo('S08:grainAtlas2', () => {
+    const c = cpuCanvas(CELL * (D_MAX + 1), CELL * GRAIN_COLS.length);
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    GRAIN_COLS.forEach(([hi, mid, lo], ci) => {
+      for (let d = D_MIN; d <= D_MAX; d++) {
+        const r = d / 2;
+        const ox = d * CELL;
+        const oy = ci * CELL;
+        const g = ctx.createRadialGradient(ox + r * 1.32, oy + r * 0.7, r * 0.05, ox + r, oy + r, r);
         g.addColorStop(0, hi);
         g.addColorStop(0.5, mid);
         g.addColorStop(1, lo);
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(r, r, r * 0.96, 0, Math.PI * 2);
+        ctx.arc(ox + r, oy + r, r * 0.96, 0, Math.PI * 2);
         ctx.fill();
-        row.push(c);
       }
-      return row;
-    }),
-  );
+    });
+    return c;
+  });
 }
-/** soft contact/cast shadow sprites at integer widths */
-function shadowAtlas(): HTMLCanvasElement[] {
-  return memo('S08:grainShadowAtlas', () => {
-    const row: HTMLCanvasElement[] = [];
-    for (let d = 0; d <= D_MAX + 6; d++) {
-      const w = Math.max(3, d);
+/** soft contact/cast shadow sprites at integer widths 3..24 (cell w at x = w·26, row 0; height round(0.8·w)) */
+const SH_CELL = 26;
+function shadowAtlas(): HTMLCanvasElement {
+  return memo('S08:grainShadowAtlas2', () => {
+    const c = cpuCanvas(SH_CELL * (D_MAX + 7), SH_CELL);
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    for (let w = 3; w <= D_MAX + 6; w++) {
       const h = Math.max(2, Math.round(w * 0.8));
-      const c = cpuCanvas(w, h);
-      const ctx = c.getContext('2d', { willReadFrequently: true })!;
-      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      const ox = w * SH_CELL;
+      const g = ctx.createRadialGradient(ox + w / 2, h / 2, 0, ox + w / 2, h / 2, w / 2);
       g.addColorStop(0, 'rgba(12,7,3,1)');
       g.addColorStop(1, 'rgba(12,7,3,0)');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-      row.push(c);
+      ctx.fillRect(ox, 0, w, h);
     }
-    return row;
+    return c;
   });
 }
 
@@ -112,7 +109,7 @@ function splash(): Grain[] {
     ];
     const wsum = parts.reduce((a, q) => a + q[4], 0);
     const [ccx, ccy] = local2world(p, 0, 0);
-    for (let i = 0; i < 1100; i++) {
+    for (let i = 0; i < 950; i++) {
       let pick = r() * wsum;
       let q = parts[0];
       for (const pp of parts) {
@@ -124,10 +121,12 @@ function splash(): Grain[] {
       }
       // bias to the rim of the part (that's where sand is pushed out)
       const a = r() * Math.PI * 2;
-      const rr = Math.pow(r(), 0.35);
+      const rr = Math.pow(r(), 0.2);
       const [x0, y0] = local2world(p, q[0] + Math.cos(a) * q[2] * rr, q[1] + Math.sin(a) * q[3] * rr);
-      let dx = x0 - ccx + (r() - 0.5) * 60;
-      let dy = y0 - ccy + (r() - 0.5) * 60;
+      // thrown outward from the part it was pushed out of (so the fresh print clears and stays readable)
+      const [pcx, pcy] = local2world(p, q[0], q[1]);
+      let dx = x0 - pcx + (x0 - ccx) * 0.35 + (r() - 0.5) * 14;
+      let dy = y0 - pcy + (y0 - ccy) * 0.35 + (r() - 0.5) * 14;
       const l = Math.hypot(dx, dy) || 1;
       dx /= l;
       dy /= l;
@@ -210,8 +209,10 @@ export interface GroundState {
 
 const CYAN = '57,225,255';
 
-export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, st: GroundState) {
+export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, st: GroundState, mark?: (l: string) => void) {
   const z = cam.z;
+  // shadow offset per unit height: −(horizontal sun direction) / tan(elevation) — the same sun as the sand shader
+  const { shX: SH_X, shY: SH_Y } = sunAt(f);
   const X = (x: number) => cam.ax + (x - cam.cx) * z;
   const Y = (y: number) => cam.ay + (y - cam.cy) * z;
   if (st.fade <= 0.001) return;
@@ -224,7 +225,7 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     if (p.k < 2) continue;
     const macro = p.k === MACRO_K;
     const pre = macro ? 30 : 10;
-    const post = macro ? 16 : 9;
+    const post = macro ? 10 : 9;
     const a = f - p.T;
     if (a <= -pre || a >= post) continue;
     const hmax = macro ? 80 : 46;
@@ -233,8 +234,10 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     const dx = SH_X * h + Math.sin(p.ang) * fwd;
     const dy = SH_Y * h - Math.cos(p.ang) * fwd;
     const fade = smoothstep(-pre, -pre + (macro ? 4 : 3), a) * (1 - smoothstep(post - 5, post, a));
-    const [i, t] = levelPick(SHADOW_LEVELS, 0.9 + h * 0.13);
-    const al = st.fade * fade * (macro ? 0.74 : 0.66);
+    // the penumbra never gets sharper than ~4 px (a soft shadow, not a decal), and the shadow thins as it merges
+    // into the print it is about to make (at contact the sole hides its own shadow)
+    const [i, t] = levelPick(SHADOW_LEVELS, Math.max(SHADOW_LEVELS[2], 2 + h * 0.2));
+    const al = st.fade * fade * (a > 0 && macro ? 0.3 : 0.48) * (0.6 + 0.4 * smoothstep(0, hmax * 0.35, h));
     if (t < 0.98) {
       ctx.globalAlpha = al * (1 - t);
       drawPrintSprite(ctx, shadowSprite(i), p, cam, 1, dx, dy);
@@ -245,6 +248,7 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     }
   }
   ctx.globalAlpha = st.fade;
+  mark?.('g.footShadow');
 
   // ---- landing puffs (regular steps): dust cloud + kicked grains
   for (const p of PRINTS) {
@@ -286,25 +290,38 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     ctx.globalAlpha = st.fade;
   }
 
+  mark?.('g.puffs');
   // ---- macro splash
   if (f >= T_IMPACT - 1) {
     const grains = splash();
     const base = f - T_IMPACT;
     const jitterOn = st.rewind;
+    const pull = rewindPull(f); // the ◀◀ drags every grain part of the way back (and lifts it), then lets go
+    const grainPos = (g: Grain, i: number, tau: number): [number, number, number] => {
+      let [x, y, hz] = grainAt(g, tau);
+      if (pull !== 0) {
+        const k = pull * (1 + 0.25 * (hash01(i, 97) - 0.5)) + (pull > 0 ? 0.02 * Math.sin(f * 3.1 + i) : 0);
+        x += (g.x0 - x) * k + (hash01(i * 13 + f, 9) - 0.5) * 1.4 * jitterOn;
+        y += (g.y0 - y) * k + (hash01(i * 17 + f, 11) - 0.5) * 1.4 * jitterOn;
+        hz += Math.max(0, k) * (3 + 5 * hash01(i, 98));
+      }
+      return [x, y, hz];
+    };
     // shadows first (cast to the left by the low sun; darker while airborne)
     const shA = shadowAtlas();
     for (let i = 0; i < grains.length; i++) {
       const g = grains[i];
       if (base - g.delay <= 0) continue;
-      const [x, y, hz] = grainAt(g, base - g.delay);
+      const [x, y, hz] = grainPos(g, i, base - g.delay);
       const w = Math.min(D_MAX + 6, Math.max(3, Math.round(g.size * z * 2.6)));
-      const sp = shA[w];
-      const sx = Math.round(X(x + SH_X * hz) - sp.width / 2);
-      const sy = Math.round(Y(y + SH_Y * hz) - sp.height / 2);
+      const h = Math.max(2, Math.round(w * 0.8));
+      const sx = Math.round(X(x + SH_X * hz) - w / 2);
+      const sy = Math.round(Y(y + SH_Y * hz) - h / 2);
       if (sx < -30 || sx > 1100 || sy < -30 || sy > 1940) continue;
       ctx.globalAlpha = st.fade * (hz > 0 ? 0.3 : 0.14);
-      ctx.drawImage(sp, sx, sy);
+      ctx.drawImage(shA, w * SH_CELL, 0, w, h, sx, sy, w, h);
     }
+    mark?.('g.grainShadows');
     // grains: pre-shaded beads (lit toward the low sun on the right), blitted unscaled
     const atlas = grainAtlas();
     ctx.lineCap = 'round';
@@ -312,18 +329,12 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
       const g = grains[i];
       const tau = base - g.delay;
       if (tau <= 0) continue;
-      let [x, y, hz] = grainAt(g, tau);
-      if (jitterOn > 0 && tau > g.t1 + g.t2) {
-        // the rewind command strains every grain back toward where it came from — and nothing happens
-        const k = jitterOn * (0.5 + 0.5 * Math.sin(f * 2.3 + i)) * 0.07;
-        x += (g.x0 - x) * k + (hash01(i * 13 + f, 9) - 0.5) * 1.6 * jitterOn;
-        y += (g.y0 - y) * k + (hash01(i * 17 + f, 11) - 0.5) * 1.6 * jitterOn;
-      }
+      const [x, y, hz] = grainPos(g, i, tau);
       const sz = g.size * z * (1 + hz * 0.012);
       const sx = X(x);
       const sy = Y(y);
       if (sx < -20 || sx > 1100 || sy < -20 || sy > 1940) continue;
-      if (hz > 0.2 && tau < g.t1) {
+      if (hz > 0.2 && tau < g.t1 && pull === 0) {
         // motion streak
         const [px, py] = grainAt(g, tau - 1.6);
         ctx.strokeStyle = GRAIN_COLS[g.col][1];
@@ -336,10 +347,11 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
       }
       const d = Math.min(D_MAX, Math.max(D_MIN, Math.round(sz * 2)));
       ctx.globalAlpha = st.fade;
-      ctx.drawImage(atlas[g.col][d], Math.round(sx - d / 2), Math.round(sy - d / 2));
+      ctx.drawImage(atlas, d * CELL, g.col * CELL, d, d, Math.round(sx - d / 2), Math.round(sy - d / 2), d, d);
     }
     ctx.globalAlpha = st.fade;
 
+    mark?.('g.grains');
     // ---- the rewind's target: where every grain came from (the laws would allow the way back) — then it shatters
     if (st.ghost > 0.003) {
       const sh = ease.outCubic(st.shatter);
@@ -348,7 +360,7 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
       const paths = new Path2D();
       const dots = new Path2D();
       const r = Math.max(1, 1.05 * z);
-      for (let i = 0; i < grains.length; i += 7) {
+      for (let i = 0; i < grains.length; i += 3) {
         const g = grains[i];
         let ox = g.x0;
         let oy = g.y0;
@@ -363,29 +375,31 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
         if (sx < -10 || sx > 1090 || sy < -10 || sy > 1930) continue;
         dots.moveTo(sx + r, sy);
         dots.arc(sx, sy, r, 0, Math.PI * 2);
-        if (i % 15 === 0 && sh < 0.05) {
+        if (sh < 0.05) {
+          // the way back the laws of motion would allow: from where the grain is now to where it came from
           const tau = base - g.delay;
           if (tau > 0) {
-            const [x, y] = grainAt(g, tau);
+            const [x, y] = grainPos(g, i, tau);
             paths.moveTo(X(x), Y(y));
             paths.lineTo(sx, sy);
           }
         }
       }
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = `rgba(${CYAN},1)`;
-      ctx.globalAlpha = Math.min(1, st.fade * st.ghost * 1.1 * flick * (1 - sh));
-      ctx.fill(dots);
+      // law cyan, composited normally (additive cyan on lit sand would bleach to white)
       ctx.strokeStyle = `rgba(${CYAN},1)`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 5]);
-      ctx.globalAlpha = Math.min(1, st.fade * st.ghost * 1.6 * flick);
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 4]);
+      ctx.globalAlpha = Math.min(1, st.fade * st.ghost * flick * (1 - sh));
       ctx.stroke(paths);
       ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(${CYAN},1)`;
+      ctx.globalAlpha = Math.min(1, st.fade * st.ghost * 1.25 * flick * (1 - sh));
+      ctx.fill(dots);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = st.fade;
     }
 
+    mark?.('g.ghost');
     // ---- infrared heat: the dissipated energy of the impact (waste red), spreading and fading
     const age = base;
     if (age >= 0 && age < 70) {
@@ -419,6 +433,8 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     }
   }
 
+  drawFailX(ctx, f, cam, st.fade);
+  mark?.('g.splashIR');
   // ---- wind: saltating grains streaming right → left (world-anchored, wrapped around the view)
   const windA = seg(f, 50, 110) * (1 - seg(f, 330, 370));
   if (windA > 0) {
@@ -459,6 +475,7 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
     ctx.globalAlpha = st.fade;
   }
 
+  mark?.('g.wind');
   // ---- rewind-attempt tears
   if (st.rewind > 0) {
     ctx.globalCompositeOperation = 'lighter';
@@ -474,6 +491,69 @@ export function drawGround(ctx: CanvasRenderingContext2D, f: number, cam: Cam, s
       ctx.fillRect(x0, y, w, h);
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.restore();
+}
+
+/**
+ * The rewind fails: an alarm-red ✕ snaps across the fresh print, anchored to it in world space (it rides the
+ * pull-back), 2 px hairlines that draw out from the centre over 2 frames with a 3-frame additive flash.
+ */
+export function drawFailX(ctx: CanvasRenderingContext2D, f: number, cam: Cam, fade: number) {
+  const t0 = REWIND[1];
+  if (f < t0 || f > 366) return;
+  const p = PRINTS[MACRO_K];
+  const grow = ease.outCubic(clamp((f - t0 + 1) / 2));
+  const a = (1 - smoothstep(352, 366, f)) * Math.max(0.35, fade);
+  const flash = f - t0 < 3 ? Math.exp(-(f - t0) / 1.2) : 0;
+  // a screen-diagonal ✕ (it must read as ✕ whatever the foot's heading), sized to the print, centred on it
+  const R = FOOT_L * 0.5 * grow;
+  const ends: Array<[number, number, number, number]> = [
+    [p.x - R, p.y - R, p.x + R, p.y + R],
+    [p.x + R, p.y - R, p.x - R, p.y + R],
+  ];
+  const X = (x: number) => cam.ax + (x - cam.cx) * cam.z;
+  const Y = (y: number) => cam.ay + (y - cam.cy) * cam.z;
+  ctx.save();
+  ctx.lineCap = 'round';
+  // dark underlay so the hairlines read on lit sand
+  ctx.globalAlpha = 0.45 * a;
+  ctx.strokeStyle = 'rgb(20,4,8)';
+  ctx.lineWidth = 5;
+  for (const [x0, y0, x1, y1] of ends) {
+    ctx.beginPath();
+    ctx.moveTo(X(x0), Y(y0));
+    ctx.lineTo(X(x1), Y(y1));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = a;
+  ctx.strokeStyle = '#FF3B5C';
+  ctx.lineWidth = 2;
+  for (const [x0, y0, x1, y1] of ends) {
+    ctx.beginPath();
+    ctx.moveTo(X(x0), Y(y0));
+    ctx.lineTo(X(x1), Y(y1));
+    ctx.stroke();
+  }
+  if (flash > 0.02) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = a * flash;
+    ctx.strokeStyle = 'rgba(255,120,140,0.9)';
+    ctx.lineWidth = 9;
+    for (const [x0, y0, x1, y1] of ends) {
+      ctx.beginPath();
+      ctx.moveTo(X(x0), Y(y0));
+      ctx.lineTo(X(x1), Y(y1));
+      ctx.stroke();
+    }
+    const cx = X(p.x);
+    const cy = Y(p.y);
+    const rr = R * cam.z * 0.8;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    g.addColorStop(0, 'rgba(255,70,100,0.3)');
+    g.addColorStop(1, 'rgba(255,40,80,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - rr, cy - rr, rr * 2, rr * 2);
   }
   ctx.restore();
 }

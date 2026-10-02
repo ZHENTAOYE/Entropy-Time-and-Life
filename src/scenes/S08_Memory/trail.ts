@@ -2,6 +2,27 @@
 // World space = sand plane in px; at frame 0 world == screen (so the S07 FEET handoff matches exactly).
 import { FEET } from '../../lib/handoff';
 import { clamp, ease, lerp, seg, smoothstep } from '../../lib/math';
+import { REWIND } from './timing';
+
+// ---------------------------------------------------------------------------------------------
+// The sun (shared by the sand shader, the foot shadows and the grain shadows): from the right and a little from the
+// top. A low raking light (12.3° high) for the walk; for the macro shot it climbs to 28° so the hero print's heel,
+// arch, ball and five toe pits shade as gradients instead of drowning in one long cast shadow.
+const SUN_AZ: [number, number] = [0.98252, -0.18616]; // horizontal direction TOWARD the sun (unit)
+export interface Sun {
+  /** unit vector toward the sun */
+  L: [number, number, number];
+  tanE: number;
+  /** cast-shadow offset per unit height (world px) */
+  shX: number;
+  shY: number;
+}
+export function sunAt(f: number): Sun {
+  const e = ((12.3 + (28 - 12.3) * ease.inOutSine(seg(f, 238, 278))) * Math.PI) / 180;
+  const c = Math.cos(e);
+  const t = Math.tan(e);
+  return { L: [SUN_AZ[0] * c, SUN_AZ[1] * c, Math.sin(e)], tanE: t, shX: -SUN_AZ[0] / t, shY: -SUN_AZ[1] / t };
+}
 
 /** distance between consecutive prints along the walk (world px) */
 export const STEP = 270;
@@ -118,11 +139,13 @@ export const P_FIX: [number, number] = [540, (FIN_C[1] - 900 * K_N) / (1 - K_N)]
 
 const logLerp = (a: number, b: number, t: number) => Math.exp(lerp(Math.log(a), Math.log(b), t));
 
+/** end zoom of the walk pull-back (prints stay ≥ 105 px on screen) */
+export const Z_WALK = 0.7;
 function walkCam(f: number): Cam {
-  const z = logLerp(1, 0.56, ease.inOutSine(seg(f, 40, 246)));
+  const z = logLerp(1, Z_WALK, ease.inOutSine(seg(f, 40, 246)));
   const s = camS(f);
   const [wx, wy] = centre(s - 10);
-  const ytarget = lerp(980, 520, ease.inOutSine(seg(f, 60, 246)));
+  const ytarget = lerp(980, 480, ease.inOutSine(seg(f, 60, 246)));
   const cy = wy - (ytarget - 960) / z;
   const cx = lerp(540, X0 + (wx - X0) * 0.55, smoothstep(90, 160, f));
   return { cx, cy, ax: 540, ay: 960, z };
@@ -131,20 +154,20 @@ function walkCam(f: number): Cam {
 const P12 = () => PRINTS[MACRO_K];
 const MACRO_SCREEN: [number, number] = [540, 860];
 
+/** zoom of the macro framing (reached at f280, then a slow creep in) */
+const macroZ = (f: number) => (f < 280 ? 2.4 : lerp(2.4, 2.62, seg(f, 280, 332)));
+/** the macro blend starts here: from the LIVE walk camera (no freeze → no hitch; its pan velocity decays smoothly) */
+export const MACRO_T0 = 228;
 function macroCam(f: number): Cam {
-  // zoom into the landing spot of the macro print
-  const w0 = walkCam(236);
+  // zoom into the landing spot of the macro print: blend the live walk camera into the macro framing —
+  // log-zoom and the screen position of the landing spot are interpolated, the camera centre follows from both
+  const w = walkCam(f);
   const p = P12();
-  const z0 = w0.z;
-  const z1 = 2.4;
-  const e = ease.inOutCubic(seg(f, 236, 280));
-  let z = logLerp(z0, z1, e);
-  if (f > 280) z = lerp(z1, 2.62, seg(f, 280, 332));
-  const s0x = w0.ax + (p.x - w0.cx) * z0;
-  const s0y = w0.ay + (p.y - w0.cy) * z0;
-  const wpan = clamp((1 / z0 - 1 / Math.min(z, z1)) / (1 / z0 - 1 / z1));
-  const sx = lerp(s0x, MACRO_SCREEN[0], ease.inOutSine(wpan));
-  const sy = lerp(s0y, MACRO_SCREEN[1], ease.inOutSine(wpan));
+  const wz = ease.inOutCubic(seg(f, MACRO_T0, 280));
+  const wp = ease.inOutSine(seg(f, MACRO_T0, 268));
+  const z = Math.exp(lerp(Math.log(w.z), Math.log(macroZ(f)), wz));
+  const sx = lerp(w.ax + (p.x - w.cx) * w.z, MACRO_SCREEN[0], wp);
+  const sy = lerp(w.ay + (p.y - w.cy) * w.z, MACRO_SCREEN[1], wp);
   return { cx: p.x - (sx - 540) / z, cy: p.y - (sy - 960) / z, ax: 540, ay: 960, z };
 }
 
@@ -181,16 +204,17 @@ function figCam(f: number): Cam {
   };
 }
 
-/** impact shake (scene-local frames) */
+/** impact shake + the 2-frame jolt when the rewind fails (scene-local frames) */
 function shake(f: number): [number, number] {
-  const a = f >= T_IMPACT ? Math.exp(-(f - T_IMPACT) / 5) * 5 : 0;
+  let a = f >= T_IMPACT ? Math.exp(-(f - T_IMPACT) / 5) * 5 : 0;
+  if (f >= REWIND[1] && f < REWIND[1] + 3) a += [7, 4, 1.5][f - REWIND[1]];
   if (a < 0.05) return [0, 0];
   return [Math.sin(f * 2.7) * a, Math.cos(f * 3.9) * a * 0.7];
 }
 
 export function camera(f: number): Cam {
   let c: Cam;
-  if (f < 236) c = walkCam(f);
+  if (f < MACRO_T0) c = walkCam(f);
   else if (f < 332) c = macroCam(f);
   else if (f < 380) c = pullCam(f);
   else c = figCam(f);
@@ -221,14 +245,29 @@ const erosionAge = (p: Print, f: number) => {
   if (p.k === MACRO_K) return f < SLOWMO_END ? Math.max(0, f - p.T) / 3 : (SLOWMO_END - p.T) / 3 + (f - SLOWMO_END);
   return Math.max(0, f - Math.max(p.T, WIND_T0));
 };
+/**
+ * How far the ◀◀ attempt drags the macro splash back toward its past (0..~0.36): it strains (with a tremble) during
+ * REWIND[0]+2 … REWIND[1], then snaps back at the fail frame — slightly overshooting, then settling (closed form).
+ */
+export function rewindPull(f: number): number {
+  const [a, b] = REWIND;
+  if (f < a + 2) return 0;
+  if (f < b) return 0.36 * ease.inOutSine(seg(f, a + 2, b - 3)) * (1 + 0.1 * Math.sin(f * 2.9));
+  const u = f - b;
+  return u > 8 ? 0 : -0.09 * Math.exp(-u / 1.3) * Math.cos(u * 2.2);
+}
 export function printDepth(p: Print, f: number): number {
   const age = f - p.T;
   if (age < 0) return 0;
   const form = p.k === MACRO_K ? ease.outCubic(clamp(age / 7)) : ease.outCubic(clamp(age / 4));
-  return form * Math.exp(-erosionAge(p, f) / 165);
+  // the rewind also tries to refill the hero print (sand trickles back in) — and lets go at the fail
+  const rw = p.k === MACRO_K ? 1 - 0.3 * Math.max(0, rewindPull(f)) : 1;
+  return form * rw * Math.exp(-erosionAge(p, f) / 165);
 }
 /** edge softness (world px): crisp when the foot lifts (held ≤ 2.3 px for ~30 f), then diffusion widens it ∝ √age */
 export function printBlur(p: Print, f: number): number {
   const a = erosionAge(p, f);
-  return 0.7 + 1.6 * smoothstep(0, 30, a) + 3.0 * Math.sqrt(Math.max(0, a - 30) / 30);
+  // the macro print is seen ×2.5: its walls must slope like real sand (angle of repose ≈ 33°), not knife edges
+  const b0 = p.k === MACRO_K ? 1.6 : 0.7;
+  return b0 + 1.6 * smoothstep(0, 30, a) + 3.0 * Math.sqrt(Math.max(0, a - 30) / 30);
 }

@@ -40,7 +40,7 @@ const Bench: React.FC = () => {
       ctx.getImageData(0, 0, 1, 1);
       lines.push(`${name}: ${((performance.now() - t1) / n).toFixed(1)} ms`);
     };
-    for (const f of [0, 20, 200, 330, 350, 420, 452, 520, 620, 790, 840, 890]) {
+    for (const f of [0, 20, 200, 310, 330, 420, 452, 520, 620, 700, 790, 840, 890]) {
       time(`main f${f}`, () => {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, 1080, 1920);

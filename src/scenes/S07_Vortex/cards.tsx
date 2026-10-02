@@ -2,7 +2,7 @@
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
 import { FONT, useFontsReady } from '../../lib/fonts';
-import { clamp, ease, seg } from '../../lib/math';
+import { clamp, ease, seg, smoothstep } from '../../lib/math';
 import { seedOf } from '../../lib/random';
 import { Glyph, glyphXform, GlyphXform, layoutLine } from './glyphs';
 import { hash01 } from '../../lib/random';
@@ -113,7 +113,9 @@ export const BulbCard: React.FC<{ from: number; dur: number; y?: number }> = ({ 
 };
 
 // ------------------------------------------------------------------ C9: 「你不是在对抗熵增——/ 你借着它，活着。」
-// 对抗 appears, then DIFFUSES; its cloud drifts down and re-condenses as 借着 (entropy is the means, not the enemy).
+// The film's STRIKE verb (S03 乱 → 数): line 1 is held complete for 1.2 s; a 2 px line draws across 对抗; 对抗 stays as a
+// 22 % ghost under the strike (line 1 still reads as a sentence) while a diffusing copy of it drifts down and
+// re-condenses as 借着 in line 2 (entropy is the means, not the enemy).
 export const BorrowCard: React.FC<{ from: number; dur: number; y?: number }> = ({ from, dur, y = 1488 }) => {
   const frame = useCurrentFrame();
   const LA = '你不是在对抗熵增——';
@@ -130,31 +132,48 @@ export const BorrowCard: React.FC<{ from: number; dur: number; y?: number }> = (
   const yB = y + lh / 2;
   const exitStart = dur - 18;
   const EX = 18;
-  // line 1 fully formed at ~25; 对抗 is read for ~0.5 s, then diffuses (36–55) and its cloud re-condenses as 借着
-  const D0 = 36; // 对抗 starts to dissolve
-  const D1 = 52;
-  const R0 = 44; // 借着 condenses from the cloud
-  const R1 = 60;
+  // line 1 complete at ~22 and held to 58 (1.2 s) · strike 58–64 · 对抗 → ghost 64–74, its copy diffuses 64–82 ·
+  // 借着 condenses 70–86 · the rest of line 2 from 66
+  const S0 = 58;
+  const S1 = 64;
+  const D0 = 64;
+  const D1 = 82;
+  const R0 = 70;
+  const R1 = 86;
+  const FIGHT = '#FF6A4D';
   const els: React.ReactNode[] = [];
   A.forEach((g, i) => {
     const fight = i === 4 || i === 5;
-    let xf: GlyphXform = glyphXform({ local, t0: i * 1.0, enterLen: 16, exitStart: fight ? 1e9 : exitStart, exitLen: EX, seed, idx: i });
+    const xf: GlyphXform = glyphXform({ local, t0: i * 0.8, enterLen: 14, exitStart, exitLen: EX, seed, idx: i });
     if (fight) {
-      const q = seg(local, D0 + (i - 4) * 3, D1 + (i - 4) * 3);
-      const e = ease.inOutCubic(q);
-      const tgt = B[i - 3];
-      xf = {
-        ...xf,
-        dx: xf.dx + (tgt.x - g.x) * e * 0.9 + Math.sin(local * 0.7 + i) * 8 * Math.sin(q * Math.PI),
-        dy: xf.dy + (yB - yA) * e * 0.9 + Math.sin(q * Math.PI) * 26,
-        blur: xf.blur + 16 * Math.sin(Math.min(1, q * 1.4) * Math.PI * 0.5),
-        sc: xf.sc * (1 + 0.5 * Math.sin(q * Math.PI)),
-        rot: xf.rot + (i === 4 ? -40 : 35) * e,
-        op: xf.op * (1 - ease.inQuad(q)),
-      };
-    }
-    els.push(<Glyph key={'A' + i} ch={g.ch} x={g.x} y={yA} size={size} weight={fight ? 900 : 600} color={fight ? '#FF6A4D' : VOICE} xf={xf} />);
+      // the struck word stays as a ghost
+      const ghost = 1 - 0.78 * ease.inOutQuad(seg(local, D0, D0 + 10));
+      els.push(<Glyph key={'A' + i} ch={g.ch} x={g.x} y={yA} size={size} weight={900} color={FIGHT} xf={{ ...xf, op: xf.op * ghost }} />);
+      // its diffusing copy drifts down towards 借着
+      const q = seg(local, D0 + (i - 4) * 2, D1 + (i - 4) * 2);
+      if (q > 0 && q < 1) {
+        const e = ease.inOutCubic(q);
+        const tgt = B[i - 3];
+        const cp: GlyphXform = {
+          dx: (tgt.x - g.x) * e * 0.85 + Math.sin(local * 0.7 + i) * 8 * Math.sin(q * Math.PI),
+          dy: (yB - yA) * e * 0.85 + Math.sin(q * Math.PI) * 22,
+          blur: 2 + 16 * Math.sin(Math.min(1, q * 1.4) * Math.PI * 0.5),
+          sc: 1 + 0.5 * Math.sin(q * Math.PI),
+          rot: (i === 4 ? -36 : 32) * e,
+          op: 0.9 * (1 - ease.inQuad(q)),
+        };
+        els.push(<Glyph key={'C' + i} ch={g.ch} x={g.x} y={yA} size={size} weight={900} color={FIGHT} xf={cp} />);
+      }
+    } else els.push(<Glyph key={'A' + i} ch={g.ch} x={g.x} y={yA} size={size} weight={600} color={VOICE} xf={xf} />);
   });
+  // the strike: a 2 px line drawn left → right across 对抗, leaving with the line
+  const sq = ease.inOutCubic(seg(local, S0, S1));
+  if (sq > 0) {
+    const x0 = A[4].x - 6;
+    const x1 = A[5].x + A[5].w + 6;
+    const out = 1 - ease.inQuad(seg(local, exitStart, exitStart + EX * 0.7));
+    els.push(<div key="strike" style={{ position: 'absolute', left: x0, top: yA - 1 + size * 0.04, width: (x1 - x0) * sq, height: 2, background: FIGHT, opacity: 0.95 * out, boxShadow: '0 0 6px rgba(255,106,77,0.7)' }} />);
+  }
   B.forEach((g, i) => {
     const borrow = i === 1 || i === 2;
     let xf: GlyphXform;
@@ -172,34 +191,38 @@ export const BorrowCard: React.FC<{ from: number; dur: number; y?: number }> = (
         sc: base.sc * (1 + 0.45 * (1 - e)),
         op: base.op * ease.outQuad(q),
       };
-    } else xf = glyphXform({ local, t0: R0 - 4 + i * 0.8, enterLen: 16, exitStart, exitLen: EX, seed, idx: 60 + i });
+    } else xf = glyphXform({ local, t0: R0 - 4 + i * 0.8, enterLen: 14, exitStart, exitLen: EX, seed, idx: 60 + i });
     els.push(<Glyph key={'B' + i} ch={g.ch} x={g.x} y={yB} size={size} weight={borrow ? 900 : 600} color={borrow ? GOLD : VOICE} glow={borrow ? 0.35 : 0} xf={xf} />);
   });
   return <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{els}</div>;
 };
 
 // ------------------------------------------------------------------ C11: 「你是一个过程。」
-// 过程 is a STEADY FLOW: gold particles stream left → right through the glyph block and slow down inside the
-// strokes (v = v0·(1 − 0.9·mask)), so by continuity their density draws the glyphs — the shape persists while every
-// particle keeps passing through (the vortex again, in typography).
+// 过程 is a STEADY FLOW: gold particles stream left → right through the glyphs and slow down inside the strokes
+// (v = v0·(1 − 0.92·mask)), so by continuity their density draws the glyphs — the shape persists while every particle
+// keeps passing through (the vortex again, in typography). Fast particles outside the strokes are drawn as faint
+// streaks (their velocity), slow ones inside as dense bright grains; the stream fades in and out at its ends (no
+// visible box). Under it, a pre-blurred copy of the glyphs: the steady glow of the shape.
 const PSIZE = 84;
 const PROW = 1.5; // px between flow rows
 const V0 = 10; // px/frame outside the strokes
 const EMIT = 1.7; // frames between particles in a row
+const FPAD = 90;
 
 interface FlowGlyph {
   w: number;
   h: number;
   x0: number; // canvas left in frame px
   y0: number;
-  rows: Array<{ y: number; xs: Float32Array; inside: Uint8Array }>; // x(τ) per integer frame τ
+  rows: Array<{ y: number; xs: Float32Array; inside: Uint8Array; near: Float32Array; env: number }>; // x(τ) per integer frame τ
+  glow: HTMLCanvasElement;
 }
 
 function flowGlyph(x0: number, x1: number, yC: number): FlowGlyph {
-  return memo(`s07:flowglyph:${x0}:${x1}:${yC}`, () => {
-    const pad = 70;
+  return memo(`s07:flowglyph2:${x0}:${x1}:${yC}`, () => {
+    const pad = FPAD;
     const w = Math.ceil(x1 - x0 + pad * 2);
-    const h = Math.ceil(PSIZE * 1.5);
+    const h = Math.ceil(PSIZE * 1.7);
     const c = document.createElement('canvas');
     c.width = w;
     c.height = h;
@@ -210,10 +233,24 @@ function flowGlyph(x0: number, x1: number, yC: number): FlowGlyph {
     const L = layoutLine('你是一个过程。', serif(600, PSIZE), PSIZE, 0.1, 540);
     for (const k of [4, 5]) ctx.fillText(L[k].ch, L[k].x - (x0 - pad), h / 2 + PSIZE * 0.04);
     const data = ctx.getImageData(0, 0, w, h).data;
+    // the steady glow of the shape (blurred once)
+    const glow = document.createElement('canvas');
+    glow.width = w;
+    glow.height = h;
+    const gx = glow.getContext('2d', { willReadFrequently: true })!;
+    gx.filter = 'blur(9px)';
+    gx.drawImage(c, 0, 0);
+    gx.filter = 'blur(3px)';
+    gx.globalAlpha = 0.6;
+    gx.drawImage(c, 0, 0);
+    gx.globalCompositeOperation = 'source-in';
+    gx.globalAlpha = 1;
+    gx.filter = 'none';
+    gx.fillStyle = 'rgb(255,190,80)';
+    gx.fillRect(0, 0, w, h);
     const rows: FlowGlyph['rows'] = [];
     for (let yy = 1; yy < h - 1; yy += PROW) {
       const iy = Math.round(yy);
-      // time to traverse each pixel
       const xs: number[] = [0];
       const ins: number[] = [0];
       let x = 0;
@@ -222,8 +259,7 @@ function flowGlyph(x0: number, x1: number, yC: number): FlowGlyph {
       while (x < w) {
         const m = data[(iy * w + Math.min(w - 1, Math.floor(x))) * 4 + 3] / 255;
         const v = V0 * (1 - 0.92 * m);
-        const dt = 1 / v; // per px
-        tAcc += dt;
+        tAcc += 1 / v;
         x += 1;
         while (tAcc >= nextT) {
           xs.push(x);
@@ -231,9 +267,24 @@ function flowGlyph(x0: number, x1: number, yC: number): FlowGlyph {
           nextT += 1;
         }
       }
-      rows.push({ y: yy, xs: new Float32Array(xs), inside: new Uint8Array(ins) });
+      // visibility of a fast (outside) particle: only near a stroke — it streams in out of nothing, slows into the
+      // stroke, and streams away into nothing again (px along the row to the nearest stroke)
+      const n = xs.length;
+      const near = new Float32Array(n).fill(1e9);
+      let last = -1e9;
+      for (let k = 0; k < n; k++) {
+        if (ins[k]) last = xs[k];
+        near[k] = xs[k] - last;
+      }
+      last = 1e9;
+      for (let k = n - 1; k >= 0; k--) {
+        if (ins[k]) last = xs[k];
+        near[k] = Math.min(near[k], last - xs[k]);
+      }
+      const dy = Math.abs(yy / h - 0.5);
+      rows.push({ y: yy, xs: new Float32Array(xs), inside: new Uint8Array(ins), near, env: 1 - smoothstep(0.3, 0.48, dy) });
     }
-    return { w, h, x0: x0 - pad, y0: yC - h / 2, rows };
+    return { w, h, x0: x0 - pad, y0: yC - h / 2, rows, glow };
   });
 }
 
@@ -245,20 +296,30 @@ const FlowWord: React.FC<{ local: number; dur: number; x0: number; x1: number; y
     if (!c) return;
     const ctx = c.getContext('2d', { willReadFrequently: true })!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, c.width, c.height);
     const t = local + 400; // steady state: the flow has been running long before we see it
     const inA = ease.outCubic(seg(local, enterAt, enterAt + 18));
     const outQ = seg(local, exitAt, dur);
     const outE = ease.inQuad(outQ);
+    const A = inA * (1 - ease.inCubic(outQ));
+    if (A <= 0.003) return;
     ctx.globalCompositeOperation = 'lighter';
-    const inside = new Path2D();
-    const outside = new Path2D();
+    // the shape's steady glow
+    ctx.globalAlpha = 0.42 * A * (1 - outE);
+    ctx.drawImage(FG.glow, 0, 0);
+    ctx.globalAlpha = 1;
+    const LV = 3;
+    const streak = Array.from({ length: LV }, () => new Path2D());
+    const grain = Array.from({ length: LV }, () => new Path2D());
     const hot = new Path2D();
+    const W = FG.w;
     for (let r = 0; r < FG.rows.length; r++) {
       const row = FG.rows[r];
+      if (row.env <= 0.02) continue;
       const n = row.xs.length;
       const ph = hash01(r, 501) * EMIT;
-      // particle j entered at time j*EMIT + ph; age τ = t − that
       const jMax = Math.floor((t - ph) / EMIT);
       const jMin = Math.ceil((t - ph - (n - 1)) / EMIT);
       for (let j = Math.max(0, jMin); j <= jMax; j++) {
@@ -267,9 +328,12 @@ const FlowWord: React.FC<{ local: number; dur: number; x0: number; x1: number; y
         if (k < 0 || k >= n - 1) continue;
         const u = tau - k;
         let x = row.xs[k] + (row.xs[k + 1] - row.xs[k]) * u;
+        const vx = row.xs[k + 1] - row.xs[k];
         let y = row.y + Math.sin(j * 1.7 + r) * 0.5;
         const ins = row.inside[k];
-        // diffuse out: particles scatter like the narration's diffuse exit
+        // the stream fades in from nothing and out to nothing (no box edges)
+        let e = row.env * smoothstep(0, FPAD * 0.9, x) * (1 - smoothstep(W - FPAD * 0.9, W, x));
+        if (e <= 0.04) continue;
         if (outE > 0) {
           const a = hash01(j * 31 + r, 502) * Math.PI * 2;
           const R = (20 + 70 * hash01(j * 17 + r, 503)) * outE;
@@ -277,20 +341,34 @@ const FlowWord: React.FC<{ local: number; dur: number; x0: number; x1: number; y
           y += Math.sin(a) * R - 14 * outE;
         }
         if (ins) {
-          if (hash01(j * 7 + r, 504) < 0.18) hot.rect(x - 1, y - 1, 2.2, 2.2);
-          else inside.rect(x - 0.9, y - 0.9, 1.8, 1.8);
-        } else outside.rect(x - 0.6, y - 0.6, 1.2, 1.2);
+          if (hash01(j * 7 + r, 504) < 0.16) hot.rect(x - 1.1, y - 1.1, 2.2, 2.2);
+          else {
+            const lv = Math.min(LV - 1, Math.floor(e * LV));
+            grain[lv].rect(x - 0.9, y - 0.9, 1.8, 1.8);
+          }
+        } else {
+          const nr = row.near[k];
+          e *= Math.exp(-nr / 22) * (0.4 + 0.6 * hash01(j * 13 + r, 505));
+          if (e <= 0.03) continue;
+          const lv = Math.min(LV - 1, Math.floor(e * LV));
+          streak[lv].moveTo(x - vx * 0.8, y);
+          streak[lv].lineTo(x, y);
+        }
       }
     }
-    const A = inA * (1 - ease.inCubic(outQ));
-    ctx.fillStyle = `rgba(255,201,74,${0.16 * A})`;
-    ctx.fill(outside);
-    ctx.fillStyle = `rgba(255,214,120,${0.55 * A})`;
-    ctx.fill(inside);
-    ctx.fillStyle = `rgba(255,246,222,${0.9 * A})`;
+    ctx.lineCap = 'round';
+    for (let l = 0; l < LV; l++) {
+      const k = (l + 0.5) / LV;
+      ctx.strokeStyle = `rgba(255,201,74,${(0.2 * k * A).toFixed(3)})`;
+      ctx.lineWidth = 1;
+      ctx.stroke(streak[l]);
+      ctx.fillStyle = `rgba(255,214,120,${(0.62 * k * A).toFixed(3)})`;
+      ctx.fill(grain[l]);
+    }
+    ctx.fillStyle = `rgba(255,246,222,${(0.9 * A).toFixed(3)})`;
     ctx.fill(hot);
   });
-  return <canvas ref={ref} width={FG.w} height={FG.h} style={{ position: 'absolute', left: FG.x0, top: FG.y0, width: FG.w, height: FG.h, filter: 'drop-shadow(0 0 6px rgba(255,190,80,0.55))' }} />;
+  return <canvas ref={ref} width={FG.w} height={FG.h} style={{ position: 'absolute', left: FG.x0, top: FG.y0, width: FG.w, height: FG.h }} />;
 };
 
 export const ProcessCard: React.FC<{ from: number; dur: number; y?: number }> = ({ from, dur, y = 1500 }) => {

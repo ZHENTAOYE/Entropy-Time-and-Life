@@ -11,7 +11,7 @@ import { Scrim } from './glyphs';
 import { S07Layers } from './Layers';
 import { WATER_FRAG } from './shaders';
 import { CAP, T } from './timing';
-import { kAt, V } from './vortex';
+import { V } from './vortex';
 import { LAYERS } from './devflags';
 
 const WaterBg: React.FC = () => {
@@ -27,7 +27,7 @@ const WaterBg: React.FC = () => {
         ...camUniforms(cam),
         u_mix: ease.inOutSine(seg(f, 0, T.waterIn1)),
         u_tex: 1 - seg(f, T.morph0 + 10, T.morph0 + 70),
-        u_k: kAt(f),
+        u_k: V.k,
         u_R0: V.R0,
         u_q: q,
         u_rc: V.rc,
@@ -37,11 +37,23 @@ const WaterBg: React.FC = () => {
   );
 };
 
+/** once the pool has gone (f ≥ WATER_END) the water shader shows only its side-view backdrop: the same gradient in CSS */
+const WATER_END = T.morph0 + 72;
+const Backdrop: React.FC = () => (
+  <AbsoluteFill
+    style={{
+      background:
+        'radial-gradient(ellipse 62% 48% at 50% 50%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.34) 78%, rgba(0,0,0,0.55) 100%), linear-gradient(to bottom, #021214 0%, #021012 55%, #010E10 100%)',
+    }}
+  />
+);
+
 export const Scene: React.FC = () => {
   const f = useCurrentFrame();
   return (
     <AbsoluteFill style={{ background: f < T.scan1 ? '#04050B' : '#05030F' }}>
-      {f <= T.scan1 && LAYERS.water ? <WaterBg /> : null}
+      {f < WATER_END && LAYERS.water ? <WaterBg /> : null}
+      {f >= WATER_END && f <= T.scan1 ? <Backdrop /> : null}
       {LAYERS.raster ? <S07Layers /> : null}
       {LAYERS.captions ? <>
       {/* soft scrims behind the caption lane (cheaper and calmer than per-glyph shadows) */}

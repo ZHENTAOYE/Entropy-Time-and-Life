@@ -9,8 +9,7 @@ import { clamp, ease, seg, smoothstep } from '../../lib/math';
 import { camAt, project } from './camera';
 import { lutCss, SUN_R, sunY } from './thermal';
 import { T } from './timing';
-import { intakeAt } from './flow';
-import { safeBox } from './Hud';
+import { intakeLabelPoint, safeBox } from './Hud';
 
 const VOICE = '#F3EFE6';
 const fade = (f: number, a: number, b: number, inLen = 8, outLen = 8) => Math.min(seg(f, a, a + inLen), 1 - seg(f, b - outLen, b));
@@ -77,7 +76,7 @@ export const HudThermal: React.FC = () => {
   const f = useCurrentFrame();
   useFontsReady([
     [`400 22px ${FONT.mono}`, 'LWIR8–14µmε0.98SP1BX12°CW/kg≈×0123456789.·kcal=PAUSE '],
-    [`400 26px ${FONT.sans}`, '你太阳每公斤功率按算模式低熵高熵吃进排出天⁻¹⁰⁴'],
+    [`400 26px ${FONT.sans}`, '你太阳每公斤功率按算模式低熵高熵吃进排出天⁻¹⁰⁴→↗'],
     [`600 210px ${FONT.latin}`, '×70'],
   ]);
   if (f < T.scan0) return null;
@@ -111,18 +110,23 @@ export const HudThermal: React.FC = () => {
     if (cA > 0.01) {
       els.push(
         <div key="c1" style={mono(20, { left: 92, top: y0 - 12, color: VOICE, opacity: 0.7 * cA })}>37.0°C</div>,
-        <div key="c2" style={mono(20, { left: 92, top: y1 - 12, color: VOICE, opacity: 0.7 * cA })}>20.0°C</div>,
+        <div key="c2" style={mono(20, { left: 92, top: y1 - 12, color: VOICE, opacity: 0.7 * cA })}>26.0°C</div>,
       );
     }
     // log W/kg scale with the two markers: you (1.4) and the Sun (0.0002)
     if (wkg > 0.01) {
       const lg = (v: number) => y1 - ((Math.log10(v) + 4.3) / 5.3) * (y1 - y0);
-      const ticks = [1, 0, -1, -2, -3, -4];
+      // only the two ends of the scale are labelled; the two markers carry the comparison
+      const ticks = [0, -4];
+      [1, 0, -1, -2, -3, -4].forEach((e) => {
+        const yy = lg(Math.pow(10, e));
+        els.push(<div key={'tk' + e} style={{ position: 'absolute', left: 78, top: yy - 0.5, width: 8, height: 1, background: VOICE, opacity: 0.5 * wkg }} />);
+      });
       ticks.forEach((e) => {
         const yy = lg(Math.pow(10, e));
         els.push(
-          <div key={'t' + e} style={mono(18, { left: 90, top: yy - 10, color: VOICE, opacity: 0.55 * wkg, letterSpacing: '0.05em' })}>
-            {'— 10'}
+          <div key={'t' + e} style={mono(18, { left: 92, top: yy - 10, color: VOICE, opacity: 0.55 * wkg, letterSpacing: '0.05em' })}>
+            {'10'}
             <span style={{ fontSize: 13, position: 'relative', top: -8 }}>{e < 0 ? '−' + -e : String(e)}</span>
           </div>,
         );
@@ -131,25 +135,17 @@ export const HudThermal: React.FC = () => {
         const yy = lg(v);
         els.push(
           <div key={k} style={{ position: 'absolute', left: 50, top: yy - 1, width: 38, height: 2, background: col, opacity: wkg, boxShadow: `0 0 8px ${col}` }} />,
-          <div key={k + 'l'} style={sans(22, { left: 156, top: yy - 15, color: col, opacity: wkg })}>{label}</div>,
+          <div key={k + 'l'} style={sans(22, { left: 160, top: yy - 15, color: col, opacity: wkg })}>{label}</div>,
         );
       };
-      mk(1.4, '你  1.4', lutCss(0.95), 'mY');
-      mk(0.00019, '太阳  0.0002', lutCss(0.42), 'mS');
-      // bracket between the two
-      const ya = lg(1.4);
-      const yb = lg(0.00019);
-      const br = ease.inOutCubic(seg(f, T.sunIn1 - 6, T.sunIn1 + 14)) * wkg;
-      els.push(
-        <div key="brk" style={{ position: 'absolute', left: 136, top: ya, width: 8, height: (yb - ya) * br, borderLeft: `1.5px solid ${VOICE}`, borderTop: `1.5px solid ${VOICE}`, borderBottom: br > 0.98 ? `1.5px solid ${VOICE}` : undefined, opacity: 0.6 * wkg }} />,
-        <div key="brl" style={mono(22, { left: 156, top: (ya + yb) / 2 - 12, color: VOICE, opacity: 0.8 * br })}>×7000</div>,
-      );
+      mk(1.4, '你  1.4 W/kg', lutCss(0.95), 'mY');
+      mk(0.00019, '太阳  0.0002 W/kg', lutCss(0.42), 'mS');
     }
   }
 
   // ---- spot meter on the forehead (dark-backed ring, label off to the right on a leader line) + ≈100 W readout
   const spotA = fade(f, T.scan1 + 4, T.sunIn0 + 4, 10, 10);
-  if (spotA > 0.01 && project(cam, 0, 940, 0, p, 0)) {
+  if (spotA > 0.01 && project(cam, 0, 962, 0, p, 0)) {
     const R = 22;
     const ring = (w: number, col: string, k: string) => (
       <div key={k} style={{ position: 'absolute', left: p[0] - R - w / 2, top: p[1] - R - w / 2, width: 2 * R, height: 2 * R, border: `${w}px solid ${col}`, borderRadius: '50%', opacity: spotA }} />
@@ -178,13 +174,12 @@ export const HudThermal: React.FC = () => {
   const bulbA = fade(f, T.scan1 + 10, T.sunIn0 + 6, 12, 10);
   if (bulbA > 0.01) {
     const glow = 0.5 + 0.5 * Math.sin(f * 0.21);
-    // lower-left, clear of the figure (its hand is at x ≈ 360, its legs at x ≥ 430)
+    // top-left HUD lane, clear of the figure during the push-in
     els.push(
-      <div key="bulb" style={{ position: 'absolute', left: 96, top: 1112, opacity: bulbA }}>
-        <Bulb x={0} y={0} s={1.0} glow={glow} />
-        <div style={mono(52, { left: 78, top: 6, color: lutCss(0.97), letterSpacing: '0.02em', textShadow: '0 0 18px rgba(251,155,6,0.5)' })}>≈100 W</div>
-        <div style={mono(19, { left: 2, top: 98, color: VOICE, opacity: 0.62, letterSpacing: '0.06em' })}>{'2000 kcal/天 ÷ 86400 s'}</div>
-        <div style={mono(19, { left: 2, top: 126, color: VOICE, opacity: 0.62, letterSpacing: '0.06em' })}>{'≈ 97 W'}</div>
+      <div key="bulb" style={{ position: 'absolute', left: 96, top: 238, opacity: bulbA }}>
+        <Bulb x={0} y={0} s={0.8} glow={glow} />
+        <div style={mono(48, { left: 64, top: 4, color: lutCss(0.97), letterSpacing: '0.02em', textShadow: '0 0 18px rgba(251,155,6,0.5)' })}>≈100 W</div>
+        <div style={mono(19, { left: 2, top: 80, color: VOICE, opacity: 0.62, letterSpacing: '0.06em' })}>{'2000 kcal/天 ÷ 86400 s ≈ 97 W'}</div>
       </div>,
     );
   }
@@ -197,8 +192,7 @@ export const HudThermal: React.FC = () => {
       const s = 84 * p[2];
       els.push(
         <div key="bx1" style={{ position: 'absolute', left: p[0] - s / 2, top: p[1] - s / 2, width: s, height: s, border: '1.5px solid rgba(252,255,164,0.95)', opacity: boxA }} />,
-        <div key="bx1k" style={{ position: 'absolute', left: p[0] + s / 2, top: p[1], width: 150 - s / 2, height: 1, background: 'rgba(252,255,164,0.7)', opacity: boxA }} />,
-        <div key="bx1l" style={mono(21, { left: p[0] + 160, top: p[1] - 26, color: lutCss(0.97), opacity: boxA })}>{'BX1  你\n1.4 W/kg'}</div>,
+
       );
     }
     // BX2 on the Sun's disc (right), its label under the limb on a leader line
@@ -207,16 +201,19 @@ export const HudThermal: React.FC = () => {
     const byc = sy + Math.sqrt(SUN_R * SUN_R - (bxc - 540) * (bxc - 540)) - 84;
     els.push(
       <div key="bx2" style={{ position: 'absolute', left: bxc - 34, top: byc - 34, width: 68, height: 68, border: '1.5px solid rgba(243,239,230,0.75)', opacity: boxA }} />,
-      <div key="bx2k" style={{ position: 'absolute', left: bxc, top: byc + 34, width: 1, height: 64, background: 'rgba(243,239,230,0.6)', opacity: boxA }} />,
-      <div key="bx2l" style={mono(21, { right: 140, top: byc + 104, color: VOICE, opacity: 0.85 * boxA, textAlign: 'right' })}>{'BX2  太阳\n0.0002 W/kg'}</div>,
+
     );
     // ×7000 count-up
     const cu = ease.outCubic(seg(f, T.sunIn1 - 2, T.sunIn1 + 22));
     const val = Math.round(Math.pow(10, Math.log10(7000) * cu));
     const monoA = boxA * smoothstep(T.sunIn1 - 4, T.sunIn1 + 4, f);
+    const bigStyle: React.CSSProperties = { fontFamily: FONT.latin, fontWeight: 600, fontSize: 210, lineHeight: 1, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums lining-nums' };
     els.push(
+      <div key="bigglow" style={{ position: 'absolute', left: 0, width: 1080, top: 226, textAlign: 'center', opacity: monoA * 0.55 }}>
+        <span style={{ ...bigStyle, color: 'rgba(5,3,15,0.9)', textShadow: '0 0 26px rgba(251,155,6,0.9), 0 6px 22px rgba(0,0,0,0.9)' }}>×{val}</span>
+      </div>,
       <div key="big" style={{ position: 'absolute', left: 0, width: 1080, top: 226, textAlign: 'center', opacity: monoA }}>
-        <span style={{ fontFamily: FONT.latin, fontWeight: 600, fontSize: 210, lineHeight: 1, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums lining-nums', backgroundImage: 'linear-gradient(to top, #ED6925 10%, #FB9B06 40%, #F7D13D 70%, #FCFFA4 95%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', filter: 'drop-shadow(0 0 22px rgba(251,155,6,0.45)) drop-shadow(0 4px 20px rgba(0,0,0,0.8))' }}>
+        <span style={{ ...bigStyle, backgroundImage: 'linear-gradient(to top, #ED6925 10%, #FB9B06 40%, #F7D13D 70%, #FCFFA4 95%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
           ×{val}
         </span>
       </div>,
@@ -240,21 +237,15 @@ export const HudThermal: React.FC = () => {
     );
     // in / out labels on the streams
     const lA = gA * smoothstep(T.gauge0 + 10, T.gauge0 + 24, f);
-    // on the intake thread where it crosses y ≈ 262 (the thread enters from above the frame)
-    let ip: [number, number] | null = null;
-    for (let k = 0; k <= 60; k++) {
-      const [X, H] = intakeAt(k / 60);
-      if (!project(cam, X, H, 0, p, 0)) continue;
-      ip = [p[0], p[1]];
-      if (p[1] >= 262) break;
-    }
+    // over the intake thread (it enters from the left at mouth height) and beside the breath / the heat leaving
+    const ip = intakeLabelPoint(cam, 150);
     if (ip) {
-      const [x, y] = safeBox(ip[0] + 26, ip[1] - 14, 170, 32);
-      els.push(<div key="in" style={sans(26, { left: x, top: y, color: COLOR.orderGold, opacity: lA })}>{'↙ 吃进低熵'}</div>);
+      const [x, y] = safeBox(ip[0], ip[1] - 58, 190, 32);
+      els.push(<div key="in" style={sans(26, { left: x, top: y, color: COLOR.orderGold, opacity: lA })}>{'吃进低熵 →'}</div>);
     }
-    if (project(cam, 250, 300, 0, p, 0)) {
-      const [x, y] = safeBox(p[0], p[1], 170, 32);
-      els.push(<div key="out" style={sans(26, { left: x, top: y, color: '#FF6A4D', opacity: lA })}>{'排出高熵 ↘'}</div>);
+    if (project(cam, 175, 990, 0, p, 0)) {
+      const [x, y] = safeBox(p[0] + 10, p[1] - 34, 190, 32);
+      els.push(<div key="out" style={sans(26, { left: x, top: y, color: '#FF6A4D', opacity: lA })}>{'排出高熵 ↗'}</div>);
     }
   }
 

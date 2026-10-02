@@ -1,4 +1,4 @@
-// S08 — sand heightfield shader (top view, low raking sun from the right, elevation ≈ 12°).
+// S08 — sand heightfield shader (top view, raking sun from the right: 12° high for the walk, 28° for the macro).
 // Height = two trains of asymmetric wind ripples (steep lee faces left/downwind, long stoss faces right/upwind; the
 // second train at 0.6 λ rotated 8°; phase defects where crests fork or end) − footprints (relief texture: R raised
 // sand, G depression). Lighting: Lambert key + analytic horizon-test cast shadows (ripple crests and print walls shade
@@ -23,6 +23,9 @@ uniform float u_wind;     // drifting sand veil
 uniform vec3 u_dof;       // focus x,y (uv) ; strength
 uniform vec4 u_ghost;     // rewind target: print world x,y ; alpha ; shatter 0..1
 uniform sampler2D u_noise; // low-frequency noise (sandNoise.ts): rg dune gradient, b light pool, a veil
+uniform vec4 u_sun;       // unit vector toward the sun (xyz) ; tan(elevation)
+uniform vec4 u_rip;       // ripple amplitude (world px) ; lee fraction ; print depth (world px) ; cast-shadow strength
+uniform float u_corr;     // lit corridor along the trail (walk phase)
 
 ${GLSL.hash}
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -34,14 +37,13 @@ float a=hash12(i),b=hash12(i+vec2(1,0)),c=hash12(i+vec2(0,1)),d=hash12(i+vec2(1,
 return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
 
 const vec2 RES = vec2(1080.0, 1920.0);
-const float DEP = 8.0;    // depression depth (world px) at full depth
-const float RIM = 2.8;    // raised sand height
+#define DEP u_rip.z   // depression depth (world px) at full depth
+#define RIM (0.35 * u_rip.z) // raised sand height
 const float LAM = 62.0;   // ripple wavelength (world px)
-const float AMP = 3.0;    // ripple height (world px)
-const float LEE = 0.22;   // lee-face fraction of a ripple (steep, ~20°: at the angle the sun can't reach)
-const vec3 L = vec3(0.96014, -0.18192, 0.21224);   // sun: from the right, a little from the top, 12.3° high
-const vec2 LD = vec2(0.98252, -0.18616);           // its horizontal direction
-const float TANE = 0.2172;                         // tan(elevation)
+#define AMP u_rip.x       // ripple height (world px)
+#define LEE u_rip.y       // lee-face fraction of a ripple (the steep downwind face)
+#define L u_sun.xyz
+#define TANE u_sun.w
 const vec2 K1 = vec2(1.0, 0.16) / 62.0;
 const vec2 K2 = vec2(0.9679, 0.2976) / 37.2;
 const vec3 BG = vec3(10.0, 7.0, 5.0) / 255.0;
@@ -80,6 +82,7 @@ void main(){
 #endif
   vec2 uv = screen / RES;
   float z = u_cam.z;
+  vec2 LD = normalize(L.xy);
   vec2 world = u_cam.xy + (screen - u_anchor) / z;
 
   vec2 rel = texture2D(u_relief, uv).rg;
@@ -93,8 +96,10 @@ void main(){
   float ph1 = dot(world, K1) + w + 0.5 * defT;
   float ph2 = dot(world, K2) + 0.6 * w + 0.37 - 0.35 * defT;
   float am = vnoise(world * 0.0042 + 3.1);
-  float a1r = (0.3 + 0.7 * am) * AMP * (1.0 - 0.7 * defT * (1.0 - defT) * 4.0);
-  float a2r = 0.26 * AMP * (0.35 + 0.65 * (1.0 - am));
+  vec4 nz = texture2D(u_noise, world / 4096.0);
+  float broad = mix(0.55, 1.12, smoothstep(0.25, 0.75, nz.b));   // smoother patches and livelier ones
+  float a1r = (0.3 + 0.7 * am) * AMP * broad * (1.0 - 0.7 * defT * (1.0 - defT) * 4.0);
+  float a2r = 0.26 * AMP * broad * (0.35 + 0.65 * (1.0 - am));
   float flat0 = 1.0 - dep;                  // a print wipes the ripples where it pressed
   float s1 = fract(ph1);
   float s2 = fract(ph2);
@@ -113,8 +118,7 @@ void main(){
   }
 
   // ---- broad dune undulation (low-frequency light & shade) + light pools, from the noise texture
-  vec4 nz = texture2D(u_noise, world / 4096.0);
-  vec2 gDune = (nz.rg - 0.5) * 0.22;
+  vec2 gDune = (nz.rg - 0.5) * 0.36;
 
   // ---- depth of field: away from the focus the relief softens
   vec2 fd = (v_uv - u_dof.xy) * vec2(0.75, 1.0);
@@ -123,11 +127,13 @@ void main(){
   gRip *= 1.0 - 0.75 * defocus;
   vec3 N = normalize(vec3(-(gRel + gRip + gDune), 1.0));
 
-  // ---- cast shadows: horizon test toward the sun (ripples analytic, prints from the relief texture)
-  float H0 = hr + h0;
+  // ---- cast shadows: horizon test toward the sun (ripples analytic — the main train only; the secondary one is a
+  // quarter as tall — prints from the relief texture). 3 taps: this loop dominates both run and compile time.
+  float H0 = a1r * ripH(s1) * flat0 + h0;
   float occ = 0.0;
-  for (int i = 1; i <= 4; i++) {
-    float d = float(i * i) * 2.6 + 2.0;           // 4.6, 12.4, 25.4, 43.6 world px
+  float k1L = dot(K1, LD);
+  for (int i = 0; i < 3; i++) {
+    float d = i == 0 ? 4.0 : (i == 1 ? 13.0 : 32.0);
     float fq = flat0;
     float rq = 0.0;
     if (!bare) {
@@ -135,21 +141,29 @@ void main(){
       rq = rr.r * RIM - rr.g * DEP;
       fq = 1.0 - clamp(rr.g, 0.0, 1.0);
     }
-    float hq = (a1r * ripH(fract(ph1 + d * dot(K1, LD))) + a2r * ripH(fract(ph2 + d * dot(K2, LD)))) * fq + rq;
+    float hq = a1r * ripH(fract(ph1 + d * k1L)) * fq + rq;
     occ = max(occ, smoothstep(0.0, 0.9, hq - H0 - d * TANE));
   }
-  occ *= 1.0 - 0.5 * defocus;
+  occ *= (1.0 - 0.5 * defocus) * u_rip.w;
+  // inside a print the walls bounce light into the floor: never a solid black pit (heel, ball, toes stay readable)
+  float inDent = smoothstep(0.05, 0.3, dep);
+  occ = min(occ, mix(1.0, 0.55, inDent));
 
   float ndl = max(dot(N, L), 0.0);
   float direct = ndl * (1.0 - occ) / L.z;              // 1 = flat sand in full sun
-  float amb = 0.26 * (0.75 + 0.25 * N.z);
+  float amb = (0.33 + 0.12 * inDent) * (0.75 + 0.25 * N.z);
   float pool = 0.92 + 0.16 * nz.b;
   float albedo = 0.95 + 0.1 * hash12(floor(world * 0.9));
-  float l = (amb + 0.38 * direct) * pool * albedo * u_light;
+  // a lit corridor holds the trail (the S-curve centreline is analytic: trail.ts centre()); the flanks fall off
+  float sT = 970.0 - world.y;
+  float cT = 541.0 + 230.0 * sin(6.2831853 * sT / 2720.0) * smoothstep(0.0, 600.0, sT);
+  float dT = abs(world.x - cT);
+  float corr = 1.0 + u_corr * (0.09 * (1.0 - smoothstep(140.0, 460.0, dT)) - 0.2 * smoothstep(320.0, 950.0, dT));
+  float l = (amb + 0.33 * direct) * pool * albedo * corr * u_light;
   vec3 sand = sandRamp(l);
   // cool sky fill where the sun doesn't reach
   float shade = 1.0 - smoothstep(0.0, 0.75, direct);
-  sand = mix(sand, SKY * pool * u_light, 0.4 * shade);
+  sand = mix(sand, SKY * pool * u_light, 0.22 * shade);
 
   // ---- glints: grains catching the low sun on lit faces
   float cell = max(2.2, 2.6 / z);
@@ -167,7 +181,8 @@ void main(){
 
   // ---- the rewind's target (cyan, time-symmetric law): the pristine, undented ripple crests over the fresh print
 #ifdef REWIND
-  if (u_ghost.z > 0.001) {
+  // (only near the hero print: the shards fly ≤ ~110 world px, the print is ±75 px)
+  if (u_ghost.z > 0.001 && dot(world - u_ghost.xy, world - u_ghost.xy) < 300.0 * 300.0) {
     vec2 r0 = world - u_ghost.xy;
     float sh = u_ghost.w;
     mat2 R = mat2(0.866, 0.5, -0.5, 0.866);
@@ -184,7 +199,7 @@ void main(){
     // only where the print now is: the dent at the shard's source position, slightly grown
     vec2 suv = (u_anchor + (wq - u_cam.xy) * z) / RES;
     float sdep = texture2D(u_relief, suv).g;
-    float inPrint = smoothstep(0.02, 0.25, sdep);
+    float inPrint = smoothstep(0.02, 0.25, sdep) * (1.0 - smoothstep(110.0, 140.0, length(src)));  // the hero print only
     float g1 = dot(wq, K1) + w + 0.5 * defT;
     float sc = fract(g1 - LEE + 0.5) - 0.5;            // signed phase distance to the (pristine) crest
     float lw = 3.0 / (z * LAM);
@@ -192,7 +207,7 @@ void main(){
     float sc2 = fract(g1 - 0.62 + 0.5) - 0.5;          // a fainter mid-stoss contour
     line += 0.4 * (1.0 - smoothstep(lw * 0.4, lw * 1.2, abs(sc2)));
     float scan = 0.8 + 0.2 * sin(screen.y * 0.9);
-    float gk = clamp((line * 2.2 + 0.1) * inPrint * u_ghost.z * shardA * scan, 0.0, 1.0);
+    float gk = clamp((line * 2.2 + 0.18) * inPrint * u_ghost.z * shardA * scan, 0.0, 1.0);
     col = mix(col, vec3(0.224, 0.882, 1.0), gk) + vec3(0.1, 0.4, 0.5) * gk * 0.4;
   }
 #endif

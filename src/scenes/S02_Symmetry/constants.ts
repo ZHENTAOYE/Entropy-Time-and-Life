@@ -45,18 +45,14 @@ export const T = {
   // countdown (matches the score bed: 2.4 s / 3.1 s / 3.8 s)
   count: [72, 93, 114] as const,
   qStamp: 134,
-  // conservation audit: both panels draw Σp tip to tail (before, then after) and the KE bars — both runs are lawful
-  audit: 146,
-  auditLandA: 162, // A's after-chain closes on its before-chain
-  auditLand: 168, // B's after-chain closes on its before-chain (chime)
-  // the law
-  eqIn: 186,
-  subst: 198, // t -> (−t)
-  twin: 206, // second minus born from the square
-  annihilate: 220,
-  collapse: 224,
-  invariant: 236, // 「t → −t ：不变 ✓」 fully shown f244-256
-  eqOut: 258,
+  // the law (no audit: the picture leads and C3 confirms — the equations write on while 「分不出来。」 is still up)
+  eqIn: 150,
+  subst: 166, // t -> (−t)
+  twin: 174, // second minus born from the square
+  annihilate: 188,
+  collapse: 192,
+  invariant: 204, // 「t → −t ：不变 ✓」 complete by f212, held fully opaque to f252 (1.3 s)
+  eqOut: 254,
   // escalation
   wipe10: 260,
   run10: 268,
@@ -71,14 +67,15 @@ export const T = {
   reveal: 392,
   // B's push-in on the condensing drop (released by the !! shake)
   pushIn: 366,
-  // resolution: C6 「方向，出现了。」 390-438 is crisp ~409-424 over static panels; the panels retract only after it
-  panelsOut: 428,
-  swarm: 434, // launches 434-441, 22 f flights -> 很多 complete by f463
-  swarmLand: 463,
-  c7Line1: 436, // C7 line 1 condenses as C6 finishes diffusing (2 f crossfade, different lane)
-  c7Exit: 498, // the full sentence holds until here, then diffuses (16 f)
-  evaporate: 498, // "many" evaporates with the text, 498-516 (12 f per ball, spread 6); survivors glide 498-514
-  boxDraw: 502,
-  dividerDraw: 507,
+  // resolution: C6 「方向，出现了。」 390-450 is crisp ~412-436 (gold arrows grow 398-418); the gutter clears 396-412;
+  // B's tape is pulled out of its panel (gone by 436); the panels retract 426-444
+  panelsOut: 426,
+  swarm: 426, // launches 426-433, 20 f flights biased downward -> clear of card 7 line 1 (y 640) by f444, 很多 by f453
+  swarmLand: 453,
+  c7Line1: 442, // C7 condenses after the swarm has crossed line 1: line 1 + 「藏在“」 at 442, 「”之中。」 at 446
+  c7Exit: 498, // the full sentence is complete ~f464 and holds to 498 (1.1 s), then diffuses (14 f), gone by 512
+  evaporate: 496, // "many" evaporates 496-514 (12 f per ball, spread 6); survivors glide 496-512, grow to r = 10 by 514
+  boxDraw: 500, // the S03 box closes symmetrically from the top/bottom centre 500-514 (its sides meet at y = 900 last)
+  dividerDraw: 506, // divider drops 506-516
   outHold: 516, // f516-521: static OUT frame
 } as const;

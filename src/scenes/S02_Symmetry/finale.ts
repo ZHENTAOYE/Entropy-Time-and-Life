@@ -7,7 +7,8 @@ import { hash01 } from '../../lib/random';
 import { BOX, C, P4, P4_R, PA, T } from './constants';
 import { Ctx, glow, rgbaHex } from './paint';
 import { gasWorldA, k400, SPEED_BUCKET, SPEED_COLS } from './stages';
-import { GAS_N, GAS_R, gasRun, runSpeed } from './sims';
+import { GAS_FRAMES, GAS_N, GAS_R, GAS_SUBSTEPS, gasFingerprint, gasRun, runSpeed } from './sims';
+import { SWARM_BAKE } from './swarm400';
 
 // ------------------------------------------------------------------ card 7 layout (line 2 = 藏在“ 很多 ”之中。)
 export const C7 = {
@@ -98,23 +99,68 @@ interface Plan {
   target: Float32Array; // assigned glyph point per ball
   survivor: Int32Array; // ball index for each P4 point
   isSurvivor: Uint8Array;
+  /** gas colour (speed bucket) of each ball at its launch, rgb triplets — the flight blends it to the core white */
+  rgb0: Uint8Array;
 }
-const FLIGHT = 22;
+const FLIGHT = 20;
 const LAUNCH_SPREAD = 8; // launches T.swarm .. T.swarm + 7
+const launchFrame = (i: number) => T.swarm + Math.floor(hash01(i, 777) * LAUNCH_SPREAD);
+
+/** What the swarm takes over from panel A's recorded gas: positions at T.swarm (for the rank matching), each ball's
+ * position and velocity on its own launch frame, and its speed bucket (colour) there. */
+export interface SwarmInputs {
+  p0: Float32Array;
+  start: Float32Array;
+  v0: Float32Array;
+  bucket: Uint8Array;
+}
+/** Everything the swarm inputs depend on. The baked table (swarm400.ts) is used only while this matches its `sig`. */
+export const swarmSig = () =>
+  [T.swarm, T.run400, LAUNCH_SPREAD, GAS_N, GAS_FRAMES, GAS_SUBSTEPS, GAS_R, PA.x, PA.y, gasFingerprint()].join('|');
+/** The swarm inputs read from the live N = 400 recording (needs ~112 recorded frames of the simulation). */
+export function swarmInputsLive(): SwarmInputs {
+  const n = GAS_N;
+  // the balls are still flying inside panel A while they wait: sample positions at T.swarm
+  const p0 = gasWorldA(T.swarm, PA.x, PA.y);
+  const start = new Float32Array(n * 2);
+  const v0 = new Float32Array(n * 2);
+  const bucket = new Uint8Array(n);
+  const byLaunch = new Map<number, Float32Array>();
+  const run = gasRun(k400('A', T.swarm + LAUNCH_SPREAD) + 1);
+  for (let i = 0; i < n; i++) {
+    const L = launchFrame(i);
+    let p = byLaunch.get(L);
+    if (!p) {
+      p = gasWorldA(L, PA.x, PA.y);
+      byLaunch.set(L, p);
+    }
+    start[i * 2] = p[i * 2];
+    start[i * 2 + 1] = p[i * 2 + 1];
+    const kk = Math.round(k400('A', L));
+    v0[i * 2] = run.vel[(kk * n + i) * 2];
+    v0[i * 2 + 1] = run.vel[(kk * n + i) * 2 + 1];
+    bucket[i] = SPEED_BUCKET(runSpeed(run, i, kk));
+  }
+  return { p0, start, v0, bucket };
+}
+/** Baked inputs when valid (a render tab showing only the finale then never has to re-simulate the gas), else live. */
+function swarmInputs(): SwarmInputs {
+  return memo('S02:swarmInputs', () => (SWARM_BAKE.sig === swarmSig() ? SWARM_BAKE : swarmInputsLive()));
+}
 
 export function swarmPlan(): Plan {
   return memo('S02:swarmPlan', () => {
     const n = GAS_N;
     const tg = manyTargets();
+    const { p0, start, v0, bucket } = swarmInputs();
     const launch = new Float32Array(n);
-    // the balls are still flying inside panel A while they wait: sample positions at T.swarm
-    const p0 = gasWorldA(T.swarm, PA.x, PA.y);
+    for (let i = 0; i < n; i++) launch[i] = launchFrame(i);
     // rank matching: 20 strips by x, each sorted by y -> coherent, non-crossing flow
     const order = (xy: Float32Array) => {
-      const idx = Array.from({ length: n }, (_, i) => i).sort((a, b) => xy[a * 2] - xy[b * 2]);
+      const idx = Array.from({ length: n }, (_, i) => i).sort((a, b) => xy[a * 2] - xy[b * 2] || a - b);
       const out: number[] = [];
       for (let s = 0; s < 20; s++) {
-        const strip = idx.slice(s * 20, s * 20 + 20).sort((a, b) => xy[a * 2 + 1] - xy[b * 2 + 1]);
+        const strip = idx.slice(s * 20, s * 20 + 20).sort((a, b) => xy[a * 2 + 1] - xy[b * 2 + 1] || a - b);
         out.push(...strip);
       }
       return out;
@@ -126,22 +172,12 @@ export function swarmPlan(): Plan {
       target[ob[k] * 2] = tg[ot[k] * 2];
       target[ob[k] * 2 + 1] = tg[ot[k] * 2 + 1];
     }
-    for (let i = 0; i < n; i++) launch[i] = T.swarm + Math.floor(hash01(i, 777) * LAUNCH_SPREAD);
-    const start = new Float32Array(n * 2);
-    const v0 = new Float32Array(n * 2);
-    const byLaunch = new Map<number, Float32Array>();
-    const run = gasRun();
+    const rgb0 = new Uint8Array(n * 3);
     for (let i = 0; i < n; i++) {
-      let p = byLaunch.get(launch[i]);
-      if (!p) {
-        p = gasWorldA(launch[i], PA.x, PA.y);
-        byLaunch.set(launch[i], p);
-      }
-      start[i * 2] = p[i * 2];
-      start[i * 2 + 1] = p[i * 2 + 1];
-      const kk = Math.round(k400('A', launch[i]));
-      v0[i * 2] = run.vel[(kk * n + i) * 2];
-      v0[i * 2 + 1] = run.vel[(kk * n + i) * 2 + 1];
+      const hex = parseInt(SPEED_COLS[bucket[i]].slice(1), 16);
+      rgb0[i * 3] = (hex >> 16) & 255;
+      rgb0[i * 3 + 1] = (hex >> 8) & 255;
+      rgb0[i * 3 + 2] = hex & 255;
     }
     // survivors: the glyph balls closest to each P4 point (unique)
     const survivor = new Int32Array(4);
@@ -160,7 +196,7 @@ export function swarmPlan(): Plan {
       survivor[j] = bi;
       isSurvivor[bi] = 1;
     });
-    return { start, launch, v0, target, survivor, isSurvivor };
+    return { start, launch, v0, target, survivor, isSurvivor, rgb0 };
   });
 }
 
@@ -173,9 +209,11 @@ function ballState(pl: Plan, i: number, f: number, live: Float32Array | null): [
   const tx = pl.target[i * 2];
   const ty = pl.target[i * 2 + 1];
   const t = ease.inOutCubic(seg(f, L, L + FLIGHT));
-  // bowed path: all bows turn the same way -> a gathering swirl
+  // bowed path: all bows turn the same way -> a gathering swirl. The control point never rises above 80 px below
+  // the chord's midpoint, so the balls drop out of the panel early and the swarm has crossed card 7's line 1
+  // (y 640) by f444, before 「时间之箭，」 condenses there
   const mx = (sx + tx) / 2 + (ty - sy) * 0.28;
-  const my = (sy + ty) / 2 - (tx - sx) * 0.28;
+  const my = Math.max((sy + ty) / 2 - (tx - sx) * 0.28, (sy + ty) / 2 + 80);
   const u = 1 - t;
   // momentum carried over from the gas: d/df = v0 at launch, decays to 0 by landing
   const s0 = f - L;
@@ -192,7 +230,7 @@ function ballState(pl: Plan, i: number, f: number, live: Float32Array | null): [
     x += Math.sin(f * 0.71 + ph1) * 1.1 * land;
     y += Math.cos(f * 0.83 + ph2) * 1.1 * land;
   }
-  // the end: many evaporates, four survive (glide 494-510, grow to r = 10 by 512)
+  // the end: many evaporates, four survive (glide 496-512, grow to r = 10 by 514)
   if (pl.isSurvivor[i]) {
     const j = pl.survivor.indexOf(i);
     const k = ease.inOutCubic(seg(f, T.evaporate, T.evaporate + 16));
@@ -214,13 +252,6 @@ function ballState(pl: Plan, i: number, f: number, live: Float32Array | null): [
   return [x, y, r, a];
 }
 
-/** Gas colour (speed bucket) of ball i at its launch, as rgb — the flight blends it to the core white. */
-function launchRgb(pl: Plan, i: number): [number, number, number] {
-  const run = gasRun();
-  const hex = SPEED_COLS[SPEED_BUCKET(runSpeed(run, i, k400('A', pl.launch[i])))];
-  const v = parseInt(hex.slice(1), 16);
-  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
-}
 const CORE_RGB: [number, number, number] = [0xe6, 0xfc, 0xff];
 
 export function drawSwarm(ctx: Ctx, f: number, glowLayer: boolean) {
@@ -262,7 +293,7 @@ export function drawSwarm(ctx: Ctx, f: number, glowLayer: boolean) {
     }
     // in flight: the gas colour of the ball (its speed) heats/cools to the core white of the word
     const c = ease.inOutQuad(seg(f, pl.launch[i], pl.launch[i] + FLIGHT));
-    const g0 = launchRgb(pl, i);
+    const g0 = pl.rgb0.subarray(i * 3, i * 3 + 3);
     // a slow brightness wave travels through the assembled word: still a gas of many
     const landed = seg(f, pl.launch[i] + FLIGHT * 0.6, pl.launch[i] + FLIGHT);
     const wave = 0.5 + 0.5 * Math.sin(x * 0.022 - y * 0.008 - f * 0.22);
@@ -290,58 +321,75 @@ export function drawP4Dot(ctx: Ctx, x: number, y: number, r: number) {
   ctx.fill();
 }
 
-/** The S03 box + divider, drawn on along its perimeter. */
-export function drawBox(ctx: Ctx, f: number) {
-  const k = ease.inOutCubic(seg(f, T.boxDraw, T.outHold - 2));
-  if (k <= 0) return;
+/** The S03 box closes symmetrically: the top and bottom edges grow out of the centre line (x = 540, where the divider
+ * will stand), turn the corners and the sides close at mid-height (y = 900) — the last pixels drawn are the side
+ * mid-points, so the box never cuts through the diffusing line 2 of card 7 (y = 926). Then the divider drops. */
+const boxK = (f: number) => ease.inOutCubic(seg(f, T.boxDraw, T.outHold - 2));
+/** the four quarter strokes: start (top/bottom centre) -> corner -> side mid-point */
+function boxQuarters(): Array<Array<[number, number]>> {
   const { x0, y0, x1, y1, divider } = BOX;
-  const W = x1 - x0;
-  const H = y1 - y0;
-  const per = W + H; // each of the two strokes covers half the perimeter
-  const L = per * k;
+  const ym = (y0 + y1) / 2;
+  return [
+    [[divider, y0], [x0, y0], [x0, ym]],
+    [[divider, y0], [x1, y0], [x1, ym]],
+    [[divider, y1], [x0, y1], [x0, ym]],
+    [[divider, y1], [x1, y1], [x1, ym]],
+  ];
+}
+/** point at arc length L along a polyline (and the total length) */
+function along(pts: Array<[number, number]>, L: number): [number, number] {
+  let rest = L;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1];
+    const [bx, by] = pts[i];
+    const l = Math.hypot(bx - ax, by - ay);
+    if (rest <= l) return [ax + ((bx - ax) * rest) / l, ay + ((by - ay) * rest) / l];
+    rest -= l;
+  }
+  return pts[pts.length - 1];
+}
+const polyLen = (pts: Array<[number, number]>) => pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+
+export function drawBox(ctx: Ctx, f: number) {
+  const k = boxK(f);
+  if (k <= 0) return;
+  const { y0, y1, divider } = BOX;
   ctx.save();
   ctx.strokeStyle = rgbaHex(C.cyan, 0.9);
   ctx.lineWidth = 2;
   ctx.lineJoin = 'miter';
-  ctx.setLineDash([L, per * 2]);
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x0, y1);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
+  ctx.lineCap = 'butt';
+  for (const q of boxQuarters()) {
+    const L = polyLen(q);
+    ctx.setLineDash([L * k, L * 2]);
+    ctx.beginPath();
+    ctx.moveTo(q[0][0], q[0][1]);
+    for (let i = 1; i < q.length; i++) ctx.lineTo(q[i][0], q[i][1]);
+    ctx.stroke();
+  }
   ctx.setLineDash([]);
   const d = ease.inOutCubic(seg(f, T.dividerDraw, T.outHold));
   if (d > 0) {
     ctx.beginPath();
     ctx.moveTo(divider, y0);
-    ctx.lineTo(divider, y0 + H * d);
+    ctx.lineTo(divider, y0 + (y1 - y0) * d);
     ctx.stroke();
   }
   ctx.restore();
 }
 
 export function drawBoxGlow(ctx: Ctx, f: number) {
-  const k = seg(f, T.boxDraw, T.outHold);
+  const k = boxK(f);
   if (k <= 0) return;
-  // a soft travelling highlight at the drawing heads
-  const { x0, y0, x1, y1 } = BOX;
-  const W = x1 - x0;
-  const H = y1 - y0;
-  const L = (W + H) * ease.inOutCubic(seg(f, T.boxDraw, T.outHold - 2));
-  const head = (along: 'top' | 'left'): [number, number] => {
-    if (along === 'top') return L <= W ? [x0 + L, y0] : [x1, y0 + (L - W)];
-    return L <= H ? [x0, y0 + L] : [x0 + (L - H), y1];
-  };
+  // a soft travelling highlight at the four drawing heads (and at the divider's head)
   const fade = 1 - seg(f, T.outHold - 6, T.outHold);
-  for (const h of ['top', 'left'] as const) {
-    const [hx, hy] = head(h);
-    glow(ctx, C.cyan, hx, hy, 26, 0.55 * fade);
+  if (fade <= 0) return;
+  for (const q of boxQuarters()) {
+    const [hx, hy] = along(q, polyLen(q) * k);
+    glow(ctx, C.cyan, hx, hy, 26, 0.5 * fade);
   }
+  const d = ease.inOutCubic(seg(f, T.dividerDraw, T.outHold));
+  if (d > 0 && d < 1) glow(ctx, C.cyan, BOX.divider, BOX.y0 + (BOX.y1 - BOX.y0) * d, 24, 0.5 * fade);
 }
 
 export const swarmLanding = () => {

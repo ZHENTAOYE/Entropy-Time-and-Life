@@ -41,24 +41,22 @@ export function safeBox(x: number, y: number, w: number, h: number): [number, nu
   return [Math.min(Math.max(90, x), xMax), Math.min(Math.max(236, y), 1640 - h)];
 }
 
-/** screen point of the intake thread where it crosses screen height ySafe (the thread enters from above the frame) */
-function intakeLabelPoint(cam: Cam, ySafe: number): [number, number] | null {
+/** screen point of the intake thread (which enters from the left edge at mouth height) where it reaches screen x xs */
+export function intakeLabelPoint(cam: Cam, xs: number): [number, number] | null {
   const p = new Float32Array(3);
-  let best: [number, number] | null = null;
-  for (let k = 0; k <= 60; k++) {
-    const [X, H] = intakeAt(k / 60);
+  for (let k = 0; k <= 80; k++) {
+    const [X, H] = intakeAt(k / 80);
     if (!project(cam, X, H, 0, p, 0)) continue;
-    if (p[1] >= ySafe) return best ?? [p[0], p[1]];
-    best = [p[0], p[1]];
+    if (p[0] >= xs) return [p[0], p[1]];
   }
-  return best;
+  return null;
 }
 
 export const Hud: React.FC = () => {
   const f = useCurrentFrame();
   useFontsReady([
     [`400 22px ${FONT.mono}`, '停留离开0123456789.%s·→↗▍ ×WHATISLFE'],
-    [`400 26px ${FONT.sans}`, '原来的水形状不变第天原有原子食物水O₂热CO₂H₂O半衰期约体内的≈60%7–14·骨骼脂肪晶状体：更新慢0123456789'],
+    [`400 26px ${FONT.sans}`, '原来的水形状不变第天原有原子食物水O₂热CO₂H₂O半衰期约体内的≈60%7–14·骨骼脂肪晶状体：更新慢0123456789→↗↙皮肤呼气'],
   ]);
   const cam = camAt(f);
   const els: React.ReactNode[] = [];
@@ -126,8 +124,9 @@ export const Hud: React.FC = () => {
   if (dA > 0.01) {
     const day = dayAt(f);
     const frac = originalFraction(flowTime(f));
+    // lower-left, beside the legs (the intake thread enters at mouth height at the top-left)
     els.push(
-      <div key="days" style={{ position: 'absolute', left: 90, top: 240, opacity: dA }}>
+      <div key="days" style={{ position: 'absolute', left: 90, top: 1096, opacity: dA }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={sans(30, { position: 'relative', color: VOICE, opacity: 0.75 })}>第</span>
           <span style={mono(64, { position: 'relative', color: GOLD, letterSpacing: '0.04em', textShadow: '0 0 16px rgba(255,201,74,0.4)' })}>{String(day).padStart(2, '0')}</span>
@@ -146,26 +145,35 @@ export const Hud: React.FC = () => {
     );
   }
 
-  // ---- stream labels (in: food / water, O₂ — out: heat, CO₂, H₂O), kept inside the safe zone
+  // ---- stream labels (in: food / water, O₂ at the mouth — out: heat through the skin, CO₂ · H₂O with the breath)
   const sA = fade(f, T.days0 + 14, T.scan0 + 4, 12);
   if (sA > 0.01) {
-    const ip = intakeLabelPoint(cam, 262);
+    const ip = intakeLabelPoint(cam, 150);
     if (ip) {
-      const [x, y] = safeBox(ip[0] + 26, ip[1] - 14, 250, 32);
+      const [x, y] = safeBox(ip[0], ip[1] - 58, 250, 32);
       els.push(
-        <div key="in" style={sans(26, { left: x, top: y, color: GOLD, opacity: 0.85 * sA })}>
-          {'↙ 食物 · 水 · O₂'}
+        <div key="in" style={sans(26, { left: x, top: y, color: GOLD, opacity: 0.88 * sA })}>
+          {'食物 · 水 · O₂ →'}
         </div>,
       );
     }
     const p = new Float32Array(3);
-    project(cam, 150, 330, 0, p, 0);
-    const [x, y] = safeBox(p[0] + 40, p[1], 250, 30);
-    els.push(
-      <div key="out" style={sans(24, { left: x, top: y, color: RED, opacity: 0.85 * sA })}>
-        {'↗ 热 · CO₂ · H₂O'}
-      </div>,
-    );
+    if (project(cam, 175, 975, 0, p, 0)) {
+      const [x, y] = safeBox(p[0] + 10, p[1] - 30, 230, 30);
+      els.push(
+        <div key="breath" style={sans(24, { left: x, top: y, color: RED, opacity: 0.88 * sA })}>
+          {'CO₂ · H₂O ↗'}
+        </div>,
+      );
+    }
+    if (project(cam, 205, 560, 0, p, 0)) {
+      const [x, y] = safeBox(p[0] + 20, p[1], 200, 30);
+      els.push(
+        <div key="out" style={sans(24, { left: x, top: y, color: RED, opacity: 0.88 * sA })}>
+          {'热 ↗'}
+        </div>,
+      );
+    }
   }
 
   return <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{els}</div>;
