@@ -32,6 +32,8 @@ export interface Cap {
   glow?: number;
   /** font of the <…> slot glyph (laid out at its own size, drawn by the caller) */
   slotFont?: string;
+  /** ink on the cream tank: a blurred glyph is diluted ink (paler as it spreads — never a grey block) */
+  inkFade?: boolean;
   /** extra entry delay (frames) per glyph */
   delayOf?: (g: Glyph) => number;
   slotSize?: number;
@@ -184,7 +186,7 @@ export function drawCap(ctx: CanvasRenderingContext2D, c: Cap, f: number, opacit
       if (slot) slot(ctx, g, st, local);
       continue;
     }
-    const op = st.op * opacity;
+    const op = st.op * opacity * (c.inkFade ? 1 / (1 + (st.blur / 6) * (st.blur / 6)) : 1);
     if (op <= 0.003) continue;
     const col = g.style === 1 ? em : base;
     drawGlyph(ctx, g.ch, c.font, c.size, col, g.x + st.dx, g.cy + st.dy, st.sc, st.rot, st.blur, op, c.glow && st.blur < 4 ? c.glow : 0);

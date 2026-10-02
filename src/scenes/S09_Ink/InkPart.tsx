@@ -30,6 +30,7 @@ export const C9: Cap = {
   exitLen: 22,
   backdrop: 0.55,
   backdropRgb: PAPER,
+  inkFade: true,
 };
 /** = S05's C8 「但在滚落的路上——」 (same layout, stagger, enter & exit), in ink on the cream tank */
 export const C10: Cap = {
@@ -42,6 +43,7 @@ export const C10: Cap = {
   enterLen: 16,
   exitLen: 24,
   color: ink,
+  inkFade: true,
 };
 export const C11: Cap = {
   lines: ['它画出了<你>。'],
@@ -57,6 +59,7 @@ export const C11: Cap = {
   delayOf: (g) => (g.ch === '。' ? 54 : 0),
   backdrop: 0.4,
   backdropRgb: PAPER,
+  inkFade: true,
 };
 const TITLE_CAP: Cap = {
   lines: [TITLE_TEXT],
@@ -72,6 +75,7 @@ const TITLE_CAP: Cap = {
   exit: 'none',
   backdrop: 0.75,
   backdropRgb: PAPER,
+  inkFade: true,
 };
 
 /** the inversion (CosmicWeb `invert`), 0 → 1 */

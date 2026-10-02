@@ -163,75 +163,165 @@ function velAt(x: number, y: number, t: number) {
     vx += MU[m][0] * c;
     vy += MU[m][1] * c;
   }
-  const s = 9 + 6 * Math.sin(0.0093 * x + 0.8) + 4 * Math.sin(0.0217 * x + 2.3) + 2.5 * Math.sin(0.047 * x + 1.1);
+  const s = 9 + 6 * Math.sin(0.0093 * x + 0.8) + 4 * Math.sin(0.0217 * x + 2.3) + 1.2 * Math.sin(0.047 * x + 1.1);
   vy += Math.max(1.5, s) * (0.5 + 0.5 * smoothstep(0, 3, t));
   VX = vx;
   VY = vy;
 }
 
 // ───────────────────────────── plumes ─────────────────────────────
-// The web's clusters are the densest ink: each one sinks as a FINGER. A narrow column under it falls faster than the
-// tank around it (a vertical shear vy(x) — divergence-free, so nothing is created or lost): the cluster is drawn
-// down into a hanging drop with its trail, and every thread that crosses the column is pulled into a veil.
+// The web's biggest clusters are the densest ink: each one falls as a THERMAL — a vortex pair (the 2-D section of a
+// vortex ring) whose bubble carries the cluster down while the water around it rolls up into the two lobes of the
+// classic ink "mushroom", and every thread attached to the cluster is dragged down into a hanging veil.
+// Stream function ψ = −A·(x−cx)·exp(−r²/2s²) (divergence-free); the bubble travels at 0.35 × its core speed, so the
+// streamlines close around a bubble of radius ≈ 1.45 s (it really carries its ink). Operator splitting: the plumes act on the picture the
+// smooth flow has made (Φ = Φ_plume ∘ Φ_smooth); each plume's map is back-traced on a fine local grid.
 interface Plume {
   x0: number;
   y0: number;
-  V: number; // px/s once developed
-  w: number; // column half-width, px
+  U: number; // core speed, px/s
+  s: number; // radius, px
   t0: number; // onset, s
+  life: number; // s, then the ring slows and stops
+  d: Float32Array; // fall of the centre d(t), sampled every PDT
 }
+const PDT = 0.05,
+  PDN = 320;
+const plumeAmp = (p: { U: number; t0: number; life: number }, t: number) =>
+  t <= p.t0 ? 0 : p.U * smoothstep(p.t0, p.t0 + 1.2, t) * (1 - smoothstep(p.t0 + p.life, p.t0 + p.life + 2.2, t));
+const dAt = (p: Plume, t: number) => {
+  const u = Math.max(0, t / PDT);
+  const k = Math.min(PDN - 1, Math.floor(u));
+  const fr = Math.min(1, u - k);
+  return p.d[k] + (p.d[k + 1] - p.d[k]) * fr;
+};
 function plumes(): Plume[] {
   return memo('s09:plumes', () => {
     const geo = webGeometry(SNAP_PARAMS, 60, 1080, 1920, 3);
+    const cand = geo.nodes
+      .filter((n) => n.tier === 0 && n.x > 70 && n.x < 1010 && n.y > SURFACE_Y + 50 && n.y < 1620)
+      .sort((a, b) => b.mass - a.mass);
     const out: Plume[] = [];
-    let q = 0;
-    for (const n of geo.nodes) {
-      if (n.x < 8 || n.x > 1072 || n.y < SURFACE_Y + 24 || n.y > 1880) continue;
-      const h = hash01(q++, 611);
-      if (n.tier === 0) out.push({ x0: n.x, y0: n.y, V: 14 + 26 * n.mass * (0.6 + 0.4 * h), w: 7 + 9 * n.mass, t0: 0.3 + 2.6 * h });
-      else if (h < 0.3) out.push({ x0: n.x, y0: n.y, V: 7 + 8 * n.r, w: 4.5, t0: 1.5 + 4 * hash01(q, 612) });
+    for (const n of cand) {
+      if (out.length >= 8) break;
+      if (out.some((p) => Math.abs(p.x0 - n.x) < 220 && Math.abs(p.y0 - n.y) < 560)) continue;
+      const q = out.length;
+      const h = hash01(q, 611),
+        h2 = hash01(q, 613);
+      const pl = { x0: n.x, y0: n.y, U: 115 + 40 * n.mass * (0.6 + 0.4 * h), s: 24 + 12 * n.mass, t0: 0.6 + 0.62 * q + 0.8 * h2, life: 2.6 + 1.4 * h, d: new Float32Array(PDN + 1) };
+      let acc = 0;
+      for (let k = 1; k <= PDN; k++) {
+        acc += 0.35 * plumeAmp(pl, (k - 0.5) * PDT) * PDT;
+        pl.d[k] = acc;
+      }
+      out.push(pl);
     }
     return out;
   });
 }
-/** ∫ of a 2-s linear ramp to V: the plume accelerates, then falls steadily */
-const fallA = (V: number, t: number) => (t <= 0 ? 0 : t < 2 ? (V * t * t) / 4 : V * (t - 1));
-/** vertical shear per column (half-res px) at τ: the columns follow their clusters as the large flow carries them */
-const pCache = { tau: -1, P: new Float32Array(W) };
-function plumeShear(tau: number): Float32Array {
-  if (pCache.tau === tau) return pCache.P;
-  pCache.tau = tau;
-  const P = pCache.P;
-  P.fill(0);
-  for (const pl of plumes()) {
-    const A = fallA(pl.V, tau - pl.t0);
-    if (A < 0.5) continue;
-    // forward-track the cluster's x through the smooth flow (RK2)
-    let x = pl.x0,
-      y = pl.y0,
-      t = 0;
-    const n = Math.max(1, Math.ceil(tau / DT));
-    const dt = tau / n;
-    for (let k = 0; k < n; k++) {
-      velAt(x, y, t);
-      const hx = x + VX * dt * 0.5,
-        hy = y + VY * dt * 0.5;
-      velAt(hx, hy, t + dt * 0.5);
-      x += VX * dt;
-      y += VY * dt;
-      t += dt;
-    }
-    const cx = x / 2,
-      w = pl.w / 2,
-      a = A / 2;
-    const i0 = Math.max(0, Math.floor(cx - 3 * w)),
-      i1 = Math.min(W - 1, Math.ceil(cx + 3 * w));
-    for (let i = i0; i <= i1; i++) {
-      const u = (i - cx) / w;
-      P[i] += a * Math.exp(-u * u);
-    }
+/** where the smooth flow has carried a point by τ (RK2, forward) */
+function forwardSmooth(x0: number, y0: number, tau: number): [number, number] {
+  let x = x0,
+    y = y0,
+    t = 0;
+  const n = Math.max(1, Math.ceil(tau / DT));
+  const dt = tau / n;
+  for (let k = 0; k < n; k++) {
+    velAt(x, y, t);
+    const hx = x + VX * dt * 0.5,
+      hy = y + VY * dt * 0.5;
+    velAt(hx, hy, t + dt * 0.5);
+    x += VX * dt;
+    y += VY * dt;
+    t += dt;
   }
-  return P;
+  return [x, y];
+}
+let PVX = 0,
+  PVY = 0;
+function plumeVel(p: Plume, x: number, y: number, t: number, cx: number, cy0: number) {
+  PVX = 0;
+  PVY = 0;
+  const A = plumeAmp(p, t);
+  if (A === 0) return;
+  const dx = x - cx,
+    dy = y - (cy0 + dAt(p, t));
+  const s2 = p.s * p.s;
+  const r2 = dx * dx + dy * dy;
+  if (r2 > 11 * s2) return;
+  const e = Math.exp(-r2 / (2 * s2));
+  PVX = (A * dx * dy * e) / s2;
+  PVY = A * e * (1 - (dx * dx) / s2);
+}
+const PG = 3; // fine grid, half-res px
+const PDTS = 0.25; // back-trace step, s
+/** the plumes' inverse map at τ, rasterised (half-res px; zero outside their windows) */
+const pdCache = { tau: -1, PD: new Float32Array(W * H * 2), any: false };
+function plumeField(tau: number) {
+  if (pdCache.tau === tau) return pdCache;
+  pdCache.tau = tau;
+  const PD = pdCache.PD;
+  PD.fill(0);
+  pdCache.any = false;
+  for (const p of plumes()) {
+    if (tau <= p.t0 + 0.05) continue;
+    const [Xs, Ys] = forwardSmooth(p.x0, p.y0, tau);
+    const m = 3.4 * p.s;
+    const i0 = Math.max(0, Math.floor((Xs - m) / 2 / PG)),
+      i1 = Math.min(Math.floor((W - 1) / PG), Math.ceil((Xs + m) / 2 / PG));
+    const j0 = Math.max(0, Math.floor((Ys - m) / 2 / PG)),
+      j1 = Math.min(Math.floor((H - 1) / PG), Math.ceil((Ys + dAt(p, tau) + m) / 2 / PG));
+    const gw = i1 - i0 + 1,
+      gh = j1 - j0 + 1;
+    if (gw < 2 || gh < 2) continue;
+    const G = new Float32Array(gw * gh * 2);
+    const n = Math.max(1, Math.ceil((tau - p.t0) / PDTS));
+    const dt = (tau - p.t0) / n;
+    for (let j = 0; j < gh; j++)
+      for (let i = 0; i < gw; i++) {
+        const X = (i0 + i) * PG * 2,
+          Y = (j0 + j) * PG * 2;
+        let x = X,
+          y = Y,
+          t = tau;
+        for (let k = 0; k < n; k++) {
+          plumeVel(p, x, y, t, Xs, Ys);
+          const hx = x - PVX * dt * 0.5,
+            hy = y - PVY * dt * 0.5;
+          plumeVel(p, hx, hy, t - dt * 0.5, Xs, Ys);
+          x -= PVX * dt;
+          y -= PVY * dt;
+          t -= dt;
+        }
+        const o = (j * gw + i) * 2;
+        G[o] = (X - x) / 2;
+        G[o + 1] = (Y - y) / 2;
+      }
+    // rasterise (bilinear) into the half-res field
+    const xa = i0 * PG,
+      xb = Math.min(W - 1, i1 * PG),
+      ya = j0 * PG,
+      yb = Math.min(H - 1, j1 * PG);
+    for (let y = ya; y < yb; y++) {
+      const gy = (y - ya) / PG;
+      const jj = Math.min(gh - 2, Math.floor(gy));
+      const fy = gy - jj;
+      for (let x = xa; x < xb; x++) {
+        const gx = (x - xa) / PG;
+        const ii = Math.min(gw - 2, Math.floor(gx));
+        const fx = gx - ii;
+        const a = (jj * gw + ii) * 2,
+          b2 = a + 2,
+          c = a + gw * 2,
+          d2 = c + 2;
+        const o = (y * W + x) * 2;
+        PD[o] += (G[a] * (1 - fx) + G[b2] * fx) * (1 - fy) + (G[c] * (1 - fx) + G[d2] * fx) * fy;
+        PD[o + 1] += (G[a + 1] * (1 - fx) + G[b2 + 1] * fx) * (1 - fy) + (G[c + 1] * (1 - fx) + G[d2 + 1] * fx) * fy;
+      }
+    }
+    pdCache.any = true;
+  }
+  return pdCache;
 }
 
 // coarse back-traced flow map (in half-res px): D = destination − source
@@ -360,15 +450,18 @@ export function drawInkField(ctx: CanvasRenderingContext2D, f: number, gain: num
   const out = memo('s09:fieldOut', () => ({ a: new Float32Array(W * H), t: new Float32Array(Math.max(W, H)) }));
   const R = out.a;
   // 1. advect (bilinear displacement from the coarse grid, bilinear density sample)
-  const PS = plumeShear(tau);
+  const PF = plumeField(tau);
+  const PD = PF.PD;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      // undo the plumes' fall (the latest motion), then trace back through the smooth flow
-      const yp = Math.max(0, y - PS[x]);
+      // undo the plumes (the latest motion), then trace back through the smooth flow
+      const pi = (y * W + x) * 2;
+      const xp = Math.min(W - 1, Math.max(0, x - PD[pi])),
+        yp = Math.min(H - 1, Math.max(0, y - PD[pi + 1]));
       const gy = yp / GS;
       const j0 = Math.min(GH - 2, Math.floor(gy));
       const fy = gy - j0;
-      const gx = x / GS;
+      const gx = xp / GS;
       const i0 = Math.min(GW - 2, Math.floor(gx));
       const fx = gx - i0;
       const k00 = (j0 * GW + i0) * 2,
@@ -377,7 +470,7 @@ export function drawInkField(ctx: CanvasRenderingContext2D, f: number, gain: num
         k11 = k01 + 2;
       const dx = (D[k00] * (1 - fx) + D[k10] * fx) * (1 - fy) + (D[k01] * (1 - fx) + D[k11] * fx) * fy;
       const dy = (D[k00 + 1] * (1 - fx) + D[k10 + 1] * fx) * (1 - fy) + (D[k01 + 1] * (1 - fx) + D[k11 + 1] * fx) * fy;
-      let sx = x - dx,
+      let sx = xp - dx,
         sy = yp - dy;
       // the tank's walls are far outside the frame: mirror at the sides and the bottom (no paper flows in)
       if (sx < 0) sx = -sx;

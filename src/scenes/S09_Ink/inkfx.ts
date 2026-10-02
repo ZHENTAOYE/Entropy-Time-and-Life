@@ -210,7 +210,7 @@ export function drawHaze(ctx: CanvasRenderingContext2D, f: number, amount: numbe
 export const FIG = { h: 940, feet: 1325, cx: 540 } as const;
 const FK = FIG.h / 1344;
 export function figStroke() {
-  return inkStroke('s09-figure', HUMAN_PATH, { x: FIG.cx - 300 * FK, y: FIG.feet - 1402 * FK, scale: FK, width: 15, spacing: 2.4, rows: 6, pressure: 0.85, seed: 3 });
+  return inkStroke('s09-figure', HUMAN_PATH, { x: FIG.cx - 300 * FK, y: FIG.feet - 1402 * FK, scale: FK, width: 19, spacing: 2.4, rows: 6, pressure: 1.0, seed: 3 });
 }
 function bodyPoints(): Float32Array {
   return sampleShape('s09-body', 1080, 1920, (ctx) => {
@@ -297,12 +297,12 @@ function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: nu
     alpha: al,
     sizes: sz,
     sv: st.sv,
-    size: 2.5,
-    density: 0.42 * light,
-    halo: 0.55,
-    haloRadius: 10,
-    dry: 0.65,
-    grain: 0.12 + 0.3 * g0,
+    size: 3.3,
+    density: 0.36 * light,
+    halo: 0.6,
+    haloRadius: 12,
+    dry: 0.55,
+    grain: 0.1 + 0.25 * g0,
     k: K,
     floor: FLOOR,
     seed: 9,
@@ -330,7 +330,7 @@ function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: nu
     bs[i] = (1 + 1.4 * (1 - g)) * (head > 0.5 ? 1.25 : 1);
     ba[i] = (vis * (0.32 + 0.9 * head) * (0.6 + 0.4 * h)) / bs[i] * (1 - rel * 0.85);
   }
-  drawInkParticles(ctx, bp, { alpha: ba, sizes: bs, size: 11, density: 0.075 * light, halo: 0.35, haloRadius: 16, wet: 0.8, grain: 0.25, k: K, floor: FLOOR, seed: 13 });
+  drawInkParticles(ctx, bp, { alpha: ba, sizes: bs, size: 19, sizeJitter: 0.25, density: 0.04 * light, halo: 0.5, haloRadius: 22, wet: 0.6, grain: 0.08, k: K, floor: FLOOR, seed: 13 });
 }
 
 // ───────────────────────────── ◀◀ → ink, title → ink ─────────────────────────────
