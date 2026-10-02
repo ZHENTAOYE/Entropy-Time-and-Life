@@ -1,0 +1,119 @@
+{
+ "score": 6.5,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "major",
+   "problem": "The figure is not painted from the crown down both sides. At f545 the first ink shows up as two disconnected scribbles on the screen-right arm, on blank paper. The head only forms around f553–562, and the left side lags well behind the right. This is the first thing seen at the film's climax, and it looks like a glitch. Cause, in inkfx.ts drawFigureParticles: each particle is revealed by its home arc position s0 (dFront/since), but it is drawn at st.flow(i, (14+22h)·t) with t = f/30 (absolute, about 18 s). Particles are therefore shifted 250–650 px clockwise along HUMAN_PATH. Particles near the crown on both sides land down the screen-right arm, because the left side wraps around through s = L.",
+   "fix": "Measure each particle's flow offset from the moment the brush passes it, not from absolute time. Invert paintFront to get tPass(s0), then use ds = side·speed·max(0, t − tPass(s0)), with side = s0 < L/2 ? +1 : −1, so ink streams downward on both sides from the crown. Equivalently, compute dFront/since from the displaced arc position. Verify with stills every 2 frames over f538–576: the head must close first, and the two sides must descend symmetrically.",
+   "frames": "f538–580 (see f545, f550, f556, f562)"
+  },
+  {
+   "severity": "major",
+   "problem": "The closing ink drop hangs motionless at (540,150) from f428 until it starts falling around f773, about 11.5 s. It appears suddenly at f428 as a grey bead on top of the violet cosmic web (f428–452, a pure-picture beat), then floats in the air above the tank for the whole ink section. Cause: InkPart passes inkDropFall(age, {fromY:150,…}), which returns visible:true for every age < 0 and holds the drop at fromY while age < −T.",
+   "fix": "Only show the drop once it falls. Mount InkDrop when f ≥ END.dropFrom, or set opacity = light·smoothstep(END.dropFrom−1, END.dropFrom+2, f). Better: start it above the frame (fromY ≈ −30, so T ≈ 0.86 s and dropFrom ≈ impact − 26) so it falls into view instead of appearing. Check f428, f600 and f770 for no stray bead.",
+   "frames": "f428–773 (appears at f428; visible in f440, f466, f515, f604, f775)"
+  },
+  {
+   "severity": "major",
+   "problem": "The vignette disappears in one frame at the cut from the eye/web beat to the ink beat. middle.ts draws vignette 0.42; InkPart draws no vignette at all. Measured luma: corners 17.3 → 23.4 (+35%) and the whole frame +10% between f427 and f428, during a slow pure-picture moment, so it flickers. The tank also lacks S01's warm lens vignette (S01 uses drawVignette 0.35 with \"70,52,30\" at z=45), which weakens the S01 rhyme.",
+   "fix": "Add an InkCanvas at z≈45 in InkPart that draws vignette(ctx, lerp(0.42, 0.35, ease(seg(f,428,470)))), with the colour lerped from black to [70,52,30]. Scale it by light so it goes dark with the light table. The vignette is then continuous across f427/f428 and matches S01's tank.",
+   "frames": "f427→f428, then the whole tank f428–818"
+  },
+  {
+   "severity": "major",
+   "problem": "「但在散开的路上——」 does not match S05's 「但在滚落的路上——」, although the brief and screenplay motif 4 require identical typography. Glyph positions do match: same centring, y 1440, 56 px, 0.08 em tracking. But S05 draws 「——」 as one unbroken rule (text.ts dashInk/bar logic), while S09 voice.ts fillText's two em-dashes with a visible gap (compare the crops of S05 f490 and S09 f585). The motion also differs: S05 ROAD_LINE uses stagger 0.8 / enterLen 12 / exitLen 14, S09 C10 uses 1.4 / 16 / 24. The comment in timing.ts claiming they are equal is stale.",
+   "fix": "Port S05 text.ts dashInk(), the per-'—' bar extents (reaching the middle of the tracking gap) and the glyphShape fillRect path into voice.ts layoutCap/drawGlyph, keeping advances unchanged. Set C10 to stagger 0.8, enterLen 12, exitLen 14. Re-check by stacking crops of S05 f490 and S09 ~f585: the dash, glyph x positions and baseline must coincide.",
+   "frames": "f548–614 (crisp ~f566–590) vs S05 f444–519"
+  },
+  {
+   "severity": "major",
+   "problem": "The film's title holds too briefly. 「熵 · 时间 · 生命」 finishes condensing around f778 and starts melting at f791, so it is fully crisp for about 13 frames (0.43 s) and legible for about 1 s in total before the light goes off at f797. The whole ending (drop impact, melt, light off, hairline, black) is packed into f790–819, which feels rushed for the final beat of the film.",
+   "fix": "Use the ±0.5 s nudges. Condense the title out of the melting ◀◀ ink at about f742–756, hold it crisp until about f800 (≥ 1.5 s), and put the drop impact at about f800 to start the melt. Then: light off f806–822, hairline contracting f814–830, point out f830–833, black from about f834 (card 14 +0.5 s, still 14 black frames). Update END and cues.ts accordingly.",
+   "frames": "f756–819"
+  },
+  {
+   "severity": "major",
+   "problem": "The climax metaphor works against the film's physics. The figure is a near-black navy outline, the darkest ink in the frame and roughly 2–3× the optical density of any web ink left at f560+, appearing on pale paper. A passive dye in incompressible flow cannot exceed its current maximum concentration. So the picture shows either fresh ink added by an invisible brush, or ink re-concentrating, which is exactly what the film says never happens (「没人见过它自己聚回来」). The claimed paper clearing around the contour is not visible in any still. A dark web filament also runs diagonally through the torso like a sash (f585–668). The 淡墨 body wash is almost invisible, so the result reads as a pictogram outline rather than a 水墨 figure.",
+   "fix": "Make the figure out of the web's own ink, so the shape comes from flow and not concentration. (1) Over f505–545, add a temporary divergence-free 'lens' displacement around HUMAN_PATH to the field's flow map (inkfield.ts), so existing filaments visibly bend and stretch onto the contour. Keep the bristle particles as texture riding on top. (2) Cap stroke density at the field's current local maximum: slate-blue core, never #0A0B10. (3) Make the depletion readable: a 40–60 px paler band, and the field inside the silhouette reduced 50–70% so no filament crosses the body. (4) Raise the body wash to about 0.15–0.25 density so the figure reads as ink wash, not an outline. Keep the S-gauge rising.",
+   "frames": "f505–720 (f545, f585, f604, f668)"
+  },
+  {
+   "severity": "major",
+   "problem": "The brush-textured 你, the single most important glyph in the film, reads as distressed or letterpress type, not brushwork. Its silhouette is exactly the Noto Serif SC 900 outline (Song-style wedge serifs and hooks) filled with hatched and mottled granulation. The edges are razor sharp, with no visible 墨晕 bleed into the paper fibres. The stroke-ordered reveal (f640–668) is good, but the final glyph (f668–700) looks like a font with a texture filter.",
+   "fix": "In brush.ts, build a brush-shaped mask before texturing. Either start from a lighter weight (600/400) and round it morphologically (blur → threshold) to kill the serifs, or skeletonise the mask and re-stroke each stroke in the existing SEEDS order with a pressure-modulated round brush: a round 起笔 blob, tapered 撇/捺 exits, and a 亅 hook flick. Then add a visible wet halo (6–10 px, about 25% density, modulated by G.fib) and keep the pooling and 飞白 inside. Check the result at 1:1 next to the 56 px text.",
+   "frames": "f640–720 (f668, f690)"
+  },
+  {
+   "severity": "major",
+   "problem": "Over the performance budget. Across 44 stills at --scale 1, stills.mjs averaged 1197 ms/frame against a ~900 ms budget: pull-back 1.0–1.46 s, pupil dive f400 1.46 s, inversion 1.1–1.35 s, ink 1.2–1.44 s, ending f791–810 1.63–1.78 s. Black frames f819/f847 still cost 650 ms. In the same session S08 f569 ran at 617 ms and S05 C8 at 730–785 ms. Ink frames cost about the same at --scale 0.5, so the bottleneck is JS work, not resolution.",
+   "fix": "(1) brush.ts: bake the frame-invariant per-pixel noise (edgeN, the streak noise along dirx/diry, gran) into brushGeo. Each frame currently runs about 340k simplex n2 calls (5 × 67.6k px). (2) inkfield.ts: once σ exceeds ~3 half-res px (τ > ~1.5 s), advect, blur and LUT at 270×480; skip plumeField once the last eddy has stopped (t0+life+2). (3) inklocal drawSpread: lower res for the released figure (0.5 → 0.33 after τ > 0.5 s) and the title (0.75 → 0.5), and return early when gain < 0.01. (4) Make SNAP_PARAMS lazy (memo): it runs skyWeb/heroNode/webNodes at module import, so every tab pays for it, even on black frames. (5) In B7, pass filaments={false} and/or a lower res to InkBloom. Re-measure until content frames are ≤ ~900 ms.",
+   "frames": "all; worst f791–810, f400, f205"
+  },
+  {
+   "severity": "minor",
+   "problem": "The Milky Way appears abruptly. From f120 (stars only) to f124 the galaxy fades in over ~4–5 frames, as a full-frame, blown-out bulge sliding in from the lower left. Cause: space.ts drawMilkyWay sets alpha to 0 while R > 2600 px. The white bulge sits behind C3 line 1 during f124–127, washing out 「途中」.",
+   "fix": "From Z ≈ 19.6, show a cheap low-res diffuse disc or band glow (the Milky Way seen from inside), and cross-fade it into drawGalaxy over ≥ 15 frames. Cap exposure while R > 1200 px. Start the galactic-centre recentring (wGal) slightly earlier, or raise C3's backdrop, so the bulge never sits under the caption lane.",
+   "frames": "f119–130"
+  },
+  {
+   "severity": "minor",
+   "problem": "Two scale labels misrepresent the science. At 本星系群 (f150–175) the frame fills with a uniform field of ~100+ galaxies around the Milky Way. The Local Group is two large spirals plus dwarfs across ~3 Mpc; a field that dense belongs at Z ≳ 23. Separately, 奥尔特云 is named from Z 13.9 (frame ≈ 530 AU wide), but the drawn shell starts at 5,000 AU and only enters the frame around Z ≈ 15. Meanwhile the viewer sees the Kuiper belt.",
+   "fix": "Start the galaxy-field layers at about d0 22.6 instead of 21.5. At 本星系群, show only M31, M33, the LMC and SMC plus about 15 faint dwarfs. Move the 奥尔特云 threshold to Z ≈ 14.6 (in both pullback.ts LEVELS and cues.ts), or draw the inner shell from 2,000 AU.",
+   "frames": "f150–175; f93–100"
+  },
+  {
+   "severity": "minor",
+   "problem": "The eye is below the galaxy and cell's quality bar, yet it is on screen for about 5 s under the film's philosophical peak. Lashes are uniform comb-like strokes. The sclera is a flat grey band with hard lid edges. There is no caruncle or tear duct and no wet lid margin; the almond shape is perfectly symmetric. The crypts look like leopard spots. The corneal web reflection is drawn as thin, full-size polygon lines across the whole iris, which reads as cracks rather than a reflection.",
+   "fix": "Lashes: clumped and tapered, with length and curl jitter and a soft lash shadow on the eyeball. Add spherical shading to the sclera, a caruncle at the inner corner and a wet waterline highlight. Render the corneal reflection as a small, barrel-distorted, low-contrast window (about 30% of the iris) next to the specular highlight. Make the crypts elongated along the radial fibres.",
+   "frames": "f270–420 (f286, f350)"
+  },
+  {
+   "severity": "minor",
+   "problem": "Two levels of the pull-back read as diagrams rather than places. Street level (f14–24) is three bokeh balls and a grey line, plus S08's motes collapsing into a blurry gold smudge left of centre, because drawMotesS08 is scaled by the world zoom. At Z 5.5–6.5 (f40–48) the highways are straight-line triangles that look like a constellation chart, not lit roads.",
+   "fix": "Let S08's dust drift outward and fade instead of converging on the anchor. At Z 1–2.5, add street detail: kerbs, crossings, pole shadows, car light trails. Curve the highways along the coast and terrain, and give them dim sodium continuity rather than straight segments between nodes.",
+   "frames": "f14–24, f40–48"
+  },
+  {
+   "severity": "minor",
+   "problem": "The odometer cross-fades level names in place, so two labels overlap for 1–4 frames at every level change (for example f20, 「你」 over 「街区」). At f200–209, bright web filaments cross '10²⁴ m'.",
+   "fix": "Roll the names inside a clip rect, the same way the exponent already rolls. Add a soft dark backing behind the HUD block whenever the web is behind it.",
+   "frames": "f18–22 and each level change; f195–209"
+  },
+  {
+   "severity": "minor",
+   "problem": "The punch words 「星系。」「细胞。」「你。」 are centred including the full-width 。 advance, so the visible glyph mass sits about 45 px left of the subject's centre (星系。 spans roughly x 330–665). S05 hangs trailing 。 outside the centring (hang: '。').",
+   "fix": "Add hang support to voice.ts layoutCap (copy S05 text.ts) and use it for P1–P3.",
+   "frames": "f210–316"
+  },
+  {
+   "severity": "minor",
+   "problem": "In C11 the 。 lands around f679–696 and the caption starts diffusing at f694, so the complete sentence 「它画出了你。」 is on screen for under 0.5 s and the late 。 reads as a stray dot. The 124 px 你 also nearly touches the figure's feet (top ≈ y 1355 vs feet ≈ y 1333).",
+   "fix": "Reduce delayOf for 。 from 54 to about 38 frames. Lift the figure 30–40 px (FIG.feet 1325 → ~1290, and update FIG_Y* in inkfield.ts) or move C11 to y ≈ 1460.",
+   "frames": "f668–720"
+  },
+  {
+   "severity": "minor",
+   "problem": "For about 2 s after the inversion (f470–540) the ink web is a static, evenly blurring foam. It reads as crackle porcelain or ink on paper rather than ink in water. The 'hanging veils' sink at ~9 px/s (≈18 px over 2 s, which is invisible), so the 'web becomes tendrils in water' rhyme with S01 arrives late, around f600.",
+   "fix": "Over τ < 3 s, have the dense nodes and filaments shed sinking fingers 40–80 px long by f540. For example, strengthen the cross-tank contrast of the sinking speed S(x) near the nodes, or add a few short downward plumes seeded on tier-0 nodes, so the ink visibly falls before C9 lands.",
+   "frames": "f470–545"
+  },
+  {
+   "severity": "minor",
+   "problem": "Code hygiene. dev.ts still exports a mutable module-level DEV object, and DEV.mark, DEV.tick and DEV.skip calls remain in 6 files, although the builder reported the dev folder removed. InkPart.tsx has a dead `export const _pad`, and timing.ts has the stale comment claiming C10 = S05 at stagger 1.4. There are no determinism hazards: no Math.random, Date.now or performance.now, and the module caches dCache, pdCache and layoutCache are pure functions of τ or text.",
+   "fix": "Delete dev.ts and every DEV.* call (pullback's on() gating becomes always-true). Remove _pad and correct the comments.",
+   "frames": "code"
+  }
+ ],
+ "strengths": [
+  "Frame 0 continues S08 seamlessly: a difference against S08 f569 shows only the next frame of the moving nerve pulses (PSNR equal to two consecutive S08 frames).",
+  "The powers-of-ten pull-back is ambitious and largely premium. It has an odometer reading 视野宽度 10ⁿ m with scale names (a rhyme with S03) and a 'you are here' marker keeping S08's echo rhythm. The night Earth has a limb, airglow and a crescent consistent with the Sun direction. The pale blue dot sits in a Voyager-style sunbeam. The solar system uses correct semi-major axes, and the Milky Way places the Sun at about half the disc radius on an arm. The CosmicWeb handover is smooth.",
+  "The triplet works as designed: hard cuts with a 2-frame flash and 1.12 → 1.0 settle, all on one circle. The galaxy and the confocal-style cell (DAPI nucleus, centrosome microtubules, actin, gold mitochondria) look premium.",
+  "The pupil turning into a window onto the cosmic web (f356–412) is a memorable, well-motivated transition.",
+  "The inversion (f444–470) is the scene's best image: an ink front drains down from the water line, and the inverted web becomes a blue-and-white Beer–Lambert ink field. Later it curls into 墨流し spirals through divergence-free advection with √τ diffusion, which is physically sound.",
+  "All on-screen text matches the screenplay character for character, including 暂时 and 时间是什么？ in gold and the shāng pinyin. Timings are within ±0.5 s. Captions are legible through paper or dark backdrops, and safe zones are respected.",
+  "The ◀◀ ×8 beat reads clearly and with wit: the clock runs backward with a chromatic split, the picture ignores it, the S-gauge keeps rising, and the timecode melts into ink and sinks.",
+  "The ending meets the brief: the hairline contracts to a point and goes out (f814–818), and f819–847 is pure #000 (YMAX 0).",
+  "Determinism is clean (no Math.random, Date.now or performance.now; caches are pure), tsc reports no S09 errors, and cues.ts is derived from the same timing constants as the picture."
+ ]
+}

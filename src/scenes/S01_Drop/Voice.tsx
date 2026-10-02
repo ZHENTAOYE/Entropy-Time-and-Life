@@ -1,7 +1,8 @@
 // Local copy of the film's narration voice (lib/Caption.tsx: CONDENSE in / DIFFUSE out), extended with S01's two
 // emphasis effects and a per-line entry delay:
-//   emFx 'glitch' — 倒放: the word is "on the tape": RGB split, horizontal scan-slices that tear sideways in bursts,
-//                   line jitter. Bursts are hashed per 2-frame tick (deterministic).
+//   emFx 'glitch' — 倒放: the word is "on the tape": a fine RGB split, and short bursts (~20 % of 2-frame ticks, plus
+//                   forced bursts on tape events: `glitchBursts`) of horizontal scan-slices torn ≤ 12 px sideways.
+//                   Between bursts the word stays legible.
 //   emFx 'drift'  — 聚回来: while the line is displayed the three characters slowly drift APART (and rotate a hair,
 //                   soften a little) — the words that claim re-gathering are themselves spreading.
 //   lineDelay     — line n enters n·lineDelay frames later (card 2: line 2 enters 0.6 s after line 1).
@@ -31,6 +32,8 @@ export interface VoiceProps {
   emFx?: 'glitch' | 'drift';
   /** strength multiplier of the glitch bursts (e.g. louder while the tape is rewinding) */
   glitchGain?: number;
+  /** local frames (relative to `from`) on which a glitch burst is forced (tape events: the leap…) */
+  glitchBursts?: number[];
   /** horizontal jitter of the whole block in px (tape wobble) */
   jitter?: number;
   seed?: number;
@@ -99,6 +102,7 @@ export const Voice: React.FC<VoiceProps> = (p) => {
     lineDelay = 0,
     emFx,
     glitchGain = 1,
+    glitchBursts = [],
     jitter = 0,
     seed = seedOf(text),
   } = p;
@@ -184,18 +188,19 @@ export const Voice: React.FC<VoiceProps> = (p) => {
       const tick = Math.floor(local / 2);
       const hb = hash01(tick * 7 + g.emIdx, seed + 31);
       const arrive = 1 - seg(local, t0 + enterLen * 0.5, t0 + enterLen + 4);
-      const burst = Math.max(hb > 0.58 ? (hb - 0.58) / 0.42 : 0, arrive * 0.9) * glitchGain * pe;
-      const base = 1.4 + 1.2 * glitchGain;
-      const split = base + 7 * burst;
-      const jx = (hash01(frame * 13 + g.emIdx, seed + 5) - 0.5) * 10 * burst;
+      const forced = glitchBursts.reduce((acc, b) => Math.max(acc, 1 - Math.abs(local - b) / 1.5), 0);
+      const burst = Math.max(hb > 0.8 ? (hb - 0.8) / 0.2 : 0, arrive * 0.9, forced) * glitchGain * pe;
+      const base = 0.8 + 0.4 * glitchGain;
+      const split = base + 5 * burst;
+      const jx = (hash01(frame * 13 + g.emIdx, seed + 5) - 0.5) * 8 * burst;
       const shadow = `${split.toFixed(1)}px 0 ${RED}, ${(-split).toFixed(1)}px 0 ${CYAN}`;
       const slices: React.ReactNode[] = [];
-      if (burst > 0.08) {
+      if (burst > 0.15) {
         for (let k = 0; k < 3; k++) {
           const hs = hash01(tick * 31 + k * 7 + g.emIdx * 3, seed + 77);
           const top = Math.floor(hs * 78);
           const h = 6 + Math.floor(hash01(tick * 17 + k, seed + 3) * 22);
-          const off = (hash01(tick * 5 + k * 11 + g.emIdx, seed + 9) - 0.5) * 2 * (10 + 26 * burst);
+          const off = (hash01(tick * 5 + k * 11 + g.emIdx, seed + 9) - 0.5) * 2 * (4 + 8 * burst);
           slices.push(
             <span
               key={k}
