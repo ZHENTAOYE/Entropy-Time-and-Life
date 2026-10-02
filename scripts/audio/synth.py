@@ -22,7 +22,9 @@ def silence(dur, ch=2):
 
 
 def stereo(x, pan=0.0):
-    """mono -> stereo with constant-power pan (-1 left .. 1 right)."""
+    """mono -> stereo with constant-power pan (-1 left .. 1 right). Stereo input is returned unchanged."""
+    if np.ndim(x) == 2:
+        return np.asarray(x, dtype=np.float32)
     a = (pan + 1) * np.pi / 4
     return np.stack([x * np.cos(a), x * np.sin(a)]).astype(np.float32)
 
