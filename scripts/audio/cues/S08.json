@@ -1,0 +1,458 @@
+[
+ {
+  "frame": 0,
+  "kind": "transition",
+  "description": "continuous from S07 (identical frame): residual-heat hum of the two thermal footprints, starts cooling",
+  "intensity": 0.35
+ },
+ {
+  "frame": 4,
+  "kind": "text",
+  "description": "C1 condenses: “最后一个问题：…昨天…明天？” (soft shimmer; 明天 stays a cold ghost)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 6,
+  "kind": "swell",
+  "description": "a low sun rakes in from the right: warm pad rises as the sand materialises (to f58); thermal hiss cools (yellow → purple)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 50,
+  "kind": "ambience",
+  "description": "wind over sand begins (grains saltating right→left), rising to f110, stays under the walk",
+  "intensity": 0.3
+ },
+ {
+  "frame": 98,
+  "kind": "tick",
+  "description": "HUD type-on: 现在",
+  "intensity": 0.2
+ },
+ {
+  "frame": 108,
+  "kind": "footstep",
+  "description": "footprint 2 lands (left foot, pan L), soft sand crunch + grain puff",
+  "intensity": 0.39
+ },
+ {
+  "frame": 114,
+  "kind": "tick",
+  "description": "HUD type-on: 未来 · ？ (colder, thinner)",
+  "intensity": 0.15
+ },
+ {
+  "frame": 120,
+  "kind": "tick",
+  "description": "HUD ruler tick type-on: −1 s",
+  "intensity": 0.15
+ },
+ {
+  "frame": 124,
+  "kind": "footstep",
+  "description": "footprint 3 lands (right foot, pan R), soft sand crunch + grain puff",
+  "intensity": 0.41
+ },
+ {
+  "frame": 140,
+  "kind": "footstep",
+  "description": "footprint 4 lands (left foot, pan L), soft sand crunch + grain puff",
+  "intensity": 0.43
+ },
+ {
+  "frame": 150,
+  "kind": "tick",
+  "description": "HUD ruler tick type-on: −2 s",
+  "intensity": 0.15
+ },
+ {
+  "frame": 150,
+  "kind": "swell",
+  "description": "S-gauge appears at the left edge (entropy rises one notch per footprint)",
+  "intensity": 0.15
+ },
+ {
+  "frame": 156,
+  "kind": "footstep",
+  "description": "footprint 5 lands (right foot, pan R), soft sand crunch + grain puff",
+  "intensity": 0.45
+ },
+ {
+  "frame": 172,
+  "kind": "footstep",
+  "description": "footprint 6 lands (left foot, pan L), soft sand crunch + grain puff",
+  "intensity": 0.47
+ },
+ {
+  "frame": 178,
+  "kind": "text",
+  "description": "C3 “脚印，只指向过去。”",
+  "intensity": 0.2
+ },
+ {
+  "frame": 180,
+  "kind": "tick",
+  "description": "HUD ruler tick type-on: −3 s",
+  "intensity": 0.15
+ },
+ {
+  "frame": 188,
+  "kind": "footstep",
+  "description": "footprint 7 lands (right foot, pan R), soft sand crunch + grain puff",
+  "intensity": 0.49
+ },
+ {
+  "frame": 204,
+  "kind": "footstep",
+  "description": "footprint 8 lands (left foot, pan L), soft sand crunch + grain puff",
+  "intensity": 0.51
+ },
+ {
+  "frame": 210,
+  "kind": "tick",
+  "description": "HUD ruler tick type-on: −4 s",
+  "intensity": 0.15
+ },
+ {
+  "frame": 220,
+  "kind": "footstep",
+  "description": "footprint 9 lands (right foot, pan R), soft sand crunch + grain puff",
+  "intensity": 0.53
+ },
+ {
+  "frame": 236,
+  "kind": "footstep",
+  "description": "footprint 10 lands (left foot, pan L), soft sand crunch + grain puff",
+  "intensity": 0.55
+ },
+ {
+  "frame": 236,
+  "kind": "transition",
+  "description": "macro zoom-in begins; time slows (tape-slow / time-stretch, sub swell into the impact)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 252,
+  "kind": "text",
+  "description": "C4 “痕迹，只能顺着熵增的方向留下。”",
+  "intensity": 0.2
+ },
+ {
+  "frame": 262,
+  "kind": "swell",
+  "description": "the invisible foot’s shadow slides in from the left and sharpens as it descends — low rumble rising to the impact",
+  "intensity": 0.55
+ },
+ {
+  "frame": 282,
+  "kind": "impact",
+  "description": "SLOW-MOTION FOOTFALL: deep granular crunch + sub thump, camera shake; S-gauge jumps",
+  "intensity": 1
+ },
+ {
+  "frame": 283,
+  "kind": "texture",
+  "description": "infrared heat breath (warm red noise) spreading and fading over ~40 f",
+  "intensity": 0.4
+ },
+ {
+  "frame": 288,
+  "kind": "texture",
+  "description": "grain rain: ~1100 grains land, scatter and settle (granular patter, decaying to f320)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 304,
+  "kind": "tick",
+  "description": "HUD ❚❚ appears (mono click)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 310,
+  "kind": "rewind",
+  "description": "◀◀ rewind attempt: tape strain / reverse squeal + glitch tears; a law-cyan ghost of the undented sand and of every grain’s origin flickers over the print; grains tremble but do not return",
+  "intensity": 0.75
+ },
+ {
+  "frame": 326,
+  "kind": "impact",
+  "description": "FAIL: ✕ 不可逆 — the cyan target shatters (glassy crack) while the real print stays; hard stop, then near-silence (wind tail only)",
+  "intensity": 0.9
+ },
+ {
+  "frame": 334,
+  "kind": "transition",
+  "description": "pull back from the macro (reverse-cymbal whoosh); prints fill with molten gold",
+  "intensity": 0.5
+ },
+ {
+  "frame": 342,
+  "kind": "text",
+  "description": "C5 “记忆，是大脑里的脚印。”",
+  "intensity": 0.2
+ },
+ {
+  "frame": 352,
+  "kind": "hit",
+  "description": "the present ignites (soma of the newest footprint): bright electric spark",
+  "intensity": 0.8
+ },
+ {
+  "frame": 355,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 10 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 358,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 9 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 358,
+  "kind": "texture",
+  "description": "lightning dendrites grow from every bead: dry electric crackle swelling to f430",
+  "intensity": 0.6
+ },
+ {
+  "frame": 362,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 8 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 365,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 7 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 368,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 6 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 371,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 5 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 374,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 4 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 378,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 3 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 381,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 2 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 384,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 1 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 387,
+  "kind": "tick",
+  "description": "ignition runs down the trail-axon: bead 0 lights",
+  "intensity": 0.3
+ },
+ {
+  "frame": 414,
+  "kind": "swell",
+  "description": "the head outline rises from the neck around the network; long pull-back begins (to f546)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 416,
+  "kind": "text",
+  "description": "C6 “你感到的“时间之箭”——也许，正是熵增在你身体里的回声。”",
+  "intensity": 0.2
+ },
+ {
+  "frame": 418,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f418)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 425,
+  "kind": "pulse",
+  "description": "delay tap +7 f (echo 0.5) (fired at f418)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 432,
+  "kind": "pulse",
+  "description": "delay tap +14 f (echo 0.26) (fired at f418)",
+  "intensity": 0.18
+ },
+ {
+  "frame": 437,
+  "kind": "tick",
+  "description": "pulse fired at f418 leaves the head into the spinal cord",
+  "intensity": 0.2
+ },
+ {
+  "frame": 446,
+  "kind": "swell",
+  "description": "body outline draws down from the neck to the feet (to f534)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 448,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f448)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 455,
+  "kind": "pulse",
+  "description": "delay tap +7 f (echo 0.5) (fired at f448)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 462,
+  "kind": "pulse",
+  "description": "delay tap +14 f (echo 0.26) (fired at f448)",
+  "intensity": 0.18
+ },
+ {
+  "frame": 467,
+  "kind": "tick",
+  "description": "pulse fired at f448 leaves the head into the spinal cord",
+  "intensity": 0.2
+ },
+ {
+  "frame": 470,
+  "kind": "tick",
+  "description": "pulse fired at f418 reaches the soles: tiny ground ripple",
+  "intensity": 0.25
+ },
+ {
+  "frame": 478,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f478)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 478,
+  "kind": "text",
+  "description": "回声: two hollow copies of the word expand from it on this pulse and its +7 tap",
+  "intensity": 0.3
+ },
+ {
+  "frame": 485,
+  "kind": "pulse",
+  "description": "delay tap +7 f (echo 0.5) (fired at f478)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 492,
+  "kind": "pulse",
+  "description": "delay tap +14 f (echo 0.26) (fired at f478)",
+  "intensity": 0.18
+ },
+ {
+  "frame": 497,
+  "kind": "tick",
+  "description": "pulse fired at f478 leaves the head into the spinal cord",
+  "intensity": 0.2
+ },
+ {
+  "frame": 500,
+  "kind": "tick",
+  "description": "pulse fired at f448 reaches the soles: tiny ground ripple",
+  "intensity": 0.25
+ },
+ {
+  "frame": 508,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f508)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 508,
+  "kind": "text",
+  "description": "回声 copies expand once more, fainter (next pulse)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 515,
+  "kind": "pulse",
+  "description": "delay tap +7 f (echo 0.5) (fired at f508)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 522,
+  "kind": "pulse",
+  "description": "delay tap +14 f (echo 0.26) (fired at f508)",
+  "intensity": 0.18
+ },
+ {
+  "frame": 527,
+  "kind": "tick",
+  "description": "pulse fired at f508 leaves the head into the spinal cord",
+  "intensity": 0.2
+ },
+ {
+  "frame": 530,
+  "kind": "tick",
+  "description": "pulse fired at f478 reaches the soles: tiny ground ripple",
+  "intensity": 0.25
+ },
+ {
+  "frame": 538,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f538)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 545,
+  "kind": "pulse",
+  "description": "delay tap +7 f (echo 0.5) (fired at f538)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 545,
+  "kind": "silence",
+  "description": "caption gone: 0.8 s hold on FIGURE_S08 (f545–569), long reverb tail of the last echo, continuing into S09",
+  "intensity": 0.3
+ },
+ {
+  "frame": 552,
+  "kind": "pulse",
+  "description": "delay tap +14 f (echo 0.26) (fired at f538)",
+  "intensity": 0.18
+ },
+ {
+  "frame": 557,
+  "kind": "tick",
+  "description": "pulse fired at f538 leaves the head into the spinal cord",
+  "intensity": 0.2
+ },
+ {
+  "frame": 560,
+  "kind": "tick",
+  "description": "pulse fired at f508 reaches the soles: tiny ground ripple",
+  "intensity": 0.25
+ },
+ {
+  "frame": 568,
+  "kind": "pulse",
+  "description": "soma fires: echo pulse + ring (fired at f568)",
+  "intensity": 0.7
+ }
+]

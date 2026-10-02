@@ -1,0 +1,338 @@
+[
+ {
+  "frame": 0,
+  "kind": "swell-continue",
+  "description": "continuation of S06's spiral; water-swirl bed fades in under the gold streams",
+  "intensity": 0.5
+ },
+ {
+  "frame": 6,
+  "kind": "text-in",
+  "description": "「1944年，薛定谔问：」 condenses",
+  "intensity": 0.2
+ },
+ {
+  "frame": 20,
+  "kind": "reveal",
+  "description": "book-cover rules draw out, 「生命是什么？」 — low warm chord",
+  "intensity": 0.6
+ },
+ {
+  "frame": 34,
+  "kind": "type",
+  "description": "imprint E. SCHRÖDINGER · CAMBRIDGE · 1944 types on (soft keys to f48)",
+  "intensity": 0.15
+ },
+ {
+  "frame": 40,
+  "kind": "transition",
+  "description": "S06's bright sink becomes the whirlpool's dark drain eye",
+  "intensity": 0.3
+ },
+ {
+  "frame": 90,
+  "kind": "text-in",
+  "description": "「他写道：生命以“负熵”为食。」",
+  "intensity": 0.2
+ },
+ {
+  "frame": 104,
+  "kind": "pulse",
+  "description": "white-hot free-energy packet races inward along the gold arms (rising whoosh into the eye)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 118,
+  "kind": "pulse",
+  "description": "second feeding pulse along the arms",
+  "intensity": 0.45
+ },
+ {
+  "frame": 132,
+  "kind": "pulse",
+  "description": "third feeding pulse",
+  "intensity": 0.45
+ },
+ {
+  "frame": 146,
+  "kind": "pulse",
+  "description": "fourth feeding pulse",
+  "intensity": 0.45
+ },
+ {
+  "frame": 146,
+  "kind": "ping",
+  "description": "tracer gold particle enters at the rim — bright pluck; a whistle rising in pitch as it spirals in (to f210)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 210,
+  "kind": "drain",
+  "description": "tracer leaves through the eye — gold ring flash, low glug + ping (停留 2.1 s · 离开)",
+  "intensity": 0.65
+ },
+ {
+  "frame": 216,
+  "kind": "sonar",
+  "description": "census tag pulse sweeps eye → rim, every drop turns white",
+  "intensity": 0.7
+ },
+ {
+  "frame": 225,
+  "kind": "tick",
+  "description": "census 原来的水 drops to 80%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 233,
+  "kind": "tick",
+  "description": "census 70%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 242,
+  "kind": "tick",
+  "description": "census 60%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 251,
+  "kind": "tick",
+  "description": "census 50%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 260,
+  "kind": "tick",
+  "description": "census 40%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 269,
+  "kind": "tick",
+  "description": "census 30%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 277,
+  "kind": "tick",
+  "description": "census 20%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 285,
+  "kind": "tick",
+  "description": "census 10%",
+  "intensity": 0.25
+ },
+ {
+  "frame": 294,
+  "kind": "chime",
+  "description": "census reaches 0% — not one drop left, the shape unchanged",
+  "intensity": 0.55
+ },
+ {
+  "frame": 296,
+  "kind": "camera-move",
+  "description": "TILT 1 begins: top view → side view, deep whoosh (to f340)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 308,
+  "kind": "impact",
+  "description": "「你也是。」 — deep hit",
+  "intensity": 0.85
+ },
+ {
+  "frame": 316,
+  "kind": "rise",
+  "description": "the whirlpool lifts off as a spinning helix and settles bottom-up into the figure (rising shimmer to f384)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 360,
+  "kind": "growth",
+  "description": "vessel tree grows from the mouth (crackling branches, to f410)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 380,
+  "kind": "flow-on",
+  "description": "metabolism starts; time-lapse begins (to f458)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 396,
+  "kind": "heartbeat",
+  "description": "first heartbeat (60 bpm lub, dub +8 f); continues every 30 f: 426 456 486 516 546 576 606 636 666 696 726",
+  "intensity": 0.45
+ },
+ {
+  "frame": 403,
+  "kind": "tick",
+  "description": "day counter 第10天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 411,
+  "kind": "tick",
+  "description": "第20天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 418,
+  "kind": "tick",
+  "description": "第30天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 424,
+  "kind": "tick",
+  "description": "第40天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 431,
+  "kind": "tick",
+  "description": "第50天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 437,
+  "kind": "tick",
+  "description": "第60天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 444,
+  "kind": "tick",
+  "description": "第70天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 451,
+  "kind": "tick",
+  "description": "第80天",
+  "intensity": 0.2
+ },
+ {
+  "frame": 458,
+  "kind": "settle",
+  "description": "第90天 — time-lapse ends; body almost all new (gold) atoms",
+  "intensity": 0.35
+ },
+ {
+  "frame": 462,
+  "kind": "click",
+  "description": "FLIR shutter click; scan line sweeps top → bottom (to f482)",
+  "intensity": 0.75
+ },
+ {
+  "frame": 482,
+  "kind": "hum",
+  "description": "thermal sensor hum; IR wave packets begin radiating (warm low drones)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 492,
+  "kind": "reveal",
+  "description": "≈100 W bulb icon glows",
+  "intensity": 0.3
+ },
+ {
+  "frame": 500,
+  "kind": "breath",
+  "description": "breath pulse in the head plume (every 4 s: f500, 620, 740)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 570,
+  "kind": "mode-switch",
+  "description": "sensor re-maps to W/kg; the Sun's limb slides in from the top (huge low rumble to f600)",
+  "intensity": 0.65
+ },
+ {
+  "frame": 598,
+  "kind": "count",
+  "description": "×7000 counter rolls up (accelerating ticks to f622)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 622,
+  "kind": "impact",
+  "description": "×7000 lands",
+  "intensity": 0.75
+ },
+ {
+  "frame": 650,
+  "kind": "transition",
+  "description": "Sun exits upward; colour bar becomes the S-gauge; 「你不是在对抗熵增——」 enters",
+  "intensity": 0.3
+ },
+ {
+  "frame": 678,
+  "kind": "dissolve",
+  "description": "对抗 diffuses (granular scatter)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 686,
+  "kind": "resolve",
+  "description": "…re-condenses as 借着 (warm resolving chord)",
+  "intensity": 0.55
+ },
+ {
+  "frame": 752,
+  "kind": "silence",
+  "description": "FREEZE ❚❚: tape-stop deceleration f752–760, then ALL MUSIC DROPS OUT",
+  "intensity": 0
+ },
+ {
+  "frame": 760,
+  "kind": "silence",
+  "description": "frozen; heat drains from the figure — only faint cold room tone until f812",
+  "intensity": 0.05
+ },
+ {
+  "frame": 812,
+  "kind": "impact",
+  "description": "▶ restart: first heartbeat (strong) — heat floods back from the chest; next beat f842",
+  "intensity": 0.9
+ },
+ {
+  "frame": 814,
+  "kind": "text-in",
+  "description": "「你是一个过程。」 — 过程 as a steady particle stream (granular flow to f866)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 842,
+  "kind": "heartbeat",
+  "description": "last heartbeat",
+  "intensity": 0.7
+ },
+ {
+  "frame": 846,
+  "kind": "release",
+  "description": "the figure rises away as heat, head first (airy rising whoosh)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 852,
+  "kind": "camera-move",
+  "description": "TILT 2 down to the floor top view (to f896)",
+  "intensity": 0.55
+ },
+ {
+  "frame": 866,
+  "kind": "text-out",
+  "description": "caption diffuses",
+  "intensity": 0.2
+ },
+ {
+  "frame": 886,
+  "kind": "reveal",
+  "description": "only the two residual-heat footprints remain on the cold floor — soft low tone held into S08",
+  "intensity": 0.4
+ }
+]
