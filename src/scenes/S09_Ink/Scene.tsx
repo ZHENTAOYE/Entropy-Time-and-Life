@@ -3,7 +3,7 @@ import React, { useRef } from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { CosmicWeb } from '../../lib/cosmos';
 import { Layer } from './canvas';
-import { FONT_SPECS, useFontGate } from './fonts';
+import { fontSpecsAt, useFontGate } from './fonts';
 import { drawPullback, pullbackWeb, pullbackWebOn } from './pullback';
 import { EYE, PB_END } from './timing';
 import { drawMiddle, skyWeb, skyWebOn } from './middle';
@@ -12,7 +12,7 @@ import { END, INV } from './timing';
 
 export const Scene: React.FC = () => {
   const f = useCurrentFrame();
-  const fontsReady = useFontGate(FONT_SPECS);
+  const fontsReady = useFontGate(fontSpecsAt(f));
   const wrap = useRef<HTMLDivElement>(null);
   const webSrc = () => (wrap.current?.querySelector('canvas') as HTMLCanvasElement | null) ?? null;
   // Nothing is drawn until the font slices are in (the frame is held by delayRender meanwhile): drawing the whole

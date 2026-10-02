@@ -28,9 +28,11 @@
 //               The S-gauge (ink) rises the whole time.
 //   B6  720–780 ◀◀ flickers in under the water line, tries to rewind (digits run back, chromatic split); the ink
 //               ignores it; the ◀◀ itself bleeds into ink and sinks.
-//   B7  756–818 title 「熵 · 时间 · 生命」 (shāng over 熵) condenses, then dissolves into ink particles; a last drop
-//               falls through the surface (f786); the light table switches off; the hairline contracts to a point.
-//   B8  819–847 pure black, silence (loops to S01's cold open).
+//   B7  742–833 title 「熵 · 时间 · 生命」 (shāng over 熵) condenses out of the melting ◀◀ ink (f742–756) and holds
+//               crisp to f800; a last drop falls into view from above the frame and breaks the surface (f800): the title
+//               dissolves into ink; the light table switches off (f806–822); the hairline contracts to a point (f814–830)
+//               which goes out (f833).
+//   B8  834–847 pure black, silence (loops to S01's cold open).
 import { clamp, ease, seg } from '../../lib/math';
 
 export const DUR = 848;
@@ -122,7 +124,7 @@ export const CAP = {
   c3: { at: 104, dur: 106 }, // killed by the hard cut at 210
   c7: { at: 312, dur: 116 },
   c9: { at: 488, dur: 60 },
-  c10: { at: 548, dur: 66 }, // = S05 C8 (stagger 1.4, enterLen 16, exitLen 24)
+  c10: { at: 548, dur: 66 }, // = S05 C8 ROAD_LINE (stagger 0.8, enterLen 12, exitLen 14)
   c11: { at: 614, dur: 106 },
 } as const;
 
@@ -150,14 +152,22 @@ export const SURFACE_Y = 300;
 
 // ───────────────────────────── B5 ink ─────────────────────────────
 export const INK_T = {
-  /** figure: painted along the contour, held while the ink keeps flowing, then released */
+  /**
+   * figure — made of the web's OWN ink, by flow: the tank's currents bend the filaments near the contour onto it and
+   * drag them down along it (the "lens", crown first: f505–545 at the crown … f523–563 at the feet); then ink pours down
+   * the contour from the crown, both sides together (the pour front f538–604), the paper clears around it and a pale
+   * 淡墨 wash fills the body; it holds while the ink keeps streaming down the outline (a shape kept by flow), then the
+   * water carries it off and it diffuses (f688–784).
+   */
+  lens: [505, 545] as const,
+  lensLag: 18, // frames: the lens reaches the feet this much later than the crown
   paint: [538, 604] as const,
   hold: 688,
   release: [688, 784] as const,
-  /** 你 is painted stroke by stroke */
-  brush: [640, 668] as const,
+  /** 你 is written stroke by stroke (7 strokes, 1.6 s) */
+  brush: [634, 682] as const,
   gauge: [488, 510] as const,
-  gaugeOut: [790, 806] as const,
+  gaugeOut: [802, 818] as const,
 };
 
 // ───────────────────────────── B6 ◀◀ ─────────────────────────────
@@ -165,19 +175,19 @@ export const RW = { on: 720, attempt: [726, 746] as const, melt: [744, 790] as c
 
 // ───────────────────────────── B7 title & ending ─────────────────────────────
 export const END = {
-  title: [756, 770] as const, // condense
-  titleMelt: [791, 818] as const, // the drop's impact sets the title dissolving into ink
-  dropFrom: 776, // the last drop starts falling
-  impact: 790, // contact with the surface
-  light: [797, 813] as const, // light table off
-  span: [804, 817] as const, // hairline contracts to a point
-  point: [816, 819] as const, // the point of light goes out
-  black: 819,
+  title: [742, 756] as const, // condenses out of the melting ◀◀ ink (screenplay card 13, −0.5 s)
+  titleMelt: [800, 830] as const, // held crisp f756–800 (1.5 s); the drop's impact sets it dissolving into ink
+  dropFrom: 774, // the last drop enters from above the frame (falls from y −30: 0.85 s)
+  impact: 800, // contact with the surface
+  light: [806, 822] as const, // light table off
+  span: [814, 830] as const, // hairline contracts to a point
+  point: [830, 833] as const, // the point of light goes out
+  black: 834, // card 14 (+0.5 s): 14 frames of pure black
 };
 
 // ───────────────────────────── shared curves ─────────────────────────────
 /** S-gauge value: rises the whole time the ink is on screen (never falls) */
-export const sValue = (f: number) => 0.56 + 0.4 * ease.inOutSine(seg(f, 470, 820));
+export const sValue = (f: number) => 0.56 + 0.4 * ease.inOutSine(seg(f, 470, 834));
 export const gaugeAlpha = (f: number) => ease.inOutSine(seg(f, INK_T.gauge[0], INK_T.gauge[1])) * (1 - ease.inOutSine(seg(f, INK_T.gaugeOut[0], INK_T.gaugeOut[1])));
 /** light-table power at the end */
 export const lightAt = (f: number) => 1 - ease.inOutSine(seg(f, END.light[0], END.light[1]));

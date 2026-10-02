@@ -251,7 +251,7 @@ function citySprite(k: number): HTMLCanvasElement {
 }
 
 // ───────────────────────────── the disc (land, sea, day crescent, clouds) ─────────────────────────────
-const DISC_PX = 560;
+const DISC_PX = 480;
 export function earthDisc(): HTMLCanvasElement {
   return memo('s09:earthDisc', () => {
     const c = document.createElement('canvas');

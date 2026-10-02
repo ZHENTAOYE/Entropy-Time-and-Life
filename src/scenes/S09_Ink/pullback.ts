@@ -40,9 +40,15 @@ export function pcam(f: number): PCam {
 /** metres per web cell (a void ≈ 30 Mpc) */
 export const CELL_M = 1.0e24;
 export const webT = (f: number) => WEB_FINAL.t + 30 + f / 30;
-/** the heavy cluster the Milky Way belongs to (fixed in comoving coordinates) */
+/**
+ * The heavy cluster the Milky Way belongs to (fixed in comoving coordinates): the most massive cluster near the frame's
+ * centre in the WEB_FINAL framing. Its value for the lib's current web (WEB_FINAL.t = 953/30, zoom 0.8) is baked here —
+ * the search costs ~30 ms on every cold tab — and recomputed only if WEB_FINAL ever changes.
+ */
+const HERO_BAKED = { t: 953 / 30, zoom: 0.8, wx: -0.18830161396094863, wy: -1.7023210219762868 };
 export function heroNode() {
   return memo('s09:heroNode', () => {
+    if (WEB_FINAL.t === HERO_BAKED.t && WEB_FINAL.zoom === HERO_BAKED.zoom && WEB_FINAL.c === 1) return { wx: HERO_BAKED.wx, wy: HERO_BAKED.wy };
     const t = webT(0);
     const ns = webNodes({ ...WEB_FINAL, t, roll: 0 }, { groups: false }).filter((n) => Math.abs(n.x - 540) < 280 && Math.abs(n.y - 900) < 380);
     ns.sort((a, b) => b.mass - a.mass);

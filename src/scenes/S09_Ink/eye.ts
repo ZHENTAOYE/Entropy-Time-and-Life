@@ -11,7 +11,7 @@ import { ctxOf, fresh, glow, scratch } from './canvas';
 import { DISC, EYE, HIT } from './timing';
 
 export const RI = 372; // iris radius (px, at camera scale 1)
-const TEX = 560; // iris texture size
+const TEX = 500; // iris texture size
 
 function irisTexture(): HTMLCanvasElement {
   return memo('s09:iris', () => {
@@ -22,6 +22,20 @@ function irisTexture(): HTMLCanvasElement {
     const d = img.data;
     const nz = makeNoise(4711);
     const R = TEX / 2;
+    // everything that depends on the angle alone (collarette wobble, the furrows' breaks) is tabulated once
+    const NA = 2048;
+    const collT = new Float32Array(NA),
+      furT = new Float32Array(NA * 3),
+      wobT = new Float32Array(NA);
+    const FR = [0.7, 0.79, 0.88];
+    for (let a = 0; a < NA; a++) {
+      const th = (a / NA) * Math.PI * 2 - Math.PI;
+      const ca = Math.cos(th),
+        sa = Math.sin(th);
+      collT[a] = 0.47 + 0.035 * nz.n3(ca * 4 + 1, sa * 4 + 2, 0.5) + 0.02 * nz.n3(ca * 13, sa * 13, 1.5);
+      for (let q = 0; q < 3; q++) furT[a * 3 + q] = smoothstep(-0.1, 0.4, nz.n3(ca * 3 + FR[q] * 10, sa * 3, 2));
+      wobT[a] = 0.008 * Math.sin(th * 9);
+    }
     for (let j = 0; j < TEX; j++)
       for (let i = 0; i < TEX; i++) {
         const x = (i + 0.5 - R) / R,
@@ -30,18 +44,18 @@ function irisTexture(): HTMLCanvasElement {
         if (r > 1.0) continue;
         const ca = x / (r || 1),
           sa = y / (r || 1);
+        const ai = Math.min(NA - 1, Math.max(0, Math.round(((Math.atan2(sa, ca) + Math.PI) / (Math.PI * 2)) * NA))) % NA;
         // radial fibres: fine across, elongated along the radius
         const fib = nz.n3(ca * 26, sa * 26, r * 2.2) * 0.6 + nz.n3(ca * 61 + 3, sa * 61 + 7, r * 3.1) * 0.4;
         const fib2 = nz.n3(ca * 140 + 11, sa * 140 - 5, r * 5.0);
         // jagged collarette
-        const collR = 0.47 + 0.035 * nz.n3(ca * 4 + 1, sa * 4 + 2, 0.5) + 0.02 * nz.n3(ca * 13, sa * 13, 1.5);
-        const coll = Math.exp(-Math.pow((r - collR) / 0.022, 2));
+        const coll = Math.exp(-Math.pow((r - collT[ai]) / 0.022, 2));
         // crypts: dark lacunae in the mid zone
-        const cr = nz.n3(ca * 7 + 20, sa * 7 - 4, r * 5.5);
-        const crypt = smoothstep(0.35, 0.65, cr) * smoothstep(0.5, 0.58, r) * (1 - smoothstep(0.8, 0.88, r));
+        const inMid = r > 0.5 && r < 0.88;
+        const crypt = inMid ? smoothstep(0.35, 0.65, nz.n3(ca * 7 + 20, sa * 7 - 4, r * 5.5)) * smoothstep(0.5, 0.58, r) * (1 - smoothstep(0.8, 0.88, r)) : 0;
         // contraction furrows: broken concentric rings
         let furrow = 0;
-        for (const fr of [0.7, 0.79, 0.88]) furrow += Math.exp(-Math.pow((r - fr - 0.008 * Math.sin(Math.atan2(sa, ca) * 9)) / 0.007, 2)) * smoothstep(-0.1, 0.4, nz.n3(ca * 3 + fr * 10, sa * 3, 2));
+        if (r > 0.64) for (let q = 0; q < 3; q++) furrow += Math.exp(-Math.pow((r - FR[q] - wobT[ai]) / 0.007, 2)) * furT[ai * 3 + q];
         // colour by zone: gold-amber around the pupil, hazel-olive outside, dark limbus
         const inner = 1 - smoothstep(0.42, 0.62, r);
         let rr = 120 + 130 * inner,

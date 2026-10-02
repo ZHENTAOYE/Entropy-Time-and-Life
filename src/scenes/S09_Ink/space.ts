@@ -333,8 +333,11 @@ export function drawMilkyWay(ctx: CanvasRenderingContext2D, v: View, t: number, 
   if (alpha <= 0.003) return;
   const [gx, gy] = galCentre();
   const R = MW_R * v.s;
-  // larger than this the lib's light buffer would be upscaled into blocks: it fades in as it shrinks into view
-  alpha *= 1 - smoothstep(1500, 2600, R);
+  // it fades in slowly as it shrinks into view (from R ≈ 8500 px, where its light is a faint glow), so the disc
+  // rises out of the star field instead of switching on; the lib's light buffer is coarse at that size, so the
+  // first, faint part of the fade is also the soft one
+  const fin = 1 - smoothstep(1700, 8500, R);
+  alpha *= fin * fin * (2 - fin);
   if (R < 1 || alpha <= 0.003) return;
   drawGalaxy(ctx, {
     cx: sx(v, gx),
@@ -350,8 +353,8 @@ export function drawMilkyWay(ctx: CanvasRenderingContext2D, v: View, t: number, 
     spin: MW_SPIN,
     palette: 'natural',
     alpha,
-    // the bulge must not burn out while the galaxy still fills the frame
-    exposure: 0.62 + 0.18 * clamp((1700 - R) / 1400),
+    // the bulge must not burn out while the galaxy still fills the frame (nor wash out the caption over it)
+    exposure: 0.34 + 0.46 * clamp((2200 - R) / 1800),
     n: R > 300 ? 9000 : undefined,
   });
 }

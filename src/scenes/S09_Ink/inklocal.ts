@@ -112,6 +112,18 @@ export interface SpreadOpts {
   t0?: number;
 }
 
+const SL_N = 1024,
+  SL_MAX = 8;
+const spreadLut = () =>
+  memo('s09:spreadLut', () => {
+    const o = new Uint8ClampedArray(SL_N * 3);
+    for (let i = 0; i < SL_N; i++) {
+      const r = (i / (SL_N - 1)) * SL_MAX;
+      for (let c = 0; c < 3; c++) o[i * 3 + c] = Math.round(255 * (FLOOR[c] + (1 - FLOOR[c]) * Math.exp(-r * K[c])));
+    }
+    return o;
+  });
+
 /** draw a captured field τ seconds after it was released into the water (multiply) */
 export function drawSpread(ctx: CanvasRenderingContext2D, cap: Captured, tau: number, o: SpreadOpts) {
   if (o.gain <= 0.003) return;
@@ -192,11 +204,15 @@ export function drawSpread(ctx: CanvasRenderingContext2D, cap: Captured, tau: nu
   const img = g.createImageData(W, H);
   const d = img.data;
   const topRow = Math.ceil((SURFACE_Y - (cap.y0 - m / r)) * r);
+  const L = spreadLut();
+  const lk = ((SL_N - 1) / SL_MAX) * o.gain;
   for (let i = 0; i < W * H; i++) {
     const y = (i / W) | 0;
-    const rho = y < topRow ? 0 : R[i] * o.gain;
+    const li = y < topRow ? 0 : Math.min(SL_N - 1, (R[i] * lk) | 0) * 3;
     const k4 = i * 4;
-    for (let ch = 0; ch < 3; ch++) d[k4 + ch] = 255 * (FLOOR[ch] + (1 - FLOOR[ch]) * Math.exp(-rho * K[ch]));
+    d[k4] = L[li];
+    d[k4 + 1] = L[li + 1];
+    d[k4 + 2] = L[li + 2];
     d[k4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);

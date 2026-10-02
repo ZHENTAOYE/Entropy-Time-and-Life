@@ -69,22 +69,23 @@ export function s09Cues(): Cue[] {
   add(INK_T.gauge[0], 'tick', 'S-gauge fades in at the left (ink-coloured); it only rises from here', 0.15);
   add(CAP.c9.at, 'text', 'C9 「墨，终将散开。」', 0.3);
   add(INV.handover + 15, 'texture', 'the ink starts to sink and curl: slow liquid textures, eddies spinning up one by one (to f~640), a low drone that keeps rising with the S-gauge', 0.35);
+  add(INK_T.lens[0], 'swell', 'the tank’s water begins to run down through an invisible form: the web’s threads sag and bend onto an outline (crown first) — a low, slowly rising current tone', 0.3);
+  add(INK_T.paint[0], 'texture', 'ink pours down the outline from the crown, both sides together (to f604): a wet bristle hiss descending in stereo, drips at the hands and feet', 0.45);
   add(CAP.c10.at, 'text', 'C10 「但在散开的路上——」 = S05’s 「但在滚落的路上——」 (same layout, same musical motif as S05 C8)', 0.35);
-  add(INK_T.paint[0], 'texture', 'a brush travels down the contour from the crown: wet bristle hiss along both sides, the figure appears (to f604)', 0.45);
-  add(INK_T.paint[1], 'swell', 'the figure is complete — held while the ink keeps flowing along its outline (warm sustained chord)', 0.45);
+  add(INK_T.paint[1], 'swell', 'the figure is complete — held while the ink keeps streaming down its outline (warm sustained chord)', 0.45);
   add(CAP.c11.at, 'text', 'C11 「它画出了你。」', 0.35);
-  add(INK_T.brush[0], 'texture', '你 is painted stroke by stroke with a real brush (the only brush glyph in the film): 7 short dry-brush strokes to f668', 0.5);
-  // 。 is held back 54 f (InkPart C11.delayOf) and is glyph #5 (stagger 2.2, enter 16 f)
-  add(CAP.c11.at + 54 + 5 * 2.2 + 8, 'tick', '。 condenses last (f~679–696), closing the sentence', 0.15);
-  add(INK_T.release[0], 'swell', 'the ink lets the figure go: the chord dissolves, the outline is carried off by the water (to f784)', 0.5);
+  add(INK_T.brush[0], 'texture', '你 is written stroke by stroke with a real brush (the only brush glyph in the film): 7 strokes in stroke order to f682 — a soft press-and-flick per stroke', 0.5);
+  // 。 is held back 58 f (InkPart C11.delayOf) and is glyph #5 (stagger 2.2, enter 16 f)
+  add(CAP.c11.at + 58 + 5 * 2.2 + 8, 'tick', '。 lands as the brush lifts (f~683–699), closing the sentence', 0.15);
+  add(INK_T.hold, 'swell', 'the form is let go: the current through it eases off, its ink joins the water and diffuses (the chord dissolves, to f~760)', 0.5);
   // ── B6 ◀◀ ──
   add(RW.on, 'tick', '◀◀ ×8 timecode flickers in under the water line (mono clicks)', 0.3);
   add(RW.attempt[0], 'rewind', 'REWIND ATTEMPT: tape strain / reverse squeal, digits run back ×8 with a chromatic split — the picture does not follow, the ink keeps spreading', 0.6);
   add(RW.melt[0], 'fail', 'the ◀◀ itself bleeds into ink and sinks: the reverse sound collapses into a soft liquid gurgle', 0.5);
   // ── B7 title & ending ──
-  add(END.title[0], 'swell', 'title 「熵 · 时间 · 生命」 condenses (shāng over 熵): final theme statement', 0.65);
-  add(END.dropFrom, 'texture', 'a last drop falls from above the surface (tiny whistle)', 0.25);
-  add(END.impact, 'impact', 'the drop breaks the surface (plink + low thump, ripples); the title starts dissolving into ink', 0.85);
+  add(END.title[0], 'swell', 'title 「熵 · 时间 · 生命」 condenses out of the melting ◀◀ ink (shāng over 熵): final theme statement, held 1.5 s', 0.65);
+  add(END.dropFrom, 'texture', 'a last drop falls into view from above the frame (tiny whistle, 0.85 s)', 0.25);
+  add(END.impact, 'impact', 'the drop breaks the surface (plink + low thump, ripples, a small vortex ring); the title starts dissolving into ink', 0.85);
   add(END.light[0], 'transition', 'the light table switches off: the hum dies (power-down), the tank goes dark', 0.55);
   add(END.span[0], 'texture', 'the hairline of light contracts toward the centre: a thin high tone narrowing', 0.35);
   add(END.point[0], 'tick', 'the hairline is a single point of light', 0.2);
