@@ -50,13 +50,23 @@ The film = 9 scenes played back-to-back (`src/timeline.ts`), finished by a globa
 - `math.ts` — `clamp, lerp, remap, smoothstep, seg(frame,a,b), prog(frame,a,b,ease), window01, fold, ease.*,
   memo, mixHex, rgba`.
 - `overlays.tsx` — `Vignette`, `Flash`, `FilmGrain` (grain is already applied globally — don't add more).
+- `hud.tsx` — film-wide HUD vocabulary: `Timecode` (◀◀/▶▶/✕ + clock, auto chromatic aberration when time is tampered
+  with), `Odometer` (rolling digits), `SGauge` (the entropy meter at the left edge; red+jitter when falling = fake/rewind),
+  `Sci` (number with a properly raised exponent — use it for monumental numbers).
+- `handoff.ts` — match-cut constants (`Q_DOT, BOX, P4, ZERO_LINE, GOLD_POINT, SPIRAL, FEET, FIGURE_S08, WATER_LINE_Y`) and
+  the film-wide colour language `COLOR` (orderGold, wasteRed, lawCyan, gravityViolet, voice, inkText, amber).
+- `growth.ts` — space-colonization branching (`grow(key, {attractors, roots, …})`, `drawGrowth(ctx, nodes, reveal)`):
+  leaf veins, river deltas, dendrites, lightning. Murray's-law radii included.
+- `lut.ts` — `INFERNO` thermal LUT, `lutColor`, `applyLut(imageData, lut)`.
+- `ink*` / `cosmos*` — shared ink-in-water renderer (S01, S04, S09) and cosmic web / galaxy renderers (S03, S04, S05, S09).
+  See their header comments.
 
 ## Typography grammar (keep the film's voice consistent)
 - Narration: `<Caption text="…" from={f} dur={d} />`. Default = Noto Serif SC 600, 56 px, warm white `#F3EFE6`,
   centred, y=1440 (lower third), enters by **condensing** out of blur and exits by **diffusing** (characters drift
   apart in random order) — entropy applied to language. This is a film-wide motif: keep it for narration lines.
 - Emphasis: wrap words in `{…}` → accent colour (choose an accent that fits your scene palette via `accent=`).
-- Explicit line breaks with `\n`; keep lines ≤ ~14 Chinese characters at 56 px; max 2 lines per caption.
+- Explicit line breaks with `\n` **inside a JS string** (`text={'第一行\n第二行'}`); keep lines ≤ ~14 Chinese characters at 56 px; max 2 lines per caption.
 - Use Chinese punctuation and curly quotes “ ” (not ASCII "), 「」 not needed.
 - Reading time: ≥ (chars / 5) seconds + ~0.8 s; never overlap two narration captions in the same area.
 - Big statements: size 84–120, weight 900 (or 200 for whisper-thin elegance), may sit at screen centre.

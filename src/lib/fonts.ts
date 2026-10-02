@@ -8,7 +8,7 @@ export const FONT = {
   /** Chinese UI / labels (weights 300/400/700) */
   sans: '"Noto Sans SC", "Noto Sans CJK SC", sans-serif',
   /** Technical HUD labels, numbers, equations-as-code (300/400/700) */
-  mono: '"JetBrains Mono", ui-monospace, monospace',
+  mono: '"JetBrains Mono", "Noto Sans SC", ui-monospace, monospace',
   /** Latin display, italic math letters (400/600, italic available) */
   latin: '"Cormorant Garamond", "Noto Serif SC", serif',
 } as const;

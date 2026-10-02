@@ -60,7 +60,9 @@ interface Glyph {
   idx: number; // index among visible glyphs
 }
 
-function parse(text: string): { glyphs: Glyph[]; lines: number } {
+function parse(raw: string): { glyphs: Glyph[]; lines: number } {
+  // tolerate a literal backslash-n (e.g. from a JSX attribute string)
+  const text = raw.replace(/\\n/g, '\n');
   const glyphs: Glyph[] = [];
   let em = false;
   let line = 0;
@@ -81,6 +83,40 @@ function parse(text: string): { glyphs: Glyph[]; lines: number } {
     glyphs.push({ ch, em, line, idx: idx++ });
   }
   return { glyphs, lines: line + 1 };
+}
+
+const CJK = /[\u3400-\u9fff\uf900-\ufaff]/;
+/** punctuation that must not start a line (attach to previous run) */
+const CLOSE = /[，。：；！？、”’）》」』…—,.:;!?)\]%]/;
+/** punctuation that must not end a line (attach to next run) */
+const OPEN = /[“‘（《「『(\[]/;
+
+/** Group a line's glyphs into unbreakable runs: CJK chars are single runs, Latin/number sequences stay together,
+ * closing punctuation sticks to the previous run and opening punctuation to the next (basic kinsoku). */
+function runsOf(line: Glyph[]): Glyph[][] {
+  const runs: Glyph[][] = [];
+  let pendingOpen: Glyph[] = [];
+  for (const g of line) {
+    const last = runs[runs.length - 1];
+    if (OPEN.test(g.ch)) {
+      pendingOpen.push(g);
+      continue;
+    }
+    if (CLOSE.test(g.ch) && last && !pendingOpen.length) {
+      last.push(g);
+      continue;
+    }
+    const latin = !CJK.test(g.ch) && g.ch !== ' ';
+    const lastIsLatin = last && last.length && !CJK.test(last[last.length - 1].ch) && last[last.length - 1].ch !== ' ' && !CLOSE.test(last[last.length - 1].ch);
+    if (latin && lastIsLatin && !pendingOpen.length) {
+      last.push(g);
+      continue;
+    }
+    runs.push([...pendingOpen, g]);
+    pendingOpen = [];
+  }
+  if (pendingOpen.length) runs.push(pendingOpen);
+  return runs;
 }
 
 export const Caption: React.FC<CaptionProps> = (p) => {
@@ -115,7 +151,7 @@ export const Caption: React.FC<CaptionProps> = (p) => {
     style,
   } = p;
 
-  const plain = text.replace(/[{}\n]/g, '');
+  const plain = text.replace(/\\n/g, '').replace(/[{}\n]/g, '');
   const fontSpecs: Array<[string, string]> = [[`${italic ? 'italic ' : ''}${weight} ${size}px ${FONT[font]}`, plain]];
   if (accentWeight) fontSpecs.push([`${italic ? 'italic ' : ''}${accentWeight} ${size}px ${FONT[font]}`, plain]);
   useFontsReady(fontSpecs);
@@ -258,7 +294,11 @@ export const Caption: React.FC<CaptionProps> = (p) => {
     >
       {byLine.map((ln, i) => (
         <div key={i} style={{ whiteSpace: 'normal' }}>
-          {ln.map(renderGlyph)}
+          {runsOf(ln).map((run, j) => (
+            <span key={j} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+              {run.map(renderGlyph)}
+            </span>
+          ))}
         </div>
       ))}
     </div>
