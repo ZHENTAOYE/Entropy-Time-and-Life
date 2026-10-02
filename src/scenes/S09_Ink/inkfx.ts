@@ -1,25 +1,23 @@
 // S09 B5–B7: everything that is INK after the inversion (drawn into the shared ink stage with multiply).
 // One colour law for all of it (the inverted web's: COSMOS paper / COSMOS_INK_K / COSMOS_INK_FLOOR), so the web,
-// the tendrils, the figure, the brush 你, the ◀◀ and the title are visibly the same ink at different dilutions.
+// the figure, the brush 你, the ◀◀ and the title are visibly the same ink at different dilutions.
 //
-// * tendrils — particles seeded on the inverted web's filaments and clusters (its exact geometry at the hand-over
-//   frame). They sink (ink is denser than water), curl in a slow divergence-free flow, spread (dab size ∝ 1 + τ) and
-//   thin at constant mass (Beer–Lambert: wider, paler, bluer). Nothing ever re-concentrates.
+// * (the web's own ink is a density field advected by the tank's water: inkfield.ts / flow.ts)
 // * haze — the ink's fate: an almost uniform blue-grey haze that keeps growing (the S-gauge keeps rising).
 // * figure — a brush travels along HUMAN_PATH from the crown down both sides; ink streams in along the contour and
 //   keeps FLOWING along it while it holds (a shape kept by flow, like S07's vortex), then lets go and diffuses.
-import { COSMOS_INK_FLOOR, COSMOS_INK_K, webGeometry } from '../../lib/cosmos';
+import { COSMOS_INK_FLOOR, COSMOS_INK_K } from '../../lib/cosmos';
 import { drawInkParticles, inkStroke } from '../../lib/ink';
 import { HUMAN_PATH } from '../../lib/human';
 import { clamp, ease, memo, seg, smoothstep } from '../../lib/math';
-import { hash01, mulberry32 } from '../../lib/random';
+import { hash01 } from '../../lib/random';
 import { makeNoise } from '../../lib/noise';
 import { sampleShape } from '../../lib/points';
 import { ctxOf, scratch } from './canvas';
 import { Captured, captureInk, captureMask, drawSpread } from './inklocal';
 import { F } from './fonts';
-import { skyWeb } from './middle';
 import { END, INK_T, INV, RW, SURFACE_Y } from './timing';
+import { DEV } from './dev';
 
 export const K = COSMOS_INK_K;
 export const FLOOR = COSMOS_INK_FLOOR;
@@ -41,124 +39,6 @@ export function flowField(x: number, y: number, t: number): [number, number] {
     vy -= (c * kx) / kk;
   }
   return [vx * 0.5, vy * 0.5];
-}
-
-// ───────────────────────────── tendrils (the web, dispersing) ─────────────────────────────
-interface Seeds {
-  n: number;
-  x: Float32Array;
-  y: Float32Array;
-  a: Float32Array; // ink mass 0..1
-  h: Float32Array; // 4 randoms per particle
-}
-export function tendrilSeeds(): Seeds {
-  return memo('s09:tendrils', () => {
-    const geo = webGeometry(skyWeb(INV.handover), 40, 1080, 1920, 3);
-    const r = mulberry32(1357);
-    const xs: number[] = [],
-      ys: number[] = [],
-      as: number[] = [];
-    for (const e of geo.edges) {
-      const p = e.sx;
-      const w = Math.min(1, e.w) * (e.layer === 0 ? 1 : 0.55);
-      const step = e.layer === 0 ? 3.0 : 6.5;
-      for (let k = 2; k < p.length; k += 2) {
-        const ax = p[k - 2],
-          ay = p[k - 1],
-          bx = p[k],
-          by = p[k + 1];
-        const L = Math.hypot(bx - ax, by - ay);
-        const n = Math.max(1, Math.round(L / step));
-        const nx = -(by - ay) / (L || 1),
-          ny = (bx - ax) / (L || 1);
-        for (let q = 0; q < n; q++) {
-          const u = (q + r()) / n;
-          const off = (r() + r() - 1) * (1.5 + 3.5 * w);
-          const x = ax + (bx - ax) * u + nx * off,
-            y = ay + (by - ay) * u + ny * off;
-          if (x < -40 || x > 1120 || y < SURFACE_Y - 20 || y > 1960) continue;
-          xs.push(x);
-          ys.push(y);
-          as.push((0.35 + 0.65 * w) * (0.7 + 0.3 * r()));
-        }
-      }
-    }
-    // clusters: dense knots of ink
-    for (const nd of geo.nodes) {
-      if (nd.y < SURFACE_Y || nd.x < -40 || nd.x > 1120) continue;
-      const cnt = Math.round((nd.tier === 0 ? 26 : 5) * (0.4 + nd.mass));
-      for (let q = 0; q < cnt; q++) {
-        const a = r() * Math.PI * 2,
-          rr = (nd.tier === 0 ? 12 : 6) * Math.sqrt(r());
-        xs.push(nd.x + Math.cos(a) * rr);
-        ys.push(nd.y + Math.sin(a) * rr);
-        as.push(0.9);
-      }
-    }
-    const n = xs.length;
-    const h = new Float32Array(n * 4);
-    for (let i = 0; i < n * 4; i++) h[i] = r();
-    return { n, x: new Float32Array(xs), y: new Float32Array(ys), a: new Float32Array(as), h };
-  });
-}
-
-const nzT = makeNoise(909);
-/**
- * tendril particle position at τ seconds after the hand-over. Every term is a SMOOTH field of the seed position, so
- * a filament stays one continuous thread while it bends, sinks and stretches: regions sink at different speeds
- * (veils hang down), a slow large-scale flow bends them, a finer one curls them. Spreading is shown by the dabs
- * (wider, paler), never by scattering.
- */
-function tendrilPos(S: Seeds, i: number, tau: number): [number, number] {
-  const x0 = S.x[i],
-    y0 = S.y[i];
-  const v = 8 + 13 * (0.5 + 0.5 * nzT.n2(x0 * 0.0032 + 3.1, y0 * 0.0026));
-  const sink = v * tau + 1.3 * tau * tau;
-  const A = 60 * (1 - Math.exp(-tau / 2.6));
-  const [fx, fy] = flowField(x0 * 0.85, y0 * 0.85, tau * 0.42);
-  const a2 = 16 * (1 - Math.exp(-tau / 1.6));
-  const [gx, gy] = flowField(x0 * 2.6 + 170, y0 * 2.6 - 90, tau * 0.8 + 1.3);
-  return [x0 + fx * A + gx * a2, y0 + fy * A + gy * a2 + sink];
-}
-
-/** draw the dispersing web; `alpha` = hand-over fade */
-export function drawTendrils(ctx: CanvasRenderingContext2D, f: number, alpha: number, light: number) {
-  if (alpha <= 0.003) return;
-  const S = tendrilSeeds();
-  const tau = Math.max(0, (f - INV.handover) / 30);
-  const n = S.n;
-  const pos = new Float32Array(n * 2);
-  const dir = new Float32Array(n * 2);
-  const al = new Float32Array(n);
-  const sz = new Float32Array(n);
-  const grow = 1 + 0.42 * tau;
-  // the ink dilutes as it spreads (its mass goes into the haze)
-  const dilute = Math.exp(-tau / 7.5) / Math.pow(grow, 0.9);
-  for (let i = 0; i < n; i++) {
-    const [x, y] = tendrilPos(S, i, tau);
-    const [x2, y2] = tendrilPos(S, i, tau + 0.3);
-    pos[i * 2] = x;
-    pos[i * 2 + 1] = y;
-    // dabs lie along the motion: streak-lines of sinking ink
-    dir[i * 2] = (x2 - x) * 1.6;
-    dir[i * 2 + 1] = (y2 - y) * 1.6;
-    sz[i] = grow * (0.8 + 0.4 * S.h[i * 4 + 2]);
-    al[i] = S.a[i] * alpha * dilute;
-  }
-  drawInkParticles(ctx, pos, {
-    dir,
-    alpha: al,
-    sizes: sz,
-    size: 2.8,
-    density: 0.36 * light,
-    halo: 0.7,
-    haloRadius: 12,
-    wet: 0.7,
-    grain: 0.15,
-    k: K,
-    floor: FLOOR,
-    seed: 5,
-  });
 }
 
 // ───────────────────────────── haze ─────────────────────────────
@@ -212,14 +92,24 @@ const FK = FIG.h / 1344;
 export function figStroke() {
   return inkStroke('s09-figure', HUMAN_PATH, { x: FIG.cx - 300 * FK, y: FIG.feet - 1402 * FK, scale: FK, width: 19, spacing: 2.4, rows: 6, pressure: 1.0, seed: 3 });
 }
+/** points filling the body (sampled in a figure-sized box, not the whole frame), frame px */
+const BOX = { x: 300, y: 320, w: 480, h: 1030 } as const;
 function bodyPoints(): Float32Array {
-  return sampleShape('s09-body', 1080, 1920, (ctx) => {
-    ctx.save();
-    ctx.translate(FIG.cx - 300 * FK, FIG.feet - 1402 * FK);
-    ctx.scale(FK, FK);
-    ctx.fill(new Path2D(HUMAN_PATH));
-    ctx.restore();
-  }, { step: 15, jitter: 0.9, seed: 5 });
+  return memo('s09:bodyPts', () => {
+    const p = sampleShape('s09-body', BOX.w, BOX.h, (ctx) => {
+      ctx.save();
+      ctx.translate(FIG.cx - 300 * FK - BOX.x, FIG.feet - 1402 * FK - BOX.y);
+      ctx.scale(FK, FK);
+      ctx.fill(new Path2D(HUMAN_PATH));
+      ctx.restore();
+    }, { step: 15, jitter: 0.9, seed: 5 });
+    const o = new Float32Array(p.length);
+    for (let i = 0; i < p.length; i += 2) {
+      o[i] = p[i] + BOX.x;
+      o[i + 1] = p[i + 1] + BOX.y;
+    }
+    return o;
+  });
 }
 /** painting front: arc length (from the crown, both sides) reached at frame f */
 const paintFront = (f: number, L: number) => (L / 2) * ease.inOutSine(seg(f, INK_T.paint[0], INK_T.paint[1])) * 1.04;
@@ -237,12 +127,14 @@ export function drawFigure(ctx: CanvasRenderingContext2D, f: number, light: numb
     return;
   }
   const tau = (f - INK_T.release[0]) / 30;
-  const gain = light * (1 - 0.62 * smoothstep(0, 2.6, tau));
-  drawSpread(ctx, figureCapture(), tau, { sinkV: 18, sinkA: 6, flowA: 50, curlA: 14, s0: 0.2, sK: 11, margin: 170, gain });
+  const gain = light * (1 - 0.5 * smoothstep(0.3, 3, tau));
+  drawSpread(ctx, figureCapture(), tau, { sinkV: 24, sinkA: 0, flowA: 0, curlA: 0, s0: 0.2, sK: 6, margin: 150, gain, t0: (INK_T.release[0] - INV.handover) / 30 });
 }
 
 function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: number) {
+  DEV.tick?.('fig:start');
   const st = figStroke();
+  DEV.tick?.('fig:stroke');
   const t = f / 30;
   const L = st.length;
   const front = paintFront(f, L);
@@ -291,6 +183,7 @@ function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: nu
     al[i] = ((0.25 + 0.75 * g) / grow) * (0.45 + 0.55 * tone) * wetFront * gIn * (0.88 + 0.12 * Math.sin(s0 * 0.01 - t * 1.3));
   }
   if (!any) return;
+  DEV.tick?.('fig:loop');
   const g0 = 1 - ease.inOutSine(seg(f, INK_T.release[0], INK_T.release[1]));
   drawInkParticles(ctx, pos, {
     dir,
@@ -307,8 +200,10 @@ function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: nu
     floor: FLOOR,
     seed: 9,
   });
+  DEV.tick?.('fig:dabs');
   // 淡墨 body wash, painted from the head down with the strokes, and a darker head
   const B = bodyPoints();
+  DEV.tick?.('fig:bodyPts');
   const nb = B.length / 2;
   const bp = new Float32Array(nb * 2);
   const ba = new Float32Array(nb);
@@ -331,6 +226,7 @@ function drawFigureParticles(ctx: CanvasRenderingContext2D, f: number, light: nu
     ba[i] = (vis * (0.32 + 0.9 * head) * (0.6 + 0.4 * h)) / bs[i] * (1 - rel * 0.85);
   }
   drawInkParticles(ctx, bp, { alpha: ba, sizes: bs, size: 19, sizeJitter: 0.25, density: 0.04 * light, halo: 0.5, haloRadius: 22, wet: 0.6, grain: 0.08, k: K, floor: FLOOR, seed: 13 });
+  DEV.tick?.('fig:wash');
 }
 
 // ───────────────────────────── ◀◀ → ink, title → ink ─────────────────────────────
@@ -349,7 +245,7 @@ export function drawRewindInk(ctx: CanvasRenderingContext2D, f: number, light: n
     g.fillText(text, TC.x, TC.y);
   });
   const gain = light * smoothstep(0, 0.2, tau) * (1 - 0.55 * smoothstep(0, 1.6, tau));
-  drawSpread(ctx, cap, tau, { sinkV: 26, sinkA: 16, flowA: 26, curlA: 12, s0: 0.2, sK: 6, margin: 140, gain });
+  drawSpread(ctx, cap, tau, { sinkV: 60, sinkA: 14, flowA: 0, curlA: 0, s0: 0.2, sK: 6, margin: 140, gain, t0: (RW.melt[0] - INV.handover) / 30 });
 }
 
 export const TITLE_TEXT = '熵 · 时间 · 生命';
@@ -379,5 +275,5 @@ export function drawTitleInk(ctx: CanvasRenderingContext2D, f: number, light: nu
   if (tau < 0 || light <= 0.01) return;
   const cap = captureMask('title', 40, TITLE.y - 130, 1000, 200, 0.75, 2.5, drawTitleMask);
   const gain = light * smoothstep(0, 0.33, tau) * (1 - 0.4 * smoothstep(0, 1.2, tau));
-  drawSpread(ctx, cap, tau, { sinkV: 30, sinkA: 10, flowA: 40, curlA: 14, s0: 0.2, sK: 7, margin: 120, gain });
+  drawSpread(ctx, cap, tau, { sinkV: 40, sinkA: 8, flowA: 0, curlA: 0, s0: 0.2, sK: 7, margin: 120, gain, t0: (END.titleMelt[0] - INV.handover) / 30 });
 }

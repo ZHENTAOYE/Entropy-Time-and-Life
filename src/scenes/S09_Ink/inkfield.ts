@@ -1,10 +1,13 @@
 // S09 B5: the inverted cosmic web IS the ink — and it keeps spreading.
-// A snapshot of the fully inverted web (lib CosmicWeb, invert = 1) is converted once to OPTICAL DENSITY with the
-// web's own absorption law. Every frame that density is
-//   1. advected (semi-Lagrangian) by a smooth, closed-form flow: regions sink at different speeds (veils hang down),
-//      a slow large-scale flow bends the filaments, a finer one curls them — no particle ever moves on its own;
-//   2. diffused: a blur whose radius grows like √τ (Fick: the spread ∝ √(D·t)); the blur conserves mass, so the
-//      ink gets wider, paler and bluer (Beer–Lambert) and the web turns, by itself, into the uniform haze;
+// The web's exact geometry at the hand-over is rasterised once into OPTICAL DENSITY (calibrated to the inverted
+// shader image it cross-fades from). Every frame that density is
+//   1. advected, semi-Lagrangian, through the FLOW MAP of the tank's water (flow.ts: sinking that varies across the
+//      tank, large → small stream-function modes switching on as the stirring cascades), back-traced from τ to 0, then
+//      through a dozen EDDIES spun up beside the web's densest clusters (spirals: the curl of ink in water, 墨流し) —
+//      divergence-free, so the ink is only ever moved, stretched and folded, never created;
+//   2. diffused: a blur whose radius grows like √τ (Fick) plus ∝ τ (the tank's slow mixing); the blur conserves mass,
+//      so the ink gets wider, paler and bluer (Beer–Lambert), while a growing share of it is handed to the uniform
+//      haze (drawHaze) — the web turns, by itself, into the equilibrium;
 //   3. converted back to transmittance and multiplied onto the tank.
 // It is the same image that was the universe a second ago: the inversion shows the cosmos and the ink drop are the
 // same process (structure on the way to equilibrium).
@@ -14,6 +17,7 @@ import { HUMAN_PATH } from '../../lib/human';
 import { makeNoise } from '../../lib/noise';
 import { hash01 } from '../../lib/random';
 import { V, velAt } from './flow';
+import { DEV } from './dev';
 import { ctxOf, scratch } from './canvas';
 import { FIG, FLOOR, K } from './inkfx';
 import { skyWeb } from './middle';
@@ -27,6 +31,9 @@ export const SNAP_PARAMS: WebParams = { ...WEB_FINAL, ...skyWeb(474), invert: 1 
 const W = 540,
   H = 960; // half resolution
 
+/** the web's exact geometry at the hand-over (shared by the density and the eddies) */
+const snapGeo = () => memo('s09:snapGeo', () => webGeometry(SNAP_PARAMS, 60, 1080, 1920, 3));
+
 /**
  * The ink's initial optical density, built from the web's exact geometry (filaments with Murray-ish widths by mass,
  * a soft body around each, clusters as dense knots, tributaries fainter) — it matches the inverted shader image it
@@ -34,7 +41,7 @@ const W = 540,
  */
 function initialDensity(): Float32Array {
   return memo('s09:inkRho0', () => {
-    const geo = webGeometry(SNAP_PARAMS, 60, 1080, 1920, 3);
+    const geo = snapGeo();
     const top = Math.ceil(SURFACE_Y / 2) + 2;
     /** render one additive layer (R channel = density / scale) and read it back */
     const layer = (name: string, scale: number, draw: (g: CanvasRenderingContext2D) => void): Float32Array => {
@@ -116,65 +123,74 @@ function initialDensity(): Float32Array {
     blur3(B, tmp, 9);
     blur3(A, tmp, 0.8);
     // the far slab / intergalactic gas: a faint mottling in the voids
+    // (noise on a coarse 6-px lattice, bilinear: it is a soft mottling, no need to evaluate it per pixel)
     const nz = makeNoise(3131);
+    const MS = 6,
+      MW = Math.ceil(W / MS) + 2,
+      MH = Math.ceil(H / MS) + 2;
+    const M = new Float32Array(MW * MH);
+    for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) M[j * MW + i] = 0.09 * Math.max(0, nz.fbm2(i * MS * 0.012, j * MS * 0.012, 3) + 0.25);
     const rho = new Float32Array(W * H);
-    for (let y = top; y < H; y++)
+    for (let y = top; y < H; y++) {
+      const gy = y / MS,
+        j0 = Math.floor(gy),
+        fy = gy - j0;
       for (let x = 0; x < W; x++) {
+        const gx = x / MS,
+          i0 = Math.floor(gx),
+          fx = gx - i0;
+        const o = j0 * MW + i0;
+        const mott = (M[o] * (1 - fx) + M[o + 1] * fx) * (1 - fy) + (M[o + MW] * (1 - fx) + M[o + MW + 1] * fx) * fy;
         const i = y * W + x;
-        const mott = 0.09 * Math.max(0, nz.fbm2(x * 0.012, y * 0.012, 3) + 0.25);
         rho[i] = Math.min(7, A[i] + B[i] + mott);
       }
+    }
     for (let y = top; y < top + 10; y++) for (let x = 0; x < W; x++) rho[y * W + x] *= (y - top) / 10;
     return rho;
   });
 }
 
-// ───────────────────────────── plumes ─────────────────────────────
-// The web's biggest clusters are the densest ink: each one falls as a THERMAL — a vortex pair (the 2-D section of a
-// vortex ring) whose bubble carries the cluster down while the water around it rolls up into the two lobes of the
-// classic ink "mushroom", and every thread attached to the cluster is dragged down into a hanging veil.
-// Stream function ψ = −A·(x−cx)·exp(−r²/2s²) (divergence-free); the bubble travels at 0.35 × its core speed, so the
-// streamlines close around a bubble of radius ≈ 1.45 s (it really carries its ink). Operator splitting: the plumes act on the picture the
-// smooth flow has made (Φ = Φ_plume ∘ Φ_smooth); each plume's map is back-traced on a fine local grid.
+// ───────────────────────────── swirls ─────────────────────────────
+// Where the web's biggest clusters sit, the dense ink stirs the water into an EDDY (a Gaussian vortex: ψ = Γ·e^(−r²/2s²),
+// divergence-free; it turns fastest at its centre, so whatever it holds winds into a spiral — the curl of ink in water,
+// the rings and swirls of 墨流し). Each eddy sits a little off its cluster, spins up, turns one to two times and dies
+// away. Operator splitting: the eddies act on the picture the smooth flow has made (Φ = Φ_eddy ∘ Φ_smooth); each one's
+// map is back-traced on a fine local grid.
 interface Plume {
-  x0: number;
+  x0: number; // eddy centre at τ = 0 (full-res px)
   y0: number;
-  U: number; // core speed, px/s
+  w: number; // peak angular velocity at the centre, rad/s (signed: the turning sense)
   s: number; // radius, px
   t0: number; // onset, s
-  life: number; // s, then the ring slows and stops
-  d: Float32Array; // fall of the centre d(t), sampled every PDT
+  life: number; // s, then it slows and stops
 }
-const PDT = 0.05,
-  PDN = 320;
-const plumeAmp = (p: { U: number; t0: number; life: number }, t: number) =>
-  t <= p.t0 ? 0 : p.U * smoothstep(p.t0, p.t0 + 1.2, t) * (1 - smoothstep(p.t0 + p.life, p.t0 + p.life + 2.2, t));
-const dAt = (p: Plume, t: number) => {
-  const u = Math.max(0, t / PDT);
-  const k = Math.min(PDN - 1, Math.floor(u));
-  const fr = Math.min(1, u - k);
-  return p.d[k] + (p.d[k + 1] - p.d[k]) * fr;
-};
+const plumeAmp = (p: { w: number; t0: number; life: number }, t: number) =>
+  t <= p.t0 ? 0 : p.w * smoothstep(p.t0, p.t0 + 1.0, t) * (1 - smoothstep(p.t0 + p.life, p.t0 + p.life + 2.0, t));
 function plumes(): Plume[] {
   return memo('s09:plumes', () => {
-    const geo = webGeometry(SNAP_PARAMS, 60, 1080, 1920, 3);
+    const geo = snapGeo();
     const cand = geo.nodes
-      .filter((n) => n.tier === 0 && n.x > 70 && n.x < 1010 && n.y > SURFACE_Y + 50 && n.y < 1620)
+      .filter((n) => n.tier === 0 && n.x > 70 && n.x < 1010 && n.y > SURFACE_Y + 60 && n.y < 1640)
       .sort((a, b) => b.mass - a.mass);
     const out: Plume[] = [];
     for (const n of cand) {
-      if (out.length >= 8) break;
-      if (out.some((p) => Math.abs(p.x0 - n.x) < 220 && Math.abs(p.y0 - n.y) < 560)) continue;
+      if (out.length >= 12) break;
+      if (out.some((p) => Math.hypot(p.x0 - n.x, p.y0 - n.y) < 230)) continue;
       const q = out.length;
       const h = hash01(q, 611),
-        h2 = hash01(q, 613);
-      const pl = { x0: n.x, y0: n.y, U: 115 + 40 * n.mass * (0.6 + 0.4 * h), s: 24 + 12 * n.mass, t0: 0.6 + 0.62 * q + 0.8 * h2, life: 2.6 + 1.4 * h, d: new Float32Array(PDN + 1) };
-      let acc = 0;
-      for (let k = 1; k <= PDN; k++) {
-        acc += 0.35 * plumeAmp(pl, (k - 0.5) * PDT) * PDT;
-        pl.d[k] = acc;
-      }
-      out.push(pl);
+        h2 = hash01(q, 613),
+        h3 = hash01(q, 617);
+      const s = 28 + 20 * n.mass * (0.6 + 0.4 * h);
+      const off = 0.55 * s,
+        ang = h3 * Math.PI * 2;
+      out.push({
+        x0: n.x + Math.cos(ang) * off,
+        y0: n.y + Math.sin(ang) * off,
+        w: (q % 2 ? -1 : 1) * (1.5 + 0.7 * h),
+        s,
+        t0: 0.3 + 0.42 * q + 0.6 * h2,
+        life: 2.4 + 1.6 * h3,
+      });
     }
     return out;
   });
@@ -199,19 +215,19 @@ function forwardSmooth(x0: number, y0: number, tau: number): [number, number] {
 }
 let PVX = 0,
   PVY = 0;
-function plumeVel(p: Plume, x: number, y: number, t: number, cx: number, cy0: number) {
+function plumeVel(p: Plume, x: number, y: number, t: number, cx: number, cy: number) {
   PVX = 0;
   PVY = 0;
-  const A = plumeAmp(p, t);
-  if (A === 0) return;
+  const w = plumeAmp(p, t);
+  if (w === 0) return;
   const dx = x - cx,
-    dy = y - (cy0 + dAt(p, t));
+    dy = y - cy;
   const s2 = p.s * p.s;
   const r2 = dx * dx + dy * dy;
   if (r2 > 11 * s2) return;
-  const e = Math.exp(-r2 / (2 * s2));
-  PVX = (A * dx * dy * e) / s2;
-  PVY = A * e * (1 - (dx * dx) / s2);
+  const e = w * Math.exp(-r2 / (2 * s2));
+  PVX = -e * dy;
+  PVY = e * dx;
 }
 const PG = 3; // fine grid, half-res px
 const PDTS = 0.25; // back-trace step, s
@@ -230,20 +246,22 @@ function plumeField(tau: number) {
     const i0 = Math.max(0, Math.floor((Xs - m) / 2 / PG)),
       i1 = Math.min(Math.floor((W - 1) / PG), Math.ceil((Xs + m) / 2 / PG));
     const j0 = Math.max(0, Math.floor((Ys - m) / 2 / PG)),
-      j1 = Math.min(Math.floor((H - 1) / PG), Math.ceil((Ys + dAt(p, tau) + m) / 2 / PG));
+      j1 = Math.min(Math.floor((H - 1) / PG), Math.ceil((Ys + m) / 2 / PG));
     const gw = i1 - i0 + 1,
       gh = j1 - j0 + 1;
     if (gw < 2 || gh < 2) continue;
     const G = new Float32Array(gw * gh * 2);
-    const n = Math.max(1, Math.ceil((tau - p.t0) / PDTS));
-    const dt = (tau - p.t0) / n;
+    // once an eddy has stopped (t0 + life + 2 s) nothing moves: the trace starts there
+    const t1 = Math.min(tau, p.t0 + p.life + 2.0);
+    const n = Math.max(1, Math.ceil((t1 - p.t0) / PDTS));
+    const dt = (t1 - p.t0) / n;
     for (let j = 0; j < gh; j++)
       for (let i = 0; i < gw; i++) {
         const X = (i0 + i) * PG * 2,
           Y = (j0 + j) * PG * 2;
         let x = X,
           y = Y,
-          t = tau;
+          t = t1;
         for (let k = 0; k < n; k++) {
           plumeVel(p, x, y, t, Xs, Ys);
           const hx = x - PVX * dt * 0.5,
@@ -405,12 +423,16 @@ export const fieldShare = (tau: number) => 0.42 + 0.58 * Math.exp(-tau / 5.5);
 export function drawInkField(ctx: CanvasRenderingContext2D, f: number, gain: number): boolean {
   if (gain <= 0.003) return true;
   const tau = Math.max(0, (f - SNAP_F) / 30);
+  DEV.tick?.('f:start');
   const rho = initialDensity();
+  DEV.tick?.('f:rho0');
   const D = displacement(tau);
+  DEV.tick?.('f:flowmap');
   const out = memo('s09:fieldOut', () => ({ a: new Float32Array(W * H), t: new Float32Array(Math.max(W, H)) }));
   const R = out.a;
   // 1. advect (bilinear displacement from the coarse grid, bilinear density sample)
   const PF = plumeField(tau);
+  DEV.tick?.('f:eddies');
   const PD = PF.PD;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -448,6 +470,7 @@ export function drawInkField(ctx: CanvasRenderingContext2D, f: number, gain: num
       R[y * W + x] = (rho[b] * (1 - ax) + rho[b + 1] * ax) * (1 - ay) + (rho[b + W] * (1 - ax) + rho[b + W + 1] * ax) * ay;
     }
   }
+  DEV.tick?.('f:advect');
   // 2. diffuse: σ ∝ √τ (molecular) + ∝ τ (the slow turbulent mixing of the tank) — half-res px
   const sigma = 0.3 + 0.9 * Math.sqrt(tau) + 0.4 * tau;
   if (sigma > 0.6) blur3(R, out.t, sigma);
@@ -466,6 +489,7 @@ export function drawInkField(ctx: CanvasRenderingContext2D, f: number, gain: num
       }
     }
   }
+  DEV.tick?.('f:blur+dep');
   // 3. Beer–Lambert → multiply
   const L = lut();
   const c = scratch('fieldOut', W, H);

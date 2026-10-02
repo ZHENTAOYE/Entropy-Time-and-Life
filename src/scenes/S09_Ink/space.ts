@@ -41,6 +41,102 @@ export function galCentre(t = T_REF): [number, number] {
 }
 
 // ───────────────────────────── the Earth as a pale dot, the Moon ─────────────────────────────
+/**
+ * Voyager's "pale blue dot": the Earth sits in a ray of sunlight scattered in the camera — a few soft, slightly
+ * diverging bands from the (off-frame) Sun. `alpha` 0..1.
+ */
+export function drawSunbeam(ctx: CanvasRenderingContext2D, v: View, alpha: number) {
+  if (alpha <= 0.003) return;
+  const x = sx(v, 0),
+    y = sy(v, 0);
+  const a0 = Math.atan2(SUN_DIR2[1], SUN_DIR2[0]);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const bands: Array<[number, number, number, string]> = [
+    // angle offset (rad), half-width (px), strength, colour
+    [0, 95, 0.11, '#D6AA78'],
+    [0.03, 36, 0.06, '#AABED7'],
+    [-0.055, 60, 0.05, '#C8966E'],
+    [0.085, 140, 0.035, '#BEA082'],
+  ];
+  for (const [da, hw, k, col] of bands) {
+    ctx.save();
+    // rays from the Sun, far beyond the upper right: each band passes (near) the Earth, brighter toward the Sun
+    ctx.translate(x, y);
+    ctx.rotate(a0 + da);
+    ctx.translate(0, da * 900);
+    ctx.globalAlpha = Math.min(1, k * alpha * 6);
+    ctx.drawImage(beamSprite(col), -2400, -hw, 4800, 2 * hw);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+/** a soft band: Gaussian across, brightening toward the Sun end (+u), tinted */
+function beamSprite(hex: string): HTMLCanvasElement {
+  return memo(`s09:beam:${hex}`, () => {
+    const W = 256,
+      H = 48;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const g = c.getContext('2d')!;
+    const img = g.createImageData(W, H);
+    const r = parseInt(hex.slice(1, 3), 16),
+      gg = parseInt(hex.slice(3, 5), 16),
+      b = parseInt(hex.slice(5, 7), 16);
+    for (let j = 0; j < H; j++)
+      for (let i = 0; i < W; i++) {
+        const v = (j + 0.5) / H - 0.5;
+        const u = (i + 0.5) / W;
+        const a = Math.exp(-(v * v) / 0.028) * (0.12 + 0.88 * Math.pow(u, 1.8)) * (1 / 6);
+        const o = (j * W + i) * 4;
+        img.data[o] = r;
+        img.data[o + 1] = gg;
+        img.data[o + 2] = b;
+        img.data[o + 3] = Math.round(255 * Math.min(1, a));
+      }
+    g.putImageData(img, 0, 0);
+    return c;
+  });
+}
+
+/** the Oort cloud: a faint shell of icy bodies 2 000 – 100 000 AU from the Sun (you see it as you leave the planets) */
+export function drawOort(ctx: CanvasRenderingContext2D, v: View, alpha: number) {
+  if (alpha <= 0.003) return;
+  const P = memo('s09:oort', () => {
+    const r = mulberry32(4471);
+    const n = 2600;
+    const o = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      // filling the shell 5 000 – 100 000 AU uniformly by volume, isotropic, projected on the sky plane
+      const r0 = 5e3,
+        r1 = 1e5;
+      const rad = Math.cbrt(r0 * r0 * r0 + r() * (r1 * r1 * r1 - r0 * r0 * r0)) * AU;
+      const u = r() * 2 - 1,
+        th = r() * Math.PI * 2;
+      const q = Math.sqrt(1 - u * u);
+      o[i * 3] = rad * q * Math.cos(th);
+      o[i * 3 + 1] = rad * q * Math.sin(th);
+      o[i * 3 + 2] = r();
+    }
+    return o;
+  });
+  const cx = sx(v, SUN[0]),
+    cy = sy(v, SUN[1]);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < P.length; i += 3) {
+    const x = cx + P[i] * v.s,
+      y = cy + P[i + 1] * v.s;
+    if (x < -2 || x > 1082 || y < -2 || y > 1922) continue;
+    const m = P[i + 2];
+    ctx.fillStyle = `rgba(184,204,236,${(alpha * (0.22 + 0.5 * m * m)).toFixed(3)})`;
+    const rr = 0.7 + 0.8 * m;
+    ctx.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
+  ctx.restore();
+}
+
 export function drawEarthDot(ctx: CanvasRenderingContext2D, v: View, alpha: number) {
   if (alpha <= 0.003) return;
   const x = sx(v, 0),
@@ -48,7 +144,8 @@ export function drawEarthDot(ctx: CanvasRenderingContext2D, v: View, alpha: numb
   const R = RE * v.s;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  glow(ctx, '#7FC4FF', x, y, Math.max(5, R * 3), 0.55 * alpha, 0.6);
+  glow(ctx, '#5FA8FF', x, y, Math.max(16, R * 3), 0.42 * alpha, 0.5);
+  glow(ctx, '#9CD2FF', x, y, Math.max(6, R * 1.6), 0.7 * alpha, 0.8);
   // the crescent toward the Sun
   ctx.fillStyle = `rgba(190,225,255,${(0.9 * alpha).toFixed(3)})`;
   ctx.beginPath();

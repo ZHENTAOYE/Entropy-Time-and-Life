@@ -4,7 +4,7 @@
 // Extensions: colour as a function of time (warm white over the cosmos → ink #17151C over the cream tank),
 // {…} emphasis colour, a per-line entry delay, and a <…> SLOT: a glyph laid out at its own size whose drawing is
 // delegated to a callback (the brush-painted 你).
-import { clamp, ease, seg } from '../../lib/math';
+import { clamp, ease, memo, seg } from '../../lib/math';
 import { hash01, seedOf } from '../../lib/random';
 import { RGB, fresh, rgbStr, scratch } from './canvas';
 
@@ -232,24 +232,68 @@ export function drawGlyph(
   const gb = glow > 0 ? size * 0.16 : 0;
   const pad = Math.ceil(Math.max(blur, gb) * 3 + 4);
   const S = Math.ceil(size * 1.5) + pad * 2;
-  const c = scratch('glyph', S, S);
+  // a settled glowing glyph never changes: render it once (the blur filter is the expensive part)
+  const still = blur <= 0.15;
+  const c = still ? memo(`s09:glyphGlow:${ch}|${font}|${col.join(',')}|${glow.toFixed(3)}`, () => document.createElement('canvas')) : scratch('glyph', S, S);
+  if (still && c.width === S && c.height === S) {
+    ctx.globalAlpha = clamp(alpha);
+    ctx.drawImage(c, -S / 2, -S / 2);
+    ctx.restore();
+    return;
+  }
+  if (still) {
+    c.width = S;
+    c.height = S;
+  }
   const g = fresh(c);
   g.font = font;
   g.textAlign = 'center';
   g.textBaseline = 'alphabetic';
   g.fillStyle = rgbStr(col);
   if (glow > 0) {
+    // the glow: the glyph itself, softened (no canvas filter: it costs ~25 ms per glyph here)
+    const t = scratch('glyphGlowSrc', S, S);
+    const tg = fresh(t);
+    tg.font = font;
+    tg.textAlign = 'center';
+    tg.textBaseline = 'alphabetic';
+    tg.fillStyle = rgbStr(col);
+    tg.fillText(ch, S / 2, S / 2 + dy0);
     g.globalAlpha = clamp(glow * 0.5);
-    g.filter = `blur(${gb.toFixed(1)}px)`;
-    g.fillText(ch, S / 2, S / 2 + dy0);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(softGlyph(t, gb), 0, 0, S, S);
     g.globalAlpha = 1;
   }
-  g.filter = blur > 0.15 ? `blur(${blur.toFixed(2)}px)` : 'none';
   g.fillText(ch, S / 2, S / 2 + dy0);
-  g.filter = 'none';
   ctx.globalAlpha = clamp(alpha);
-  ctx.drawImage(c, -S / 2, -S / 2);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(blur > 0.15 ? softGlyph(c, blur) : c, -S / 2, -S / 2, S, S);
   ctx.restore();
+}
+
+/**
+ * Blur a square glyph canvas by ≈ σ px without a canvas filter: progressive halving (2×2 box averages) down to 1/(2.2σ)
+ * of its size; the caller draws the result upscaled back (bilinear) — a smooth blur for a fraction of a filter's cost.
+ */
+function softGlyph(src: HTMLCanvasElement, sigma: number): HTMLCanvasElement {
+  const S = src.width;
+  const target = Math.max(1, Math.round(S / Math.max(1, sigma * 2.2)));
+  if (target >= S - 1) return src;
+  let cur = src,
+    size = S,
+    i = 0;
+  while (Math.round(size / 2) > target) {
+    size = Math.round(size / 2);
+    const c = scratch(`glyphDown${i++}`, size, size);
+    fresh(c).drawImage(cur, 0, 0, size, size);
+    cur = c;
+  }
+  if (target < size) {
+    const c = scratch(`glyphDown${i++}`, target, target);
+    fresh(c).drawImage(cur, 0, 0, target, target);
+    cur = c;
+  }
+  return cur;
 }
 
 export const VOICE: RGB = [243, 239, 230];

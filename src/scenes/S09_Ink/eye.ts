@@ -7,11 +7,11 @@ import { WEB_FINAL, webGeometry } from '../../lib/cosmos';
 import { clamp, ease, memo, seg, smoothstep } from '../../lib/math';
 import { mulberry32 } from '../../lib/random';
 import { makeNoise } from '../../lib/noise';
-import { ctxOf, glow } from './canvas';
+import { ctxOf, fresh, glow, scratch } from './canvas';
 import { DISC, EYE, HIT } from './timing';
 
 export const RI = 372; // iris radius (px, at camera scale 1)
-const TEX = 680; // iris texture size
+const TEX = 560; // iris texture size
 
 function irisTexture(): HTMLCanvasElement {
   return memo('s09:iris', () => {
@@ -166,8 +166,23 @@ export function eyeState(f: number): EyeState {
   return { S: S * settle, px, py, rp: RI * dil * S * settle, gx, gy };
 }
 
+/** the eye; during the dive (scale > 1.6, in motion) it is rendered at half resolution and upscaled */
 export function drawEye(ctx: CanvasRenderingContext2D, f: number) {
   const st = eyeState(f);
+  if (st.S <= 1.6) {
+    drawEyeInto(ctx, f, st);
+    return;
+  }
+  const c = scratch('eyeHalf', 540, 960);
+  const g = fresh(c);
+  g.scale(0.5, 0.5);
+  drawEyeInto(g, f, st);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(c, 0, 0, 1080, 1920);
+  ctx.restore();
+}
+function drawEyeInto(ctx: CanvasRenderingContext2D, f: number, st: EyeState) {
   const t = (f - HIT.eye) / 30;
   const geo = eyeGeo();
   const lift = 22 * ease.inOutSine(seg(f, EYE.gaze[0], EYE.gaze[1]));

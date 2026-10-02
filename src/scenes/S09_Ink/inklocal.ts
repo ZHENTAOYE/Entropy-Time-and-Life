@@ -4,6 +4,7 @@
 import { memo, smoothstep } from '../../lib/math';
 import { ctxOf, scratch } from './canvas';
 import { FLOOR, K, flowField } from './inkfx';
+import { backTrace } from './flow';
 import { SURFACE_Y } from './timing';
 
 export interface Captured {
@@ -104,6 +105,11 @@ export interface SpreadOpts {
   margin: number;
   /** density multiplier (fades, light) */
   gain: number;
+  /**
+   * tank time (s since the hand-over, flow.ts) at which the ink was released: if given, the ink moves with the
+   * tank's own water (flow.ts back-trace) instead of the generic flow above (+ sinkA·τ² of its own weight; sinkV only sizes the box)
+   */
+  t0?: number;
 }
 
 /** draw a captured field τ seconds after it was released into the water (multiply) */
@@ -130,6 +136,12 @@ export function drawSpread(ctx: CanvasRenderingContext2D, cap: Captured, tau: nu
     for (let i = 0; i < gw; i++) {
       const lx = cap.x0 + (i * GS - m) / r,
         ly = cap.y0 + (j * GS - m) / r;
+      if (o.t0 !== undefined) {
+        const [ox, oy] = backTrace(lx, ly, o.t0 + tau, o.t0);
+        D[(j * gw + i) * 2] = (lx - ox) * r;
+        D[(j * gw + i) * 2 + 1] = (ly - oy + o.sinkA * tau * tau) * r;
+        continue;
+      }
       const [fx, fy] = flowField(lx * 0.85, ly * 0.85, tau * 0.45 + 2.1);
       const [gx, gy] = flowField(lx * 3.1 + 40, ly * 3.1 - 10, tau * 0.9 + 0.7);
       D[(j * gw + i) * 2] = (fx * A + gx * C) * r;

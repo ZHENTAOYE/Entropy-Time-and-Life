@@ -133,7 +133,7 @@ export const InkPart: React.FC<{ f: number; web: () => HTMLCanvasElement | null;
   const airK = smoothstep(INV.tank[0], INV.tank[0] + 26, f);
   const span = ease.inOutCubic(seg(f, INV.hairline[0], INV.hairline[1])) * (1 - ease.inOutCubic(seg(f, END.span[0], END.span[1])));
   const hairline = smoothstep(INV.hairline[0], INV.hairline[0] + 6, f) * (1 - seg(f, END.point[0], END.point[1]));
-  const haze = (0.03 + 0.1 * ease.inOutSine(seg(f, INV.handover, 800))) * smoothstep(INV.handover, INV.handover + 40, f);
+  const haze = (0.03 + 0.14 * ease.inOutSine(seg(f, INV.handover, 800))) * smoothstep(INV.handover, INV.handover + 40, f);
   return (
     <>
       <InkStage>

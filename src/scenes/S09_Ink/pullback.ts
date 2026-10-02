@@ -6,11 +6,11 @@ import { WEB_FINAL, WebParams, centerOn, webNodes } from '../../lib/cosmos';
 import { ease, memo, seg, smoothstep } from '../../lib/math';
 import { drawFigureS08 } from '../S08_Memory/figure';
 import { drawMotesS08 } from '../S08_Memory/motes';
-import { RGB, fresh, glow, hexA, rgbStr, scratch, vignette } from './canvas';
+import { RGB, cheapBlur, fresh, glow, hexA, rgbStr, scratch, vignette } from './canvas';
 import { View, drawHighways, drawStreets, metroRaster, METRO_M, sx, sy } from './city';
 import { drawEarth } from './earth';
 import { F } from './fonts';
-import { SUN, drawEarthDot, drawGalaxyField, drawLocalGroup, drawMilkyWay, drawMoon, drawSolar, drawStars, galCentre } from './space';
+import { SUN, drawEarthDot, drawGalaxyField, drawLocalGroup, drawMilkyWay, drawMoon, drawOort, drawSolar, drawStars, drawSunbeam, galCentre } from './space';
 import { ANCHOR, CAP, PB_END, S08_T0, Z0, zoomSpeed, zoomZ } from './timing';
 import { Cap, VOICE, drawCap } from './voice';
 import { DEV } from './dev';
@@ -106,8 +106,10 @@ const LEVELS: Array<[number, string]> = [
   [1.55, '街区'],
   [3.4, '城市'],
   [5.55, '地球'],
-  [8.7, '太阳系'],
-  [15.4, '恒星'],
+  [8.2, '地月系'],
+  [10.7, '太阳系'],
+  [13.9, '奥尔特云'],
+  [16.2, '恒星'],
   [20.0, '银河系'],
   [21.9, '本星系群'],
   [23.45, '宇宙网'],
@@ -233,9 +235,7 @@ function bloomAndStreak(ctx: CanvasRenderingContext2D, cam: PCam, bloom: number,
   ac.globalCompositeOperation = 'lighter';
   if (bloom > 0.003) {
     ac.globalAlpha = Math.min(1, bloom);
-    ac.filter = 'blur(6px)';
-    ac.drawImage(q, 0, 0);
-    ac.filter = 'none';
+    ac.drawImage(cheapBlur('pbBloom', q, 8), 0, 0);
   }
   // pull-back motion: each point was further out a moment ago → streaks run outward from the anchor
   const d = Math.pow(10, Math.max(0, cam.speed) * 0.55) - 1;
@@ -288,6 +288,8 @@ export function drawPullback(ctx: CanvasRenderingContext2D, f: number, web: HTML
   drawStars(ctx, cam, t, smoothstep(14.6, 15.6, Z) * (1 - smoothstep(20.45, 21.1, Z)));
   const sunA = smoothstep(10.2, 11.0, Z) * (1 - smoothstep(19.0, 20.4, Z));
   drawSolar(ctx, cam, t, smoothstep(9.3, 10.2, Z) * (1 - smoothstep(14.6, 15.6, Z)), sunA);
+  drawOort(ctx, cam, smoothstep(14.1, 14.8, Z) * (1 - smoothstep(15.9, 16.6, Z)));
+  drawSunbeam(ctx, cam, smoothstep(8.5, 9.3, Z) * (1 - smoothstep(11.0, 11.9, Z)));
   drawMoon(ctx, cam, t, smoothstep(7.7, 8.3, Z) * (1 - smoothstep(10.2, 10.9, Z)));
   drawEarthDot(ctx, cam, smoothstep(8.6, 9.4, Z) * (1 - smoothstep(11.6, 12.6, Z)));
   const discA = smoothstep(5.9, 6.6, Z) * (1 - smoothstep(9.0, 9.8, Z));
@@ -345,13 +347,14 @@ export function drawPullback(ctx: CanvasRenderingContext2D, f: number, web: HTML
   DEV.mark?.('post', ctx);
   // 5. you are here
   if (on('marker')) drawMarker(ctx, f, cam);
+  DEV.mark?.('marker', ctx);
   // 6. lens: S08's warm vignette → a neutral one
   const vw = 1 - seg(f, 4, 30);
   if (on('vig')) {
     vignette(ctx, 0.5 * vw, [14, 8, 4]);
     vignette(ctx, 0.42 * (1 - vw), [0, 0, 0]);
   }
-  DEV.mark?.('marker+vig', ctx);
+  DEV.mark?.('vig', ctx);
   // 7. HUD + narration
   if (!fontsReady) return;
   if (on('hud')) drawOdometer(ctx, f, Z);

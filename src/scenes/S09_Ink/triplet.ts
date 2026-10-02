@@ -10,7 +10,7 @@ import { drawGalaxy, drawSpikes, drawStarfield } from '../../lib/cosmos';
 import { clamp, ease, memo, seg } from '../../lib/math';
 import { mulberry32 } from '../../lib/random';
 import { makeNoise } from '../../lib/noise';
-import { ctxOf, fresh, glow, scratch } from './canvas';
+import { cheapBlur, ctxOf, fresh, glow, scratch } from './canvas';
 import { DISC, HIT } from './timing';
 
 /** the punch-in camera: scale 1.12 → 1.0 over 12 frames after the cut, about the disc centre */
@@ -409,12 +409,11 @@ export function bloomPass(ctx: CanvasRenderingContext2D, k: number, blurPx = 5) 
   if (k <= 0.003) return;
   const q = scratch('trip-q', 270, 480);
   const qx = fresh(q);
-  qx.filter = `blur(${blurPx}px)`;
   qx.drawImage(ctx.canvas, 0, 0, 270, 480);
-  qx.filter = 'none';
+  const b = cheapBlur('tripBloom', q, blurPx >= 5 ? 8 : 4);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.globalAlpha = k;
-  ctx.drawImage(q, 0, 0, 1080, 1920);
+  ctx.drawImage(b, 0, 0, 1080, 1920);
   ctx.restore();
 }

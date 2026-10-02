@@ -112,6 +112,27 @@ export function softBacking(ctx: CanvasRenderingContext2D, cx: number, cy: numbe
   ctx.restore();
 }
 
+/**
+ * A cheap blur (σ ≈ factor/2 px): progressive 2× downsampling (each a 2×2 box average) and one bilinear upscale back
+ * to the source size. A canvas `filter: blur()` costs 100+ ms per call in this renderer, even at quarter resolution.
+ */
+export function cheapBlur(name: string, src: HTMLCanvasElement, factor: 2 | 4 | 8): HTMLCanvasElement {
+  const w = src.width,
+    h = src.height;
+  let cur = src;
+  for (let f = 2, k = 0; f <= factor; f *= 2, k++) {
+    const c = scratch(`${name}:d${k}`, Math.max(1, Math.round(w / f)), Math.max(1, Math.round(h / f)));
+    const g = fresh(c);
+    g.drawImage(cur, 0, 0, c.width, c.height);
+    cur = c;
+  }
+  const out = scratch(`${name}:up`, w, h);
+  const go = fresh(out);
+  go.imageSmoothingEnabled = true;
+  go.drawImage(cur, 0, 0, w, h);
+  return out;
+}
+
 /** the vignette's alpha profile (lib Vignette: ellipse 75 % × 62 %, linear from 55 % to 100 %) at 1/4 resolution */
 function vignetteImage(rgb: RGB): HTMLCanvasElement {
   return memo(`s09:vig:${rgb.join(',')}`, () => {

@@ -141,162 +141,180 @@ def bed_S02(dur):
 
 
 def bed_S03(dur):
+    """Counting. Times follow the scene's exported cues (scene-local seconds)."""
     out = silence(dur)
     pent = [N('D4'), N('E4'), N('F4'), N('A4'), N('C5'), N('D5'), N('E5'), N('F5'), N('A5'), N('C6')]
-    # 16 arrangements (2.2 -> 4.4): rapid plucks
+    # gas in the box 0 -> 2.2: a soft airy bed
+    place(out, apply_env(pad([N('D3'), N('A3'), N('E4')], 2.6, seed=190, bright=0.2, amp=0.1), [(0, 0), (0.4, 1), (2.6, 0)]), 0.0)
+    # 16 snapshots -> 4x4 table (2.5 -> 3.5): one pluck per world
     for i in range(16):
-        place(out, karplus(pent[i % len(pent)], 0.8, seed=200 + i, damp=0.994) * 0.12, 2.2 + i * 0.12, pan=(i / 15) * 1.6 - 0.8)
-    # columns 1·4·6·4·1 -> stacked notes
+        place(out, karplus(pent[i % len(pent)], 0.8, seed=200 + i, damp=0.994) * 0.11, 2.55 + i * 0.065, pan=(i / 15) * 1.6 - 0.8)
+    # columns 1·4·6·4·1 (3.6 -> 4.6): stacked notes per column
     col_notes = [N('D3'), N('A3'), N('D4'), N('A3'), N('D3')]
     for j, c in enumerate([1, 4, 6, 4, 1]):
         for q in range(c):
-            place(out, karplus(col_notes[j] * (1.5 ** (q % 3)), 1.2, seed=300 + j * 10 + q, damp=0.995) * 0.07, 4.4 + j * 0.25 + q * 0.04, pan=-0.8 + j * 0.4)
-    # Galton rain 7.4 -> 9.4 (granular ticks thickening), needle = sustained high sine
+            place(out, karplus(col_notes[j] * (1.5 ** (q % 3)), 1.2, seed=300 + j * 10 + q, damp=0.995) * 0.065, 3.6 + j * 0.2 + q * 0.035, pan=-0.8 + j * 0.4)
+    # the 6 swells (5.3)
+    place(out, apply_env(pad([N('D3'), N('F#3'), N('A3'), N('D4')], 1.8, seed=310, bright=0.4, amp=0.16), [(0, 0), (0.3, 1), (1.8, 0)]), 5.3)
+    # Galton rain N=10 (7.1 -> 9.0): thickening granular ticks; needle (9.0) = rising sine
     r = rng(5)
-    for i in range(240):
-        tt = 7.4 + (i / 240) ** 0.7 * 2.0
-        place(out, tick(seed=400 + i, f=r.uniform(2000, 5000)) * 0.03, tt, pan=r.uniform(-1, 1))
-    nd = stereo(sine(N('A6'), 3.0) * 0.025)
-    place(out, apply_env(nd, [(0, 0), (0.5, 1), (2.5, 1), (3.0, 0)]), 8.4)
-    # 10^-30 (9.4): deep digital hit
-    place(out, stereo(impact(2.5, f0=70, f1=30, seed=500) * 0.55), 9.4)
-    place(out, reverb(stereo(bell(N('D2'), 3.0, seed=501) * 0.15), 0.4), 9.4)
-    # cool pad under 9.4 -> 18.4
-    p1 = pad(D_MIN, 9.0, seed=510, bright=0.3, amp=0.16)
-    place(out, apply_env(p1, [(0, 0), (1, 1), (8, 1), (9, 0)]), 9.4)
-    # zeros ticking from 16.2, accelerating into the Shepard zoom 18.4 -> 22
-    t = 16.2
+    for i in range(220):
+        tt = 7.1 + (i / 220) ** 0.7 * 1.9
+        place(out, tick(seed=400 + i, f=r.uniform(2000, 5000)) * 0.028, tt, pan=r.uniform(-1, 1))
+    nd = stereo(glide_sine(N('A5'), N('A6'), 1.0) * 0.03)
+    place(out, apply_env(nd, [(0, 0), (0.3, 1), (1.0, 0.6)]), 9.0)
+    # waterfall shimmer (9.8 -> 13.1): flat grey-amber noise (maximum entropy), very soft
+    wf = stereo(bandpass(noise(3.3, 450, 'pink'), 1500, 9000) * 0.02)
+    place(out, apply_env(wf, [(0, 0), (0.4, 1), (2.9, 1), (3.3, 0)]), 9.8)
+    # 约 10^-30 (10.0): the biggest hit so far
+    place(out, stereo(impact(2.8, f0=70, f1=28, seed=500) * 0.6), 10.0)
+    place(out, reverb(stereo(bell(N('D2'), 3.0, seed=501) * 0.16), 0.4), 10.0)
+    p1 = pad(D_MIN, 7.6, seed=510, bright=0.3, amp=0.16)
+    place(out, apply_env(p1, [(0, 0), (1, 1), (4.8, 1), (5.2, 0.15), (5.8, 0.15), (6.4, 0.9), (7.6, 0.6)]), 10.0)
+    # the glass: the impossible state held 15.2 -> 15.8 (the pad dips above), then the release 15.8
+    place(out, stereo(whoosh(1.2, 300, 2500, seed=520, shape='bell') * 0.08), 15.8)
+    # the ride along the row (17.4) -> powers of ten (18.5 -> 22.3)
+    t = 17.4
     k = 0
-    while t < 22.0:
-        gap = max(0.012, 0.16 * (1 - (t - 16.2) / 5.8) ** 2)
-        place(out, tick(seed=600 + k, f=3000) * 0.035, t, pan=0.0)
+    while t < 22.3:
+        gap = max(0.012, 0.14 * (1 - (t - 17.4) / 4.9) ** 2)
+        place(out, tick(seed=600 + k, f=3000) * 0.03, t)
         t += gap
         k += 1
-    sh = shepard(4.2, rate_oct_per_s=0.45, base=55, octaves=8, seed=2)
-    sh = stereo(sh * np.linspace(0.2, 1, len(sh)) * 0.22)
-    place(out, sh, 18.0)
-    place(out, stereo(whoosh(3.0, 300, 8000, seed=610, q=2.0, shape='rise') * 0.1), 19.2)
-    # galaxy bloom 22.0
-    gal = pad([N('D2'), N('A2'), N('E3'), N('F#3'), N('A3'), N('C#4'), N('E4')], 6.0, seed=620, bright=0.5, amp=0.3, voices=4)
-    place(out, reverb(apply_env(gal, [(0, 0), (0.08, 1), (2.6, 0.7), (6.0, 0)]), 0.55, 5.0, seed=14), 22.0)
-    place(out, stereo(impact(3.5, f0=80, f1=30, seed=621, noise_amt=0.1) * 0.4), 22.0)
-    # golden line 24.6 -> 27.8: bell phrase (不是不可能——只是太不可能)
-    for i, (nn, tt) in enumerate([(N('A4'), 24.7), (N('F4'), 25.3), (N('E4'), 25.9), (N('D4'), 26.6)]):
+    sh = shepard(3.9, rate_oct_per_s=0.45, base=55, octaves=8, seed=2)
+    place(out, stereo(sh * np.linspace(0.2, 1, len(sh)) * 0.22), 18.5)
+    place(out, stereo(whoosh(2.0, 300, 8000, seed=610, q=2.0, shape='rise') * 0.1), 20.3)
+    # the galaxy materialises around the row (22.3)
+    gal = pad([N('D2'), N('A2'), N('E3'), N('F#3'), N('A3'), N('C#4'), N('E4')], 5.4, seed=620, bright=0.5, amp=0.3, voices=4)
+    place(out, reverb(apply_env(gal, [(0, 0), (0.08, 1), (2.4, 0.7), (5.4, 0.2)]), 0.55, 5.0, seed=14), 22.3)
+    place(out, stereo(impact(3.5, f0=80, f1=30, seed=621, noise_amt=0.1) * 0.4), 22.3)
+    # golden line (24.9 / 25.6): 不是不可能——只是太不可能
+    for i, (nn, tt) in enumerate([(N('A4'), 24.9), (N('F4'), 25.25), (N('E4'), 25.6), (N('D4'), 26.1)]):
         place(out, reverb(stereo(bell(nn, 2.5, seed=700 + i, decay=1.6) * 0.09), 0.5, 4.0), tt)
-    # 熵 reveal 27.8 : deep gong
-    place(out, reverb(stereo(bell(N('D2'), 5.0, seed=800, inharm=(1, 2.01, 2.76, 4.1, 5.4), decay=3.0) * 0.4), 0.45, 5.0, seed=15), 27.8)
-    place(out, stereo(impact(2.0, f0=60, f1=28, seed=801) * 0.4), 27.8)
-    # stone formula 29.4 : resonant stone knock
+    # needle shoots up (27.8) -> 熵 locks (28.8): deep gong
+    place(out, stereo(glide_sine(110, 880, 1.0) * np.sin(np.linspace(0, np.pi, SR)) * 0.04), 27.8)
+    place(out, reverb(stereo(bell(N('D2'), 5.0, seed=800, inharm=(1, 2.01, 2.76, 4.1, 5.4), decay=3.0) * 0.42), 0.45, 5.0, seed=15), 28.8)
+    place(out, stereo(impact(2.0, f0=60, f1=28, seed=801) * 0.4), 28.8)
+    # granite stele (29.5) and carving (30.1)
     st = resonator(noise(0.6, 810) * np.exp(-np.arange(int(0.6 * SR)) / (0.04 * SR)), 180, 8) * 0.6
-    place(out, reverb(stereo(st), 0.5, 3.0), 29.4)
-    # definition card 31.8 -> end: warm pad, and the line hum
-    defp = pad([N('D3'), N('F3'), N('A3'), N('C4'), N('E4')], 4.8, seed=820, bright=0.35, amp=0.2)
-    place(out, apply_env(defp, [(0, 0), (0.8, 1), (4.0, 0.8), (4.6, 0.4)]), 31.8)
-    hum = stereo((sine(N('A3'), 1.8) + 0.3 * sine(N('A4'), 1.8)) * 0.05)
-    place(out, apply_env(hum, [(0, 0), (1.0, 1), (1.8, 1)]), dur - 1.8)
+    place(out, reverb(stereo(st), 0.5, 3.0), 29.5)
+    carve = bandpass(noise(0.7, 811), 2500, 9000) * np.linspace(0.2, 1, int(0.7 * SR)) * 0.05
+    place(out, carve, 30.1, pan=0.0)
+    # definition card (31.5 -> end): warm pad, coarse-graining, then the line's hum
+    defp = pad([N('D3'), N('F3'), N('A3'), N('C4'), N('E4')], 4.9, seed=820, bright=0.35, amp=0.2)
+    place(out, apply_env(defp, [(0, 0), (0.8, 1), (4.0, 0.8), (4.9, 0.4)]), 31.5)
+    hum = stereo((sine(N('A3'), 1.6) + 0.3 * sine(N('A4'), 1.6)) * 0.05)
+    place(out, apply_env(hum, [(0, 0), (0.8, 1), (1.6, 1)]), dur - 1.6)
     return out
-
 
 def bed_S04(dur):
+    """The arrow. Times follow the scene's exported cues."""
     out = silence(dur)
-    # line hum continues -> arrow
-    hum = stereo((sine(N('A3'), 3.0) + 0.3 * sine(N('A4'), 3.0)) * 0.05)
-    place(out, apply_env(hum, [(0, 1), (3.0, 0)]), 0)
-    place(out, stereo(whoosh(1.3, 150, 3000, seed=900, shape='rise') * 0.15), 0.0)
-    ar = pad([N('D2'), N('A2'), N('D3'), N('A3'), N('D4')], 5.4, seed=901, bright=0.45, amp=0.28)
-    place(out, apply_env(ar, [(0, 0), (1.2, 1), (5.0, 0.6), (5.4, 0)]), 0.0)
-    # 往回追 3.0: reversed swell
-    sw = reversed_buf(reverb(stereo(bell(N('D4'), 2.0, seed=902) * 0.2), 0.7, 2.5))
-    place(out, sw, 5.4 - sw.shape[1] / SR)
-    # cosmic rewind 5.4 -> 10.0: falling Shepard + reversed whooshes + accelerating ticks
-    fs = shepard(4.6, rate_oct_per_s=0.6, base=55, octaves=8, seed=3, up=False)
-    place(out, stereo(fs * 0.24), 5.4)
-    for i in range(6):
-        w = reversed_buf(stereo(whoosh(1.2, 4000, 200, seed=910 + i, q=3, shape='fall') * 0.12))
-        place(out, w, 5.4 + i * 0.75, pan=None)
-    t = 5.4
+    hum = stereo((sine(N('A3'), 3.6) + 0.3 * sine(N('A4'), 3.6)) * 0.05)
+    place(out, apply_env(hum, [(0, 1), (3.6, 0)]), 0)
+    place(out, stereo(whoosh(1.2, 150, 3000, seed=900, shape='rise') * 0.14), 0.2)
+    # forward gold stream 1.3 -> 3.5: bright arrow pad
+    ar = pad([N('D2'), N('A2'), N('D3'), N('A3'), N('D4')], 3.6, seed=901, bright=0.45, amp=0.26)
+    place(out, apply_env(ar, [(0, 0), (1.0, 1), (3.3, 0.9), (3.6, 0.2)]), 0.3)
+    # tape-stop 3.5 then the stream runs backward into the tail (reversed swell ending at the swallow 4.8)
+    tsx = tape_stop(stereo(pad([N('D3'), N('A3'), N('D4')], 0.6, seed=902, amp=0.2)), 0.45)
+    place(out, tsx, 3.0)
+    sw = reversed_buf(reverb(stereo(bell(N('D4'), 1.4, seed=903) * 0.2), 0.7, 2.0))
+    place(out, sw, 4.8 - sw.shape[1] / SR)
+    # cosmic rewind 5.0 -> 9.2: falling Shepard + reversed whooshes + accelerating ticks
+    fs = shepard(4.2, rate_oct_per_s=0.6, base=55, octaves=8, seed=3, up=False)
+    place(out, stereo(fs * np.linspace(0.6, 1, len(fs)) * 0.24), 5.0)
+    for i in range(5):
+        place(out, reversed_buf(stereo(whoosh(1.1, 4000, 200, seed=910 + i, q=3, shape='fall') * 0.11)), 5.0 + i * 0.75)
+    t = 5.0
     k = 0
-    while t < 10.0:
-        place(out, tick(seed=950 + k, f=1800) * 0.04, t)
-        t += max(0.02, 0.25 * (1 - (t - 5.4) / 4.6) ** 1.5)
+    while t < 9.2:
+        place(out, tick(seed=950 + k, f=1800) * 0.035, t)
+        t += max(0.02, 0.24 * (1 - (t - 5.0) / 4.2) ** 1.5)
         k += 1
-    # plasma 10.0 -> 12.8: hot uniform shimmer
-    pl = stereo(bandpass(noise(3.0, 960, 'pink'), 800, 9000) * 0.06)
-    pl = pl + pad([N('D4'), N('E4'), N('A4'), N('B4'), N('E5')], 3.0, seed=961, bright=0.6, amp=0.12)
-    place(out, apply_env(pl, [(0, 0), (0.4, 1), (2.6, 1), (3.0, 0.3)]), 10.0)
-    # Penrose tower 12.8 -> 16.8: three ascending monumental hits then silence
-    for i, (tt, f0) in enumerate([(12.9, 70), (13.8, 90), (14.7, 120)]):
-        place(out, stereo(impact(2.5, f0=f0, f1=f0 * 0.45, seed=970 + i, noise_amt=0.3) * 0.55), tt)
-        place(out, reverb(stereo(bell(N('D2') * (1.5 ** i), 3.0, seed=975 + i, decay=2.0) * 0.18), 0.5, 5.0), tt)
-    # 散尽的墨 16.8 -> 20.4: uneasy water textures
-    wt = stereo(lowpass(noise(3.6, 980, 'pink'), 900) * 0.03)
-    un = pad([N('D3'), N('Eb3'), N('A3'), N('Bb3')], 3.6, seed=981, bright=0.25, amp=0.12)
-    place(out, apply_env(wt + un, [(0, 0), (0.6, 1), (3.0, 1), (3.6, 0.5)]), 16.8)
-    # gravity 20.4 -> 24.4: deep rumble + rising cluster
-    rum = stereo(lowpass(noise(4.0, 990, 'brown'), 120) * 0.25)
-    cl = pad([N('D2'), N('Eb2'), N('A2'), N('Bb2'), N('D3')], 4.0, seed=991, bright=0.3, amp=0.18)
-    place(out, apply_env(rum + cl, [(0, 0), (3.8, 1), (4.0, 0.6)]), 20.4)
-    place(out, stereo(whoosh(3.6, 80, 2500, seed=992, shape='rise') * 0.2), 20.6)
-    # collapse / ignition 24.4: huge resolving chord + sparkling bells
-    place(out, stereo(impact(4.0, f0=90, f1=30, seed=1000) * 0.6), 24.4)
+    # heat surge 8.7 -> slam 9.2 (floor of time)
+    place(out, stereo(whoosh(0.6, 200, 6000, seed=955, shape='rise') * 0.16), 8.6)
+    place(out, stereo(impact(3.0, f0=90, f1=30, seed=956) * 0.62), 9.2)
+    # boiling plasma 9.3 -> 12.3 (hot uniform shimmer), muffled at 12.3
+    pl = stereo(bandpass(noise(3.2, 960, 'pink'), 700, 9000) * 0.06)
+    pl = pl + pad([N('D4'), N('E4'), N('A4'), N('B4'), N('E5')], 3.2, seed=961, bright=0.6, amp=0.12)
+    place(out, apply_env(pl, [(0, 0), (0.3, 1), (2.8, 1), (3.2, 0.15)]), 9.3)
+    # Penrose: base 10 (12.8), exponent 10 (13.2), 123 (13.6); the wall of zeros whirr 14.5 -> 16.5
+    for i, (tt, f0) in enumerate([(12.8, 70), (13.2, 95), (13.6, 125)]):
+        place(out, stereo(impact(2.4, f0=f0, f1=f0 * 0.45, seed=970 + i, noise_amt=0.3) * 0.55), tt)
+        place(out, reverb(stereo(bell(N('D2') * (1.5 ** i), 3.0, seed=975 + i, decay=2.0) * 0.17), 0.5, 5.0), tt)
+    t = 14.5
+    k = 0
+    while t < 16.5:
+        place(out, tick(seed=980 + k, f=2600) * 0.025, t)
+        t += max(0.015, 0.12 * (1 - (t - 14.5) / 2.0))
+        k += 1
+    # plasma returns 16.2, whiteout 17.4, spent ink 18.2 (underwater hush, uneasy)
+    wt = stereo(lowpass(noise(4.0, 985, 'pink'), 900) * 0.03)
+    un = pad([N('D3'), N('Eb3'), N('A3'), N('Bb3')], 4.0, seed=986, bright=0.25, amp=0.12)
+    place(out, apply_env(wt + un, [(0, 0), (0.6, 1), (3.4, 1), (4.0, 0.5)]), 18.0)
+    # gravity on (20.9): deep rumble + rising cluster into the gathering swell (22.5 -> 24.4)
+    rum = stereo(lowpass(noise(3.6, 990, 'brown'), 120) * 0.25)
+    cl = pad([N('D2'), N('Eb2'), N('A2'), N('Bb2'), N('D3')], 3.6, seed=991, bright=0.3, amp=0.18)
+    place(out, apply_env(rum + cl, [(0, 0), (3.4, 1), (3.6, 0.6)]), 20.8)
+    place(out, stereo(whoosh(3.2, 80, 2500, seed=992, shape='rise') * 0.2), 21.2)
+    # the paper goes dark (sub drop 24.4), ignitions 25.2 -> 25.9: huge chord + sparkles
+    place(out, stereo(impact(4.0, f0=90, f1=30, seed=1000) * 0.55), 24.4)
     big = pad([N('Bb1'), N('F2'), N('D3'), N('F3'), N('A3'), N('C4'), N('E4')], 7.4, seed=1001, bright=0.55, amp=0.32, voices=4)
-    place(out, reverb(apply_env(big, [(0, 0), (0.1, 1), (4.0, 0.8), (7.4, 0)]), 0.5, 5.0, seed=16), 24.4)
+    place(out, reverb(apply_env(big, [(0, 0), (0.8, 0.7), (1.2, 1), (4.0, 0.8), (7.4, 0.3)]), 0.5, 5.0, seed=16), 24.4)
     r = rng(1002)
-    for i in range(40):
-        tt = 24.4 + r.uniform(0, 2.5)
+    for i in range(36):
+        tt = 25.2 + r.uniform(0, 1.6)
         place(out, bell(r.choice([N('D6'), N('E6'), N('A6'), N('F6'), N('C7')]), 1.0, seed=1010 + i, decay=0.5) * r.uniform(0.02, 0.05), tt, pan=r.uniform(-0.9, 0.9))
-    # 之后: long sustain fading
-    sus = pad([N('D3'), N('A3'), N('E4')], 4.4, seed=1050, bright=0.3, amp=0.12)
-    place(out, apply_env(sus, [(0, 0), (1, 1), (4.4, 0.3)]), dur - 4.4)
+    # 之后 (27.7) -> hold: sustained chord into S05
+    sus = pad([N('D3'), N('A3'), N('E4')], dur - 27.4, seed=1050, bright=0.3, amp=0.13)
+    place(out, apply_env(sus, [(0, 0), (1, 1), (dur - 27.4, 0.8)]), 27.4)
     return out
-
 
 def bed_S05(dur):
+    """Heat death. Times follow the scene's exported cues."""
     out = silence(dur)
-    # fast-forward 0 -> 1.8
-    sh = shepard(1.8, rate_oct_per_s=2.0, base=110, seed=4)
-    place(out, stereo(sh * 0.18), 0)
-    for i in range(10):
-        place(out, stereo(glide_sine(800, 3000, 0.08) * 0.03), i * 0.17)
-    # dying drone 0 -> 11.6: harmonics fall away (lowpass closing), then noise takes over
-    dr = pad(D_MIN, 11.6, seed=1100, bright=0.4, amp=0.2, voices=3)
+    # carry-over chord from S04, fading as ▶▶ engages
+    cc = pad([N('D3'), N('A3'), N('E4')], 2.0, seed=1090, bright=0.3, amp=0.13)
+    place(out, apply_env(cc, [(0, 0.8), (2.0, 0)]), 0)
+    # fast-forward whir 0.1 -> 4.3 (Shepard-like riser)
+    sh = shepard(4.2, rate_oct_per_s=1.2, base=110, seed=4)
+    place(out, stereo(sh * np.linspace(0.4, 1, len(sh)) * 0.14), 0.1)
+    # dying drone 0 -> 12.4: harmonics fall away; pitch scatter from 4.9 (the image diffuses)
+    dr = pad(D_MIN, 12.4, seed=1100, bright=0.4, amp=0.2, voices=3)
     n = dr.shape[1]
-    fc = np.geomspace(6000, 120, n)
-    # block-wise closing lowpass
+    fc = np.geomspace(6000, 150, n)
     blk = 4096
-    for s in range(0, n, blk):
-        e = min(n, s + blk)
-        dr[:, s:e] = lowpass(dr[:, s:e], fc[s])
-    dr = apply_env(dr, [(0, 1), (6.2, 0.7), (11.6, 0.0)])
+    for s0 in range(0, n, blk):
+        e = min(n, s0 + blk)
+        dr[:, s0:e] = lowpass(dr[:, s0:e], fc[s0])
+    wob = 1 + np.clip((np.arange(n) / SR - 4.9) / 6.0, 0, 1) * 0.03 * np.sin(2 * np.pi * 0.9 * np.arange(n) / SR)
+    dr = varispeed(dr, wob)[:, :n]
+    dr = apply_env(dr, [(0, 1), (4.9, 0.8), (5.0, 0.6), (9.0, 0.35), (12.4, 0.0)])
     place(out, dr, 0)
-    # stars wink out 1.8 -> 4.2: blips with falling pitch
-    r = rng(1110)
-    for i in range(18):
-        tt = 1.8 + r.uniform(0, 2.6)
-        f0 = r.uniform(900, 2000)
-        b = glide_sine(f0, f0 * 0.5, 0.35) * env_exp(int(0.35 * SR), 0.08) * r.uniform(0.02, 0.05)
-        place(out, b, tt, pan=r.uniform(-0.8, 0.8))
-    # black holes evaporate 4.2 -> 6.2: faint crackles
-    for i in range(10):
-        tt = 4.2 + r.uniform(0, 2.0)
-        c = highpass(noise(0.05, 1200 + i), 4000) * np.exp(-np.arange(int(0.05 * SR)) / (0.006 * SR)) * 0.08
-        place(out, c, tt, pan=r.uniform(-0.6, 0.6))
-    # pink -> white noise 6.2 -> 13.8, flattening and falling
-    nz_len = 7.6
+    # sub-bass of the black holes 2.1 -> 5.0 (cut at the last pop)
+    sub = stereo(sine(41.0, 2.9) * 0.12)
+    place(out, apply_env(sub, [(0, 0), (1.0, 1), (2.85, 1), (2.9, 0)]), 2.1)
+    # noise: pink 6.0 -> white 7.2 -> flat; collapse 12.4; true silence 13.4 -> 14.7
+    nz_len = 7.4
     pk = noise(nz_len, 1300, 'pink')
     wh = noise(nz_len, 1301, 'white') * 0.35
-    w = np.linspace(0, 1, int(nz_len * SR))
+    w = np.clip((np.arange(int(nz_len * SR)) / SR - 1.2) / 1.0, 0, 1)
     nz = stereo(pk * (1 - w) * 0.05 + wh * w * 0.05)
-    nz = apply_env(nz, [(0, 0), (1.0, 1.0), (5.4, 0.7), (7.4, 0.1), (7.6, 0.0)])
-    place(out, nz, 6.2)
-    # 13.8 -> 15.2 : silence. 15.2 -> end: the gold point = a single pure tone appearing out of silence
-    gp_len = dur - 15.2
+    nz = apply_env(nz, [(0, 0), (1.0, 0.9), (6.4, 0.7), (7.0, 0.05), (7.4, 0.0)])
+    place(out, nz, 6.0)
+    # 「热寂。」 (11.9): a low breath under the flat noise
+    br = bandpass(noise(1.2, 1310, 'pink'), 120, 600) * np.sin(np.linspace(0, np.pi, int(1.2 * SR))) ** 2 * 0.05
+    place(out, br, 11.9)
+    out[:, int(13.4 * SR):int(14.7 * SR)] = 0
+    # the gold point (14.7): one warm pure sine, then a low warm pad (14.8) rising toward S06
+    gp_len = dur - 14.7
     tone = sine(N('A5'), gp_len) * 0.06
-    trem = 1 + 0.25 * np.sin(2 * np.pi * 6.0 * np.arange(len(tone)) / SR) * np.linspace(1, 0.2, len(tone))
-    tone = tone * trem
-    place(out, reverb(apply_env(stereo(tone), [(0, 0), (0.6, 1), (gp_len, 1)]), 0.4, 3.0), 15.2)
+    trem = 1 + 0.2 * np.sin(2 * np.pi * 6.0 * np.arange(len(tone)) / SR) * np.linspace(1, 0.2, len(tone))
+    place(out, reverb(apply_env(stereo(tone * trem), [(0, 0), (0.25, 1), (gp_len, 1)]), 0.4, 3.0), 14.7)
+    wp = pad([N('D3'), N('F#3'), N('A3')], dur - 14.8, seed=1320, bright=0.3, amp=0.12)
+    place(out, apply_env(wp, [(0, 0), (dur - 14.8, 1.0)]), 14.8)
     return out
-
 
 def bed_S06(dur):
     out = silence(dur)
@@ -312,10 +330,10 @@ def bed_S06(dur):
         place(out, tick(seed=1600 + i, f=4200) * 0.05, tt)
     # 20倍 hit 7.4
     place(out, stereo(impact(2.0, f0=85, f1=40, seed=1700) * 0.4), 7.4)
-    # 散开 10.2 -> 13.4: shimmering dispersion
+    # 散开 (bleeds from ~11.3 s): shimmering dispersion
     r = rng(1800)
     for i in range(60):
-        tt = 10.2 + r.uniform(0, 3.0)
+        tt = 11.0 + r.uniform(0, 3.0)
         place(out, bell(r.choice([N('D6'), N('F#6'), N('A6'), N('E6')]), 0.7, seed=1810 + i, decay=0.3) * r.uniform(0.01, 0.03), tt, pan=r.uniform(-1, 1))
     # branching flows 13.4 -> end: accelerating arpeggio in D major pentatonic
     arp = [N('D4'), N('E4'), N('F#4'), N('A4'), N('B4'), N('D5'), N('E5'), N('F#5'), N('A5')]
@@ -357,8 +375,8 @@ def bed_S07(dur):
     place(out, stereo(impact(0.2, f0=500, f1=200, seed=2060, noise_amt=1.0) * 0.2), 15.4)
     hum = stereo((sine(100, 6.4) * 0.5 + sine(200, 6.4) * 0.2 + sine(300, 6.4) * 0.08) * 0.05)
     place(out, apply_env(hum, [(0, 0), (0.5, 1), (6.0, 1), (6.4, 0)]), 15.4)
-    # 7000倍 19.0 punch
-    place(out, stereo(impact(2.0, f0=120, f1=45, seed=2070) * 0.45), 19.0)
+    # ×7000 lands (f622 = 20.7 s)
+    place(out, stereo(impact(2.0, f0=120, f1=45, seed=2070) * 0.45), 20.7)
     # 借着它，活着 21.8 swell
     place(out, stereo(whoosh(2.0, 200, 4000, seed=2080, shape='rise') * 0.08), 19.9)
     # 你是一个过程 26.8 -> end: single sustained tone + breath
@@ -567,6 +585,9 @@ def cue_sound(kind, intensity, seed, sid=''):
 # per-scene cue kinds already designed into the scene's bed (avoid doubling)
 BED_OWNS = {
     'S01': {'drop', 'impact', 'swell', 'swell peak', 'rewind', 'sweep'},
+    'S03': {'rain', 'impact', 'slam', 'zoom'},
+    'S04': {'slam', 'impact', 'rewind', 'tape-stop', 'swell', 'rumble', 'counter-roll', 'glissando'},
+    'S05': {'transport', 'ff-whir', 'gravity-swell', 'collapse', 'noise-white', 'warm-pad', 'gold-ignite'},
     'S06': {'swell', 'sun-swell', 'swell-peak'},
 }
 

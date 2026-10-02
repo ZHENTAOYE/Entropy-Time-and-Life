@@ -357,7 +357,8 @@ export function drawStreets(ctx: CanvasRenderingContext2D, v: View, t: number, a
       const kind = lamps[q + 2],
         b = lamps[q + 3];
       const hex = kind === 1 ? (lamps[q + 4] > 0.5 ? '#FFF1DC' : '#FFE2BA') : '#FF9638';
-      glow(ctx, hex, x, y, rr, lk * (0.38 + 0.5 * b), 0.15);
+      // a pool much wider than the lamp is dim ground light, not a sun
+      glow(ctx, hex, x, y, rr, lk * (0.38 + 0.5 * b) * Math.pow(Math.min(1, 200 / rr), 0.75), 0.15);
       ctx.fillStyle = `rgba(255,248,232,${(lk * (0.55 + 0.45 * b)).toFixed(4)})`;
       ctx.beginPath();
       ctx.arc(x, y, core, 0, Math.PI * 2);

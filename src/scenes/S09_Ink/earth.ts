@@ -79,16 +79,21 @@ function fbm3(x: number, y: number, z: number, oct: number): number {
 
 /** > 0 on land. Near the hero city the coast is pinned so that the metro's sea (east, x ≈ +4 km) continues. */
 export function land(nx: number, ny: number, nz: number): number {
-  const c = fbm3(nx * 2.1 + 3.3, ny * 2.1 + 1.7, nz * 2.1 + 7.1, 5) - 0.5;
+  const c = fbm3(nx * 2.1 + 3.3, ny * 2.1 + 1.7, nz * 2.1 + 7.1, 4) - 0.5;
   const big = fbm3(nx * 0.9 + 11, ny * 0.9 + 3, nz * 0.9 + 5, 2) - 0.5;
   let L = c * 1.0 + big * 0.8 + 0.06;
   // hero coast: land to the west, sea to the east, the coastline wiggles north–south
   const x = nx * RE,
     y = ny * RE;
-  const near = nz > 0 ? Math.exp(-(x * x + y * y) / (1.6e6 * 1.6e6)) : 0;
+  const r2 = x * x + y * y;
+  const near = nz > 0 ? Math.exp(-r2 / (2.6e6 * 2.6e6)) : 0;
   if (near > 0.001) {
     const coast = 3900 + 46000 * Math.sin(y / 210000 + 0.7) + 90000 * Math.sin(y / 520000 + 2.1);
-    const local = clamp((coast - x) / 260000, -1, 1) * 0.5 + 0.08 * (c + 0.1);
+    // within ~400 km the coastline is exact (it continues the metro's); farther out the same continental noise as
+    // everywhere else takes over, so the hero sea has a natural shore instead of a round edge
+    const pin = Math.exp(-r2 / (4.2e5 * 4.2e5));
+    const side = clamp((coast - x) / 260000, -1, 1);
+    const local = side * (0.5 * pin + 0.3 * (1 - pin)) + 0.08 * (c + 0.1) * pin + (0.9 * c + 0.5 * big) * (1 - pin);
     L = L * (1 - near) + local * near;
   }
   return L;
@@ -246,7 +251,7 @@ function citySprite(k: number): HTMLCanvasElement {
 }
 
 // ───────────────────────────── the disc (land, sea, day crescent, clouds) ─────────────────────────────
-const DISC_PX = 720;
+const DISC_PX = 560;
 export function earthDisc(): HTMLCanvasElement {
   return memo('s09:earthDisc', () => {
     const c = document.createElement('canvas');

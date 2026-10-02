@@ -15,6 +15,9 @@ export const Scene: React.FC = () => {
   const fontsReady = useFontGate(FONT_SPECS);
   const wrap = useRef<HTMLDivElement>(null);
   const webSrc = () => (wrap.current?.querySelector('canvas') as HTMLCanvasElement | null) ?? null;
+  // Nothing is drawn until the font slices are in (the frame is held by delayRender meanwhile): drawing the whole
+  // frame once without text and again with it would double the cost of every cold frame.
+  if (!fontsReady) return <AbsoluteFill style={{ background: '#000' }} />;
 
   if (f < PB_END) {
     const webOn = pullbackWebOn(f);
