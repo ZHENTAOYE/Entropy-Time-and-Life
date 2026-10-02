@@ -5,10 +5,13 @@
 //   B4  熵 row flips in (1 | ≈20) AND the energy row is typed back at the top (1 = 1, in units of one sunlight photon):
 //       the final balance shows the whole argument in one image — 能量 1 = 1 / 光子 1 → 20 / 熵 1 ≈20, with the
 //       accountant's double underline under 熵.
+// PERFORMANCE: blurred elements are clipped to their own bounds (an unclipped ctx.filter blur costs a full-canvas
+// layer); the whole-ledger dissolve renders the ledger once into a band canvas and blurs that once.
 import { FONT } from '../../lib/fonts';
 import { clamp, ease, seg } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 import { P } from './palette';
+import { scratch } from './textures';
 import { T, unzipAt } from './timing';
 
 export const COL_IN = 330;
@@ -36,7 +39,7 @@ export const LEDGER_FONTS: Array<[string, string]> = [
   [`600 64px ${FONT.serif}`, '能量光子熵' + FLAP_NOISE],
   [`600 120px ${FONT.serif}`, '0123456789≈→='],
   [`400 92px ${FONT.serif}`, '≈→='],
-  [`400 20px ${FONT.mono}`, 'INOUTENERGYPHOTONSENTROPYW/m²▍·'],
+  [`400 24px ${FONT.mono}`, 'INOUTW/m²▍·'],
 ];
 
 export const ledgerOn = (f: number) => f >= T.ledgerIn - 2 && f <= T.ledgerOut + 28;
@@ -47,11 +50,7 @@ export const ledgerFade = (f: number) => {
   return { vis: 1 - ease.inQuad(q), dy: -q * 30, q };
 };
 
-let XB = 0; // extra blur applied to every element (whole-ledger dissolve)
-const filt = (b: number) => {
-  const t = b + XB;
-  return t > 0.2 ? `blur(${t.toFixed(1)}px)` : 'none';
-};
+const filt = (b: number) => (b > 0.2 ? `blur(${b.toFixed(1)}px)` : 'none');
 
 // optical vertical centre of a glyph for the current font
 const vc = (ctx: CanvasRenderingContext2D, ch: string) => {
@@ -180,17 +179,27 @@ function word(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, fo
     ctx.shadowColor = color;
     ctx.shadowBlur = glow;
   }
-  ctx.filter = filt(blur);
   const off = vc(ctx, s);
   ctx.translate(x, y);
   if (scale !== 1) ctx.scale(scale, scale);
+  if (blur > 0.2) {
+    // clip to the word's own bounds so the blur layer stays small
+    const w = ctx.measureText(s).width;
+    const sz = parseFloat((/(\d+(?:\.\d+)?)px/.exec(font) || ['', '60'])[1]);
+    const m = blur * 3 + glow + 6;
+    const x0 = align === 'center' ? -w / 2 : align === 'right' || align === 'end' ? -w : 0;
+    ctx.beginPath();
+    ctx.rect(x0 - m, -sz * 0.75 - m, w + 2 * m, sz * 1.5 + 2 * m);
+    ctx.clip();
+    ctx.filter = filt(blur);
+  }
   ctx.fillText(s, 0, off);
   ctx.restore();
 }
 
 /** small mono label with type-on */
 function mono(ctx: CanvasRenderingContext2D, frame: number, text: string, x: number, y: number, at: number, o: { color?: string; size?: number; align?: CanvasTextAlign; opacity?: number; spacing?: number } = {}) {
-  const { color = 'rgba(243,239,230,0.6)', size = 20, align = 'left', opacity = 1, spacing = 0.28 } = o;
+  const { color = 'rgba(243,239,230,0.72)', size = 24, align = 'left', opacity = 1, spacing = 0.24 } = o;
   const n = Math.floor(clamp((frame - at) / 1.2, 0, text.length));
   if (n <= 0 || opacity <= 0.01) return;
   const cursor = n < text.length ? '▍' : '';
@@ -201,7 +210,6 @@ function mono(ctx: CanvasRenderingContext2D, frame: number, text: string, x: num
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
-  ctx.filter = filt(0);
   ctx.fillText(text.slice(0, n) + cursor, x, y);
   ctx.restore();
 }
@@ -223,21 +231,45 @@ function hline(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number,
   ctx.stroke();
 }
 
+const BAND_Y = 236;
+const BAND_H = 728;
+
 export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   if (!ledgerOn(frame)) return;
   const { vis, q: outQ } = ledgerFade(frame);
   if (vis <= 0.001) return;
-  XB = outQ * 8;
+  if (outQ <= 0.001) {
+    drawLedgerBody(ctx, frame);
+    return;
+  }
+  // the dissolve: the ledger rises, blurs and fades as ONE sheet (one blur of a band, not one per element)
+  const band = scratch('ledgerBand', 1080, BAND_H);
+  const b = band.getContext('2d', { willReadFrequently: true })!;
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.globalAlpha = 1;
+  b.globalCompositeOperation = 'source-over';
+  b.filter = 'none';
+  b.clearRect(0, 0, 1080, BAND_H);
+  b.translate(0, -BAND_Y);
+  drawLedgerBody(b, frame);
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, BAND_Y - 80, 1080, BAND_H + 120);
+  ctx.clip();
   ctx.globalAlpha = vis;
-  ctx.translate(0, -outQ * 30);
+  ctx.filter = filt(outQ * 8);
+  ctx.drawImage(band, 0, BAND_Y - outQ * 30);
+  ctx.restore();
+}
+
+function drawLedgerBody(ctx: CanvasRenderingContext2D, frame: number) {
+  ctx.save();
 
   // ---- hairlines
   const rule = ease.inOutCubic(seg(frame, T.ledgerIn + 4, T.ledgerIn + 26));
   const spine = ease.inOutCubic(seg(frame, T.ledgerIn + 8, T.ledgerIn + 36));
   const ruleB = ease.inOutCubic(seg(frame, T.entropyRow - 4, T.entropyRow + 14));
   const dbl = ease.inOutCubic(seg(frame, T.entropyRow + 26, T.entropyRow + 46));
-  ctx.filter = filt(0);
   hline(ctx, SPINE - HALF * rule, SPINE + HALF * rule, RULE_Y, 'rgba(243,239,230,0.3)');
   ctx.strokeStyle = 'rgba(243,239,230,0.13)';
   ctx.lineWidth = 1;
@@ -254,8 +286,8 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   // ---- column heads
   head(ctx, frame, '收', COL_IN, HEAD_Y, T.ledgerIn, P.gold);
   head(ctx, frame, '还', COL_OUT, HEAD_Y, T.ledgerIn + 6, P.ir);
-  mono(ctx, frame, 'IN', COL_IN + 52, HEAD_Y + 18, T.ledgerIn + 14, { color: 'rgba(255,201,74,0.75)' });
-  mono(ctx, frame, 'OUT', COL_OUT + 52, HEAD_Y + 18, T.ledgerIn + 18, { color: 'rgba(255,90,70,0.8)' });
+  mono(ctx, frame, 'IN', COL_IN + 50, HEAD_Y + 16, T.ledgerIn + 14, { color: 'rgba(255,201,74,0.8)' });
+  mono(ctx, frame, 'OUT', COL_OUT + 50, HEAD_Y + 16, T.ledgerIn + 18, { color: 'rgba(255,96,76,0.82)' });
 
   // ---- energy line, B1: flow bars (light flowing in, gold, towards the spine; out, red, away from it)
   const barsIn = ease.outCubic(seg(frame, T.barsIn, T.barsIn + 22));
@@ -283,8 +315,6 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   const tA = seg(frame, T.ledgerIn + 10, T.ledgerIn + 22);
   flap(ctx, frame, { x: SPINE - 52, y: TILE_A_Y, from: '能', to: '光', at: T.flipAt, seed: 1, opacity: tA });
   flap(ctx, frame, { x: SPINE + 52, y: TILE_A_Y, from: '量', to: '子', at: T.flipAt + 4, seed: 2, opacity: seg(frame, T.ledgerIn + 12, T.ledgerIn + 24) });
-  mono(ctx, frame, 'ENERGY', SPINE + 112, TILE_A_Y + 40, T.ledgerIn + 20, { size: 16, opacity: 1 - seg(frame, T.flipAt, T.flipAt + 4) });
-  mono(ctx, frame, 'PHOTONS', SPINE + 112, TILE_A_Y + 40, T.flipAt + 10, { size: 16 });
 
   // ---- B1 energy amounts (W/m²) with ≈ at the spine
   const energyVal = 240 * ease.outCubic(seg(frame, T.barsIn, T.barsIn + 30)) * (1 - ease.inOutCubic(seg(frame, T.flipAt, T.flipAt + 14)));
@@ -292,8 +322,8 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
   if (energyA > 0.01) {
     roll(ctx, energyVal, COL_IN, ROW_A, 88, P.gold, { opacity: energyA });
     roll(ctx, energyVal, COL_OUT, ROW_A, 88, RED_TXT, { opacity: energyA });
-    mono(ctx, frame, 'W/m²', COL_IN, ROW_A + 62, T.barsIn + 4, { size: 19, align: 'center', color: 'rgba(255,201,74,0.72)', opacity: energyA, spacing: 0.2 });
-    mono(ctx, frame, 'W/m²', COL_OUT, ROW_A + 62, T.barsIn + 4, { size: 19, align: 'center', color: 'rgba(255,90,70,0.78)', opacity: energyA, spacing: 0.2 });
+    mono(ctx, frame, 'W/m²', COL_IN, ROW_A + 66, T.barsIn + 4, { align: 'center', color: 'rgba(255,201,74,0.8)', opacity: energyA, spacing: 0.12 });
+    mono(ctx, frame, 'W/m²', COL_OUT, ROW_A + 66, T.barsIn + 4, { align: 'center', color: 'rgba(255,96,76,0.82)', opacity: energyA, spacing: 0.12 });
   }
   const approxA = Math.min(seg(frame, T.barsIn + 22, T.barsIn + 32), 1 - seg(frame, T.flipAt, T.flipAt + 10));
   if (approxA > 0.01) word(ctx, '≈', SPINE, ROW_A, `400 92px ${FONT.serif}`, P.voice, { opacity: approxA, glow: 18, scale: 0.8 + 0.2 * ease.outBack(clamp(approxA)) });
@@ -317,13 +347,13 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
     roll(ctx, 1, COL_OUT, E_Y, 60, RED_TXT, { opacity: seg(frame, T.energyBack + 4, T.energyBack + 12), glow: 0.35 });
     const eq = seg(frame, T.energyBack + 8, T.energyBack + 18);
     word(ctx, '=', SPINE, E_Y, `400 60px ${FONT.serif}`, P.voice, { opacity: eq, glow: 12, scale: 0.7 + 0.3 * ease.outBack(eq) });
-    word(ctx, '能量', 96, E_Y - 6, `600 34px ${FONT.serif}`, 'rgba(243,239,230,0.85)', { opacity: eb, align: 'left' });
-    mono(ctx, frame, 'ENERGY', 98, E_Y + 24, T.energyBack + 2, { size: 14 });
+    // the row's category, in the ledger's own grammar: two small split-flap tiles flipping in (as 光子 / 熵)
+    flap(ctx, frame, { x: 132, y: E_Y, from: ' ', to: '能', at: T.energyBack - 2, w: 50, h: 60, size: 36, seed: 5, opacity: eb });
+    flap(ctx, frame, { x: 186, y: E_Y, from: ' ', to: '量', at: T.energyBack + 2, w: 50, h: 60, size: 36, seed: 6, opacity: seg(frame, T.energyBack, T.energyBack + 8) });
   }
 
   // ---- entropy row
   flap(ctx, frame, { x: SPINE, y: TILE_B_Y, from: ' ', to: '熵', at: T.entropyRow, seed: 3, opacity: seg(frame, T.entropyRow - 2, T.entropyRow + 4) });
-  mono(ctx, frame, 'ENTROPY', SPINE + 60, TILE_B_Y + 40, T.entropyRow + 10, { size: 16 });
   const entA = seg(frame, T.entropyRow + 8, T.entropyRow + 18);
   if (entA > 0.01) {
     const entOut = clamp((frame - T.entropyRow - 16) / 18) * 20;
@@ -331,5 +361,4 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
     roll(ctx, entOut, COL_OUT + 14, ROW_B, 100, RED_TXT, { glow: 0.4 + entOut / 25, opacity: entA, prefix: '≈' });
   }
   ctx.restore();
-  XB = 0;
 }

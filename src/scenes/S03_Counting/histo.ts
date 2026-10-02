@@ -86,7 +86,7 @@ function stripePattern(ctx: Ctx, hex: string, a: number): CanvasPattern | string
     const c = document.createElement('canvas');
     c.width = 4;
     c.height = 3;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     g.fillStyle = hex;
     g.fillRect(0, 0, 4, 2);
     g.globalAlpha = 0.35;
@@ -180,7 +180,7 @@ export function drawHisto(ctx: Ctx, f: number) {
       out.forEach((l) => l.sort((x, y) => x - y));
       return out;
     });
-    ctx.font = MONO(17, 400);
+    ctx.font = MONO(24, 400);
     ctx.textAlign = 'center';
     for (let k = 0; k <= N10; k++) {
       let n = 0;
@@ -188,7 +188,7 @@ export function drawHisto(ctx: Ctx, f: number) {
       if (n === 0) continue;
       const done = n === lands[k].length;
       ctx.fillStyle = k === N10 ? `rgba(255,255,255,${(0.95 * a10).toFixed(3)})` : rgbaHex(done ? C.pale : C.amber, (done ? 0.95 : 0.6) * a10);
-      ctx.fillText(String(n), axX(k / N10), AX.base + 36);
+      ctx.fillText(String(n), axX(k / N10), AX.base + 42);
     }
   }
   // ── N = 100 thin bars (σ shrinking toward the N = 100 value as they appear)
@@ -228,7 +228,7 @@ export function drawHisto(ctx: Ctx, f: number) {
     ctx.fillStyle = gr;
     ctx.fill();
   }
-  // ── width bracket (relative width 1/(2√N))
+  // ── width bracket: ±σ of the fraction on the left, σ/N = 1/(2√N) (the bracket spans −σ … +σ, hence the ±)
   const bA = seg(f, T.rain + 18, T.rain + 26) * out;
   if (bA > 0.003) {
     const half = sig * (AX.x1 - AX.x0);
@@ -236,7 +236,7 @@ export function drawHisto(ctx: Ctx, f: number) {
     dimLineH(ctx, 540 - Math.max(half, 3), 540 + Math.max(half, 3), y, 1, C.pale, 0.85 * bA, 0, 8);
     const pct = sig * 100;
     const label = pct >= 10 ? pct.toFixed(0) : pct >= 1 ? pct.toFixed(0) : pct.toFixed(1);
-    drawRich(ctx, [{ t: `宽度 ${label} %` }], 540, y - 22, { font: MONO(26, 400), size: 26, color: C.pale, align: 'center', alpha: bA });
+    drawRich(ctx, [{ t: `宽度 ±${label} %` }], 540, y - 22, { font: MONO(28, 400), size: 28, color: C.pale, align: 'center', alpha: bA });
   }
   ctx.restore();
 }
@@ -251,7 +251,7 @@ export function drawHistoLabels(ctx: Ctx, f: number) {
   const labels = ['N = 10', 'N = 100', 'N = 10^{4}'];
   const counts = ['2^{10} = 1 024 种排列', '2^{100} ≈ 1.27×10^{30} 种排列', '2^{10000} ≈ 10^{3010} 种排列'];
   drawRich(ctx, sup(labels[stage]), 90, 270, { font: MONO(52, 700), size: 52, color: C.pale, reveal: rev, alpha: out, cursor: true, frame: f });
-  drawRich(ctx, sup(counts[stage]), 90, 312, { font: MONO(24, 400), size: 24, color: C.amber, reveal: seg(f, st + 3, st + 12), alpha: 0.85 * out });
+  drawRich(ctx, sup(counts[stage]), 90, 316, { font: MONO(26, 400), size: 26, color: C.amber, reveal: seg(f, st + 3, st + 12), alpha: 0.9 * out });
 }
 
 export function glowHisto(ctx: Ctx, f: number) {

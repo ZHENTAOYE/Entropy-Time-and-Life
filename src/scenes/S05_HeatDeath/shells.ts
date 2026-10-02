@@ -47,7 +47,8 @@ export function shells(): Shell[] {
     const bh = bhCandidates();
     const bhKeys = new Set(bh.map((b) => b.key));
     const out: Shell[] = [];
-    const g = webGeometry({ ...WEB_FINAL }, 900, 1080, 1920, 3);
+    // margin just past the widest kept offset (tier 0: 650 px) — the geometry over a 900 px margin cost ~40 ms more
+    const g = webGeometry({ ...WEB_FINAL }, 680, 1080, 1920, 3);
     for (const n of g.nodes) {
       if (bhKeys.has(n.key)) continue;
       const off = Math.max(-n.x, n.x - 1080, -n.y, n.y - 1920, 0);
@@ -157,6 +158,8 @@ const RING_GAIN = 0.075;
 
 /** CosmicWeb `draw` callback: radiation haze + wavefronts + Hawking light (ctx is in 'lighter', logical px). */
 export function drawShells(ctx: CanvasRenderingContext2D, info: CosmicDrawInfo, f: number) {
+  // before the first star dies (die < 0.02; shells are born at die ≥ 0.03) and before any black hole: nothing to draw
+  if (dieAt(f) < 0.02 && bhAt(f) <= 0) return;
   const p = info.params;
   const cam = info.geo.cam;
   const zk = p.zoom / 0.8;
@@ -190,7 +193,8 @@ export function drawShells(ctx: CanvasRenderingContext2D, info: CosmicDrawInfo, 
     }
     const sig = (14 + (s.kind === 0 ? 5.2 : 7) * a) * zk;
     const peak = (e * wb) / (6.2832 * sig * sig);
-    if (peak > 0.002) {
+    // below ~0.4 % a blob adds < 1 grey level: skip it (the evened-out share carries its energy)
+    if (peak > 0.004) {
       const S = sig * 6;
       if (!(x + S / 2 < 0 || y + S / 2 < 0 || x - S / 2 > 1080 || y - S / 2 > 1920)) {
         h.globalAlpha = clamp(peak);
@@ -202,7 +206,8 @@ export function drawShells(ctx: CanvasRenderingContext2D, info: CosmicDrawInfo, 
     const v = s.kind === 0 ? 9 : 12;
     const R = (8 + v * a) * zk;
     const al = RING_GAIN * s.E * birth * (60 / (60 + R)) * (s.kind === 1 ? (s.last ? 4.5 : 0.6) : 1) * (1 - smoothstep(s.last ? 1500 : 900, s.last ? 2400 : 1700, R));
-    if (al < 0.006) continue;
+    // a ring fainter than ~1.2 % adds < 3 grey levels on its thin front: it has visually merged into the haze
+    if (al < 0.012) continue;
     const S = (R / 0.8) * 2;
     if (x + S / 2 < 0 || y + S / 2 < 0 || x - S / 2 > 1080 || y - S / 2 > 1920) continue;
     const rel = 6 / R + 0.018;

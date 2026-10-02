@@ -4,7 +4,7 @@
 // HUD and narration (canvas text: DOM text with per-glyph CSS blur is far too slow in the software compositor).
 // Once the cosmos sits at exact equilibrium (f ≥ GREY_FROM) its grey is replicated in JS (≈ 15 ms instead of the
 // shader's two random-walk taps per pixel).
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { CosmicWeb } from '../../lib/cosmos';
 import { Layer } from './Layer';
@@ -23,14 +23,25 @@ export const Scene: React.FC = () => {
   const frame = useCurrentFrame();
   const wrap = useRef<HTMLDivElement>(null);
   const fontsReady = useFontGate(FONT_SPECS);
-  const params = webAt(frame);
   const useWeb = frame < GREY_FROM;
+  // the web element is memoised per frame: the font gate's re-render must not make <CosmicWeb> (whose layout effect
+  // has no deps) draw the whole cosmos a second time
+  const web = useMemo(
+    () =>
+      useWeb ? (
+        <div ref={wrap} style={{ display: 'none' }}>
+          <CosmicWeb {...webAt(frame)} draw={(ctx, info) => drawShells(ctx, info, frame)} />
+        </div>
+      ) : null,
+    [frame, useWeb],
+  );
   const draw = (ctx: CanvasRenderingContext2D, f: number) => {
+    // nothing is captured before the fonts are ready (the gate holds the frame), so don't composite twice
+    if (!fontsReady) return;
     const src = useWeb ? wrap.current?.querySelector('canvas') ?? null : null;
     if (src) drawWebPost(ctx, src, f);
     else drawGrey(ctx, f);
     drawVignette(ctx, vignetteAt(f));
-    if (!fontsReady) return;
     drawHistogram(ctx, f, src);
     drawLoupe(ctx, f);
     drawReticles(ctx, f);
@@ -43,11 +54,7 @@ export const Scene: React.FC = () => {
   };
   return (
     <AbsoluteFill style={{ background: '#000' }}>
-      {useWeb ? (
-        <div ref={wrap} style={{ display: 'none' }}>
-          <CosmicWeb {...params} draw={(ctx, info) => drawShells(ctx, info, frame)} />
-        </div>
-      ) : null}
+      {web}
       <Layer draw={draw} version={fontsReady ? 'f' : 'w'} />
     </AbsoluteFill>
   );

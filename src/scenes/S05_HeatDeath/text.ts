@@ -2,9 +2,14 @@
 // leave by DIFFUSING (drifting apart in random order). S05 additions: the colour can change over the caption's life
 // (the voice drains to grey as the universe does), two emphasis styles ({…} = holds its warmth, […] = drains first),
 // per-line stagger, and a mask export so a caption can die by NOISE-DEATH instead (scatter.ts).
-import { clamp, ease, seg } from '../../lib/math';
+// Typography: the Chinese dash 「——」 is ONE unbroken rule (the font's two em-dash glyphs leave a visible gap, worse with
+// tracking): each "—" of a run is drawn as a bar at the font's own dash height/thickness, extended to meet its
+// neighbour — the advance (layout) is unchanged, so every other glyph sits exactly where the plain text puts it.
+// Blur (condense / diffuse) is rendered on a glyph-sized scratch canvas (gfx.drawBlurred), never as a filter on the
+// full-frame canvas.
+import { clamp, ease, memo, seg } from '../../lib/math';
 import { hash01, seedOf } from '../../lib/random';
-import { rgbStr } from './gfx';
+import { drawBlurred, haloSprite, rgbStr } from './gfx';
 
 export type RGB = readonly [number, number, number];
 
@@ -45,6 +50,33 @@ interface Glyph {
   gi: number;
   x: number;
   cy: number;
+  /** a "—" drawn as a bar: its x extent relative to the glyph centre (reaches the neighbouring dash of a run) */
+  bar?: readonly [number, number];
+}
+
+/** ink box of the font's "—" relative to (advance centre, alphabetic baseline): x0, x1, top, bottom (y down) */
+function dashInk(ctx: CanvasRenderingContext2D, font: string, size: number) {
+  return memo(`s05:dash:${font}`, () => {
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const m = ctx.measureText('—');
+    ctx.restore();
+    let x0 = -m.actualBoundingBoxLeft - m.width / 2;
+    let x1 = m.actualBoundingBoxRight - m.width / 2;
+    let top = -m.actualBoundingBoxAscent;
+    let bottom = m.actualBoundingBoxDescent;
+    const th = bottom - top;
+    // sanity (fallback = a CJK dash: centre 0.36 em above the baseline, 0.055 em thick, 0.9 em long)
+    if (!(th > 0.5 && th < size * 0.2 && x1 - x0 > size * 0.3)) {
+      top = -size * 0.36 - size * 0.0275;
+      bottom = -size * 0.36 + size * 0.0275;
+      x0 = -size * 0.45;
+      x1 = size * 0.45;
+    }
+    return { x0, x1, top, bottom, w: m.width };
+  });
 }
 
 const layoutCache = new Map<string, { glyphs: Glyph[]; top: number; bottom: number; left: number; right: number }>();
@@ -64,7 +96,7 @@ export function layoutCap(ctx: CanvasRenderingContext2D, c: Cap) {
   let left = 1e9;
   let right = -1e9;
   c.lines.forEach((raw, li) => {
-    const items: Array<{ ch: string; style: 0 | 1 | 2; w: number }> = [];
+    const items: Array<{ ch: string; style: 0 | 1 | 2; w: number; bar?: [number, number] }> = [];
     let style: 0 | 1 | 2 = 0;
     for (const ch of Array.from(raw)) {
       if (ch === '{') style = 1;
@@ -72,6 +104,14 @@ export function layoutCap(ctx: CanvasRenderingContext2D, c: Cap) {
       else if (ch === '}' || ch === ']') style = 0;
       else items.push({ ch, style, w: ctx.measureText(ch).width });
     }
+    // dash runs: every "—" becomes a bar; inside a run the bars meet in the middle of the tracking gap
+    const ink = dashInk(ctx, c.font, c.size);
+    items.forEach((it, i) => {
+      if (it.ch !== '—') return;
+      const l = i > 0 && items[i - 1].ch === '—' ? -(it.w / 2 + ls / 2) - 0.5 : ink.x0;
+      const r = i < items.length - 1 && items[i + 1].ch === '—' ? it.w / 2 + ls / 2 + 0.5 : ink.x1;
+      it.bar = [l, r];
+    });
     let total = 0;
     items.forEach((it, i) => (total += it.w + (i < items.length - 1 ? ls : 0)));
     // hanging trailing punctuation does not count for the centring
@@ -80,7 +120,7 @@ export function layoutCap(ctx: CanvasRenderingContext2D, c: Cap) {
     let x = (c.x ?? 540) - (total - hangW) / 2;
     left = Math.min(left, x);
     items.forEach((it, ci) => {
-      glyphs.push({ ch: it.ch, style: it.style, line: li, ci, gi: gi++, x: x + it.w / 2, cy: y0 + li * pitch });
+      glyphs.push({ ch: it.ch, style: it.style, line: li, ci, gi: gi++, x: x + it.w / 2, cy: y0 + li * pitch, bar: it.bar });
       x += it.w + ls;
     });
     right = Math.max(right, x);
@@ -120,16 +160,12 @@ export function drawCap(ctx: CanvasRenderingContext2D, c: Cap, f: number, opacit
     if (k > 0.01) {
       const cx = (L.left + L.right) / 2;
       const cy = (L.top + L.bottom) / 2;
+      const hw = Math.max(260, (L.right - L.left) * 0.62);
+      const hh = Math.max(70, (L.bottom - L.top) * 0.95);
       ctx.save();
-      ctx.translate(cx, cy);
-      ctx.scale(Math.max(260, (L.right - L.left) * 0.62), Math.max(70, (L.bottom - L.top) * 0.95));
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-      g.addColorStop(0, 'rgba(2,3,8,0.6)');
-      g.addColorStop(0.5, 'rgba(2,3,8,0.36)');
-      g.addColorStop(1, 'rgba(2,3,8,0)');
       ctx.globalAlpha = clamp(k);
-      ctx.fillStyle = g;
-      ctx.fillRect(-1, -1, 2, 2);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(haloSprite(), cx - hw, cy - hh, 2 * hw, 2 * hh);
       ctx.restore();
     }
   }
@@ -182,19 +218,25 @@ export function drawCap(ctx: CanvasRenderingContext2D, c: Cap, f: number, opacit
     ctx.translate(g.x + dx, g.cy + dy);
     if (rot) ctx.rotate((rot * Math.PI) / 180);
     if (sc !== 1) ctx.scale(sc, sc);
+    ctx.fillStyle = rgbStr(col);
+    const bw = g.bar ? Math.max(c.size * 1.2, 2 * Math.max(-g.bar[0], g.bar[1]) + 4) : c.size * 1.3;
     if (c.glow && blur < 4) {
       ctx.globalAlpha = clamp(op * c.glow * 0.5);
-      ctx.filter = `blur(${(c.size * 0.16).toFixed(1)}px)`;
-      ctx.fillStyle = rgbStr(col);
-      ctx.fillText(g.ch, 0, dy0);
+      drawBlurred(ctx, -bw / 2, -c.size * 0.72, bw, c.size * 1.44, c.size * 0.16, (x) => glyphShape(x, g, c, dy0));
     }
     ctx.globalAlpha = clamp(op);
-    ctx.fillStyle = rgbStr(col);
-    ctx.filter = blur > 0.15 ? `blur(${blur.toFixed(2)}px)` : 'none';
-    ctx.fillText(g.ch, 0, dy0);
+    drawBlurred(ctx, -bw / 2, -c.size * 0.72, bw, c.size * 1.44, blur, (x) => glyphShape(x, g, c, dy0));
     ctx.restore();
   }
   ctx.restore();
+}
+
+/** one glyph at the local origin (advance centre; alphabetic baseline at y = baseline), in the current fillStyle */
+function glyphShape(ctx: CanvasRenderingContext2D, g: Glyph, c: Cap, baseline: number) {
+  if (g.bar) {
+    const ink = dashInk(ctx, c.font, c.size);
+    ctx.fillRect(g.bar[0], baseline + ink.top, g.bar[1] - g.bar[0], ink.bottom - ink.top);
+  } else ctx.fillText(g.ch, 0, baseline);
 }
 
 /** draw a caption fully formed in white (for a NOISE-DEATH mask) */
@@ -205,7 +247,12 @@ export function drawCapMask(ctx: CanvasRenderingContext2D, c: Cap) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff';
-  for (const g of L.glyphs) ctx.fillText(g.ch, g.x, g.cy + c.size * 0.38);
+  for (const g of L.glyphs) {
+    ctx.save();
+    ctx.translate(g.x, g.cy);
+    glyphShape(ctx, g, c, c.size * 0.38);
+    ctx.restore();
+  }
   ctx.restore();
 }
 

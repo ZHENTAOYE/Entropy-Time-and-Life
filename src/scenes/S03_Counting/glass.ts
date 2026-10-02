@@ -215,15 +215,15 @@ export function drawGlass(ctx: Ctx, f: number) {
     ctx.lineTo(bx - 8, G.base - G.baseT);
     ctx.stroke();
     ctx.restore();
-    drawRich(ctx, [{ t: '250 mL' }], bx + 14, 860, { font: MONO(24, 400), size: 24, color: C.pale, alpha: 0.85 * la });
-    drawRich(ctx, [{ t: '一杯水' }], bx + 14, 896, { font: SANS(22, 400), size: 22, color: C.amber, alpha: 0.7 * la });
-    drawRich(ctx, sup('N ≈ 8×10^{24}'), G.cx - G.rimHW - 40, 860, { font: MONO(24, 400), size: 24, color: C.pale, alpha: 0.85 * la, align: 'right' });
-    drawRich(ctx, [{ t: '个分子' }], G.cx - G.rimHW - 40, 896, { font: SANS(22, 400), size: 22, color: C.amber, alpha: 0.7 * la, align: 'right' });
+    drawRich(ctx, [{ t: '250 mL' }], bx + 14, 860, { font: MONO(27, 400), size: 27, color: C.pale, alpha: 0.9 * la });
+    drawRich(ctx, [{ t: '一杯水' }], bx + 14, 898, { font: SANS(25, 400), size: 25, color: C.amber, alpha: 0.8 * la });
+    drawRich(ctx, sup('N ≈ 8×10^{24}'), G.cx - G.rimHW - 36, 860, { font: MONO(27, 400), size: 27, color: C.pale, alpha: 0.9 * la, align: 'right' });
+    drawRich(ctx, [{ t: '个分子' }], G.cx - G.rimHW - 36, 898, { font: SANS(25, 400), size: 25, color: C.amber, alpha: 0.8 * la, align: 'right' });
   }
   // the hypothetical tag
   const sq2 = squeezeAt(f, 0);
   if (sq2 > 0.02) {
-    drawRich(ctx, [{ t: '假如：全在左边' }], G.cx - hwAt(G.water) / 2, G.water - 46, { font: SANS(26, 400), size: 26, color: '#FFFFFF', align: 'center', alpha: 0.9 * sq2 * X.a });
+    drawRich(ctx, [{ t: '假如：全在左边' }], G.cx - hwAt(G.water) / 2, G.water - 46, { font: SANS(28, 400), size: 28, color: '#FFFFFF', align: 'center', alpha: 0.92 * sq2 * X.a });
     drawRich(ctx, [{ t: '空' }], G.cx + hwAt(900) / 2, 905, { font: SANS(30, 300), size: 30, color: C.amber, align: 'center', alpha: 0.6 * sq2 * X.a });
   }
 }

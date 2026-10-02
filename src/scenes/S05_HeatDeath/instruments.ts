@@ -20,19 +20,27 @@ const HX1 = 860;
 const HAX = 900; // axis y
 const HMAX = 190;
 
+/** brightness histogram of the frame: point-sampled at 180×320 (nearest — a filtered 12× minification of the full
+ *  frame costs ~0.15 s in the software rasteriser), then 2×2-averaged into 90×160 cells */
 function measure(src: CanvasImageSource): Float32Array {
-  const c = scratch('hist', 90, 160);
+  const SW = 180;
+  const SH = 320;
+  const c = scratch('hist', SW, SH);
   const x = ctxOf(c);
   x.setTransform(1, 0, 0, 1, 0, 0);
-  x.globalCompositeOperation = 'copy';
-  x.imageSmoothingEnabled = true;
-  x.drawImage(src, 0, 0, 90, 160);
-  const d = x.getImageData(0, 0, 90, 160).data;
+  x.globalCompositeOperation = 'source-over';
+  x.globalAlpha = 1;
+  x.imageSmoothingEnabled = false;
+  x.drawImage(src, 0, 0, SW, SH);
+  const d = x.getImageData(0, 0, SW, SH).data;
   const h = new Float32Array(NBIN);
-  for (let i = 0; i < d.length; i += 4) {
-    const L = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-    h[Math.min(NBIN - 1, Math.floor(L * NBIN))]++;
-  }
+  const lum = (k: number) => 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+  for (let j = 0; j < SH; j += 2)
+    for (let i = 0; i < SW; i += 2) {
+      const k = (j * SW + i) * 4;
+      const L = (lum(k) + lum(k + 4) + lum(k + SW * 4) + lum(k + SW * 4 + 4)) / (4 * 255);
+      h[Math.min(NBIN - 1, Math.floor(L * NBIN))]++;
+    }
   return h;
 }
 
@@ -69,11 +77,18 @@ export function drawHistogram(ctx: CanvasRenderingContext2D, f: number, src: Can
   const sharp = clamp((h[imax] / N - 0.25) / 0.5);
   if (sharp > 0.01) {
     const xn = HX0 + (imax + 0.5) * pitch;
+    // a soft glow drawn by hand (canvas shadowBlur on the full-frame canvas costs ~0.15 s in the software rasteriser)
+    const hh = HMAX * grow;
+    for (const [w, al] of [
+      [13, 0.06],
+      [8, 0.1],
+      [5, 0.16],
+    ] as const) {
+      ctx.globalAlpha = vis * sharp * al;
+      ctx.fillRect(xn - w / 2, HAX - hh, w, hh);
+    }
     ctx.globalAlpha = vis * sharp;
-    ctx.shadowColor = rgbStr(col);
-    ctx.shadowBlur = 10;
-    ctx.fillRect(xn - 1.5, HAX - HMAX * grow, 3, HMAX * grow);
-    ctx.shadowBlur = 0;
+    ctx.fillRect(xn - 1.5, HAX - hh, 3, hh);
   }
   // axis, ticks, the colour bar = what brightness means (cold dark → hot bright)
   ctx.globalAlpha = vis * 0.6;
@@ -114,7 +129,7 @@ function particles(): P[] {
       const r = (k: number) => hash01(i * 37 + k, 5150);
       const t: number[] = [T.loupe[0] - 30];
       const a: number[] = [-0.52 + (r(1) - 0.5) * 0.22];
-      let tt = 260 + 34 * Math.pow(r(2), 0.9);
+      let tt = T.loupe[0] + 12 + 34 * Math.pow(r(2), 0.9);
       for (let k = 0; k < 12 && tt < T.loupe[1] + 4; k++) {
         t.push(tt);
         a.push(6.2831853 * r(10 + k));
@@ -126,13 +141,14 @@ function particles(): P[] {
   });
 }
 const wrap = (v: number) => ((v % BOX) + BOX) % BOX;
-/** the grey, magnified: 40² blocks of boiling noise (new every frame) */
+/** the grey, magnified: 84² grains of boiling noise (new every frame), upscaled smoothly — soft magnified grain */
+const GT = 84;
 function grainTile(f: number): HTMLCanvasElement {
-  const c = scratch('lgrain', 40, 40);
+  const c = scratch('lgrain', GT, GT);
   const x = ctxOf(c);
-  const img = memo('s05:lgrainimg', () => x.createImageData(40, 40));
-  for (let i = 0; i < 1600; i++) {
-    const v = 92 + (hash01(i + Math.floor(f) * 1601, 808) + hash01(i * 3 + Math.floor(f) * 4801, 809) - 1) * 26;
+  const img = memo('s05:lgrainimg', () => x.createImageData(GT, GT));
+  for (let i = 0; i < GT * GT; i++) {
+    const v = 92 + (hash01(i + Math.floor(f) * 7057, 808) + hash01(i * 3 + Math.floor(f) * 4801, 809) - 1) * 30;
     img.data[i * 4] = v;
     img.data[i * 4 + 1] = v;
     img.data[i * 4 + 2] = v;
@@ -188,13 +204,12 @@ export function drawLoupe(ctx: CanvasRenderingContext2D, f: number) {
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.save();
   ctx.clip();
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(grainTile(f), cx - LR * 1.02, cy - LR * 1.02, LR * 2.04, LR * 2.04);
   ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(grainTile(f), cx - LR * 1.02, cy - LR * 1.02, LR * 2.04, LR * 2.04);
   const lg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-  lg.addColorStop(0, 'rgba(14,14,18,0.3)');
-  lg.addColorStop(0.82, 'rgba(14,14,18,0.36)');
-  lg.addColorStop(1, 'rgba(6,6,10,0.62)');
+  lg.addColorStop(0, 'rgba(14,14,18,0.24)');
+  lg.addColorStop(0.8, 'rgba(14,14,18,0.3)');
+  lg.addColorStop(1, 'rgba(6,6,10,0.58)');
   ctx.fillStyle = lg;
   ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
   // the gas, magnified: trails, then heads (three depth sizes)

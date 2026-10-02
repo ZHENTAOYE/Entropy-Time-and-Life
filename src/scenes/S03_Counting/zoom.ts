@@ -1,17 +1,28 @@
 // Beats 7–10: the probability written out. 「P = 0.000…」, each zero exactly 1 mm (a ruler underneath), the camera
-// rides along the row, then pulls back by powers of ten (书桌 → 城市 → 地球 → 太阳系 → 银河系) until the row of
-// 2.5×10²⁴ zeros (2.6×10⁵ light-years) spans the frame from x 90 to 990 with the Milky Way sitting on it.
+// rides along the row, then pulls back by powers of ten (书桌 → 城市 → 地球 → 太阳系 → 银河系) around the row's start
+// (our desk, i.e. the Sun) until the whole row of 2.5×10²⁴ zeros (2.6×10⁵ light-years) is in frame. The Milky Way
+// materialises AROUND the start point — the Sun sits 2.6×10⁴ ly from the galactic centre, which lies on the row —
+// and the row runs on far beyond the disc. After the hold the row settles onto S04's handoff line (90 → 990).
 import { drawGalaxy, drawStarfield } from '../../lib/cosmos';
 import { clamp, ease, lerp, memo, seg, smoothstep } from '../../lib/math';
 import { hash01, mulberry32 } from '../../lib/random';
 import { makeNoise } from '../../lib/noise';
-import { C, LY, ROW, T } from './constants';
+import { C, LY, ROW, T, ZERO_LINE } from './constants';
 import { Ctx, MONO, SANS, dimLineH, drawRich, glow, rgbaHex, sup } from './paint';
 
 // ------------------------------------------------------------------ camera
 const S0 = 43200; // px per metre at the start: 1 mm = 43.2 px
 export const Z0 = Math.log10(1080 / S0);
+/** galaxy hold: the row (from the Sun) spans HOLD_X0 → 990, so the whole disc (it extends 2.4×10⁴ ly behind the
+ * Sun) fits in frame */
+const HOLD_X0 = 145;
+export const ZHOLD = Math.log10((1080 * ROW.lengthM) / (990 - HOLD_X0));
+/** the OUT framing: the row is exactly ZERO_LINE (90 → 990) */
 export const ZEND = Math.log10((1080 * ROW.lengthM) / 900);
+/** Sun → galactic centre (2.6×10⁴ ly); the row is drawn pointing through the centre */
+export const GC_M = 2.6e4 * LY;
+/** 0 → 1 while the galaxy dissolves: the hold framing settles onto the handoff line */
+const settleK = (f: number) => ease.inOutCubic(seg(f, T.galaxyOut, T.galaxyOut + 24));
 const PREFIX_W = 2 * ROW.adv; // 「0.」
 const CW0 = (540 - (ROW.x0 + PREFIX_W)) / S0; // camera world x at the start (world 0 = first zero's left edge)
 
@@ -40,13 +51,13 @@ const KEYS: Key[] = [
   { f: 600, z: 4.25, m: 0.06 },
   { f: 620, z: 7.45, m: 0.06 },
   { f: 643, z: 13.1, m: 0.07 },
-  { f: T.zoomEnd, z: ZEND, m: 0 },
+  { f: T.zoomEnd, z: ZHOLD, m: 0 },
 ];
 export const STOPS = { desk: 578, city: 600, earth: 620, solar: 643, galaxy: T.zoomEnd } as const;
 
 export function zoomZ(f: number): number {
   if (f <= KEYS[0].f) return Z0;
-  if (f >= KEYS[KEYS.length - 1].f) return ZEND;
+  if (f >= KEYS[KEYS.length - 1].f) return lerp(ZHOLD, ZEND, settleK(f));
   let i = 0;
   while (f > KEYS[i + 1].f) i++;
   const a = KEYS[i];
@@ -71,9 +82,9 @@ export function camAt(f: number): Cam {
   const z = zoomZ(f);
   const s = 1080 / Math.pow(10, z);
   const cw = CW0 + ridePx(f) / S0;
-  // the pivot slides from the centre to the row start while only stars are on screen (row ends at 90 → 990)
+  // the pivot (the row start = the Sun) slides from the centre to the left while only stars are on screen
   const k = smoothstep(15.6, 20.9, z);
-  const px = lerp(540, ROW.x0 + cw * s, k);
+  const px = lerp(540, lerp(HOLD_X0, ROW.x0, settleK(f)) + cw * s, k);
   return { s, z, cw, px, X: (w) => px + (w - cw) * s, Y: (wy) => ROW.y + wy * s };
 }
 
@@ -86,7 +97,7 @@ function zeroSprite(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = 88;
     c.height = 128;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     g.font = MONO(144, 400);
     g.textAlign = 'center';
     g.textBaseline = 'alphabetic';
@@ -162,9 +173,10 @@ export function drawRow(ctx: Ctx, f: number, lineBoost = 0) {
     const r = clamp(adv * 0.32, 0.8, 3.2);
     for (let i = i0; i <= i1 && i - i0 < 1500; i++) ctx.fillRect(x0 + (i + 0.5) * adv - r / 2, y - r / 2, r, r);
   }
-  // ── the solid line (with a soft glow band)
-  if (lineMode > 0.003) {
-    const a = A * lineMode;
+  // ── the solid line (with a soft glow band); at the very end it becomes S04's frame-0 line (drawFinalLine)
+  const fin = finalLineK(f);
+  if (lineMode > 0.003 && fin < 1) {
+    const a = A * lineMode * (1 - fin);
     const xa = Math.max(-10, x0);
     const xb = Math.min(1090, xEnd);
     if (xb > xa) {
@@ -179,6 +191,62 @@ export function drawRow(ctx: Ctx, f: number, lineBoost = 0) {
       ctx.fillRect(xa, y - 1, xb - xa, 2);
     }
   }
+  ctx.restore();
+  if (fin > 0) drawFinalLine(ctx, fin);
+}
+
+/** 0 → 1 while everything resolves into the line (card 13's collapse); 1 from T.lineOnly − 4 to the last frame */
+export function finalLineK(f: number) {
+  return ease.inOutQuad(seg(f, T.collapse + 12, T.lineOnly - 4));
+}
+
+const FINAL_PASSES: Array<[number, number, string]> = [
+  [44, 0.045, C.amber],
+  [20, 0.09, C.amber],
+  [8, 0.24, C.amber],
+  [3.4, 0.95, '#FFD9A8'],
+];
+/**
+ * The OUT line, drawn exactly like S04 draws its frame 0 (src/scenes/S04_Arrow/arrow.ts at f = 0: four additive
+ * round-capped passes along ZERO_LINE, then a quarter-res copy blurred by 6 px added back at 0.75), so the cut
+ * S03 → S04 is invisible.
+ */
+export function drawFinalLine(ctx: Ctx, k: number) {
+  if (k <= 0.003) return;
+  const { x0, x1, y } = ZERO_LINE;
+  const passes = (g: Ctx, s: number, a: number) => {
+    g.lineCap = 'round';
+    for (const [lw, al, col] of FINAL_PASSES) {
+      g.globalAlpha = al * a;
+      g.strokeStyle = col;
+      g.lineWidth = lw * s;
+      g.beginPath();
+      g.moveTo(x0 * s, y * s);
+      g.lineTo(x1 * s, y * s);
+      g.stroke();
+    }
+  };
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  passes(ctx, 1, k);
+  // bloom
+  const bc = memo('S03:finalBloom', () => {
+    const c = document.createElement('canvas');
+    c.width = 270;
+    c.height = 480;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    g.filter = 'blur(6px)';
+    g.globalCompositeOperation = 'lighter';
+    passes(g, 0.25, 1);
+    g.filter = 'none';
+    return c;
+  });
+  // S04 adds its bloom at 0.75, but its bloom is a point-sampled 4× downscale of the full-res strokes (it misses part
+  // of the thin core); ours is drawn at quarter res with full coverage, so 0.64 gives the same halo (checked by pixel
+  // profile against S04 f0)
+  ctx.globalAlpha = 0.64 * k;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bc, 0, 0, 1080, 1920);
   ctx.restore();
 }
 
@@ -205,10 +273,10 @@ function drawRuler(ctx: Ctx, f: number) {
     ctx.lineTo(x, yb + L);
   }
   ctx.stroke();
-  ctx.font = MONO(18, 400);
-  ctx.fillStyle = rgbaHex(C.amber, 0.75 * a);
+  ctx.font = MONO(22, 400);
+  ctx.fillStyle = rgbaHex(C.amber, 0.8 * a);
   ctx.textAlign = 'center';
-  for (let i = i0; i <= i1; i++) if (i % 10 === 0 && i > 0) ctx.fillText(`${i / 10} cm`, x0 + i * adv, yb + 48);
+  for (let i = i0; i <= i1; i++) if (i % 10 === 0 && i > 0) ctx.fillText(`${i / 10} cm`, x0 + i * adv, yb + 52);
   ctx.restore();
   // 1 mm callout on the third zero
   const ca = a * seg(f, T.c7 + 4, T.c7 + 12) * (1 - seg(f, T.ride + 6, T.ride + 14));
@@ -247,9 +315,9 @@ function drawDesk(ctx: Ctx, cam: Cam, a: number) {
   const lx = X(-0.6);
   const ly = Y(-0.26);
   const pool = ctx.createRadialGradient(lx, ly, 0, lx, ly, 0.75 * S);
-  pool.addColorStop(0, 'rgba(255,190,110,0.16)');
+  pool.addColorStop(0, 'rgba(255,190,110,0.07)');
   pool.addColorStop(1, 'rgba(255,190,110,0)');
-  ctx.fillStyle = 'rgba(30,18,6,0.7)';
+  ctx.fillStyle = 'rgba(24,15,6,0.42)';
   ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
   ctx.fillStyle = pool;
   ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
@@ -258,9 +326,9 @@ function drawDesk(ctx: Ctx, cam: Cam, a: number) {
   ctx.strokeRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
   ctx.strokeStyle = rgbaHex(C.amber, 0.3);
   ctx.strokeRect(dx0 + 0.025 * S, dy0 + 0.025 * S, dx1 - dx0 - 0.05 * S, dy1 - dy0 - 0.05 * S);
-  // wood grain
+  // wood grain (hairlines)
   const N = makeNoise(31);
-  ctx.strokeStyle = rgbaHex(C.amber, 0.09);
+  ctx.strokeStyle = rgbaHex(C.amber, 0.06);
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let k = 0; k < 30; k++) {
@@ -297,18 +365,23 @@ function drawDesk(ctx: Ctx, cam: Cam, a: number) {
   // books
   ctx.strokeRect(X(-0.78), Y(0.08), 0.24 * S, 0.27 * S);
   ctx.strokeRect(X(-0.76), Y(0.11), 0.2 * S, 0.21 * S);
-  // the glass (top view) at the row start
+  // the glass (top view) at the row start: rim, wall thickness, water surface
   const gx = X(-0.05);
   const gy = Y(0);
   const gr = 0.042 * S;
-  ctx.fillStyle = rgbaHex(C.amber, 0.2);
+  ctx.fillStyle = rgbaHex(C.amber, 0.07);
   ctx.beginPath();
-  ctx.arc(gx, gy, gr * 0.86, 0, Math.PI * 2);
+  ctx.arc(gx, gy, gr * 0.9, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = rgbaHex(C.pale, 0.95);
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = rgbaHex(C.amber, 0.5);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(gx, gy, gr * 0.9, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -614,7 +687,7 @@ function drawRings(ctx: Ctx, f: number, cam: Cam) {
     const ly = cy - r * 0.7071;
     ctx.fillStyle = rgbaHex(C.amber, 0.55 * a);
     ctx.fillRect(lx - 2, ly - 2, 4, 4);
-    drawRich(ctx, sup(`10^{${k}} m`), lx - 8, ly - 8, { font: MONO(15, 400), size: 15, color: C.amber, align: 'right', alpha: 0.6 * a });
+    drawRich(ctx, sup(`10^{${k}} m`), lx - 8, ly - 8, { font: MONO(19, 400), size: 19, color: C.amber, align: 'right', alpha: 0.65 * a });
   }
   ctx.restore();
 }
@@ -628,7 +701,9 @@ export function drawPulses(ctx: Ctx, f: number) {
   for (let p = 0; p < 3; p++) {
     const period = 46;
     const ph = ((f - T.zoomEnd + p * (period / 3)) % period) / period;
-    const x = ROW.x0 + (990 - ROW.x0) * ph;
+    const cam = camAt(f);
+    const xa = cam.X(0);
+    const x = xa + (cam.X(ROW.lengthM) - xa) * ph;
     const env = Math.sin(Math.PI * ph);
     const gr = ctx.createLinearGradient(x - 120, 0, x + 6, 0);
     gr.addColorStop(0, 'rgba(255,220,160,0)');
@@ -674,7 +749,7 @@ function drawScaleLabels(ctx: Ctx, f: number, cam: Cam) {
     ctx.fill();
     ctx.restore();
     drawRich(ctx, [{ t: L.zh }], tx, ty, { font: SANS(34, 400), size: 34, color: C.pale, alpha: a, reveal: seg(f, L.stop - 9, L.stop - 5) });
-    drawRich(ctx, sup(L.sc), tx, ty + 44, { font: MONO(22, 400), size: 22, color: C.amber, alpha: 0.85 * a });
+    drawRich(ctx, sup(L.sc), tx, ty + 46, { font: MONO(25, 400), size: 25, color: C.amber, alpha: 0.9 * a });
   }
 }
 
@@ -682,18 +757,17 @@ function drawScaleLabels(ctx: Ctx, f: number, cam: Cam) {
 function drawOdometer(ctx: Ctx, f: number, cam: Cam) {
   const a = seg(f, T.zoom - 4, T.zoom + 6) * (1 - seg(f, T.zoomEnd + 10, T.zoomEnd + 22));
   if (a <= 0.003) return;
+  // the field of view to one significant digit (2×10⁻² m … 3×10²¹ m): honest at every frame, and it counts like an
+  // odometer while the zoom runs
   const n = cam.z;
-  const ni = Math.round(n);
-  const frac = n - Math.floor(n);
-  drawRich(ctx, [{ t: '视野宽度' }], 90, 1556, { font: SANS(22, 400), size: 22, color: C.amber, alpha: 0.75 * a });
-  // exponent rolls: show the integer exponent with a short vertical slide when it changes
-  const roll = clamp((frac - 0.85) / 0.15) * (ni === Math.floor(n) + 1 ? 1 : 0);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(80, 1560, 400, 70);
-  ctx.clip();
-  drawRich(ctx, sup(`10^{${ni}} m`), 90, 1612 - roll * 6, { font: MONO(44, 700), size: 44, color: C.pale, alpha: a });
-  ctx.restore();
+  let e = Math.floor(n);
+  let m = Math.round(Math.pow(10, n - e));
+  if (m >= 10) {
+    m = 1;
+    e += 1;
+  }
+  drawRich(ctx, [{ t: '视野宽度' }], 90, 1554, { font: SANS(24, 400), size: 24, color: C.amber, alpha: 0.8 * a });
+  drawRich(ctx, sup(m === 1 ? `10^{${e}} m` : `${m}×10^{${e}} m`), 90, 1612, { font: MONO(44, 700), size: 44, color: C.pale, alpha: a });
 }
 
 // ------------------------------------------------------------------ the galaxy (amber, barred) on the line
@@ -710,15 +784,26 @@ export function drawGalaxyLayer(ctx: Ctx, f: number) {
   // background star dust that belongs to the final framing
   const bgA = smoothstep(19.6, 21.2, cam.z) * (1 - seg(f, T.galaxyOut, T.galaxyOut + 30));
   if (bgA > 0.003) drawStarfield(ctx, { seed: 9, t: f / 30, palette: 'amber', density: 0.55, alpha: 0.42 * bgA, zoom: Math.pow(10, (ZEND - cam.z) * 0.35), cx: 540, cy: 960, twinkle: 0.5 });
+  // the Sun (our desk, the row's start): the zoom's pivot, kept as a point of light once the solar system is a dot
+  const sa = smoothstep(15.0, 15.8, cam.z) * (1 - seg(f, T.galaxyOut, T.galaxyOut + 16));
+  if (sa > 0.003) {
+    ctx.save();
+    ctx.globalAlpha = sa;
+    ctx.fillStyle = '#FFF6E2';
+    ctx.beginPath();
+    ctx.arc(cam.X(cam.cw), ROW.y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   if (a <= 0.003) return;
   const R = GAL_R(cam);
   if (R > 1400) return;
-  const cx = cam.X(ROW.lengthM / 2);
+  const cx = cam.X(GC_M);
   const dissolve = ease.inQuad(seg(f, T.galaxyOut, T.galaxyOut + 20)) * 0.7;
   drawGalaxy(ctx, { cx, cy: ROW.y, radius: R, tilt: 1.08, angle: -0.04, arms: 2, bar: 0.6, pitch: 0.22, seed: 11, t: f / 30 + 3, palette: 'amber', alpha: a, dissolve, spin: 0.05, exposure: 1.35, n: 4200 });
 }
 
-/** card 9: dimension lines — the galaxy (10⁵ ly) above, the whole row (2.6×10⁵ ly) below */
+/** card 9: dimension lines — the galaxy (10⁵ ly) above, the whole row (2.6×10⁵ ly) below; the row starts at the Sun */
 function drawDims(ctx: Ctx, f: number) {
   const out = 1 - seg(f, T.galaxyOut - 4, T.galaxyOut + 10);
   const k1 = ease.inOutCubic(seg(f, T.dims, T.dims + 22));
@@ -726,65 +811,75 @@ function drawDims(ctx: Ctx, f: number) {
   if (k1 <= 0 || out <= 0) return;
   const cam = camAt(f);
   const R = GAL_R(cam);
+  const gx = cam.X(GC_M);
+  const xa = cam.X(0);
+  const xb = cam.X(ROW.lengthM);
   const yG = ROW.y - 150;
-  dimLineH(ctx, 540 - R, 540 + R, yG, k1, C.pale, 0.85 * out, 0, 9);
+  dimLineH(ctx, gx - R, gx + R, yG, k1, C.pale, 0.85 * out, 0, 9);
   // extension lines down to the disc edge
   ctx.save();
   ctx.setLineDash([3, 5]);
   ctx.strokeStyle = rgbaHex(C.pale, 0.35 * out * k1);
   ctx.beginPath();
-  ctx.moveTo(540 - R, yG + 10);
-  ctx.lineTo(540 - R, ROW.y - 20);
-  ctx.moveTo(540 + R, yG + 10);
-  ctx.lineTo(540 + R, ROW.y - 20);
+  ctx.moveTo(gx - R, yG + 10);
+  ctx.lineTo(gx - R, ROW.y - 20);
+  ctx.moveTo(gx + R, yG + 10);
+  ctx.lineTo(gx + R, ROW.y - 20);
   ctx.stroke();
   ctx.restore();
   const l1 = seg(f, T.dims + 10, T.dims + 22) * out;
-  drawRich(ctx, [{ t: '银河系 ', font: SANS(30, 400) }, ...sup('≈ 10^{5} 光年')], 540, yG - 22, { font: SANS(30, 400), size: 30, color: C.pale, align: 'center', alpha: l1 });
+  drawRich(ctx, [{ t: '银河系 ', font: SANS(30, 400) }, ...sup('≈ 10^{5} 光年')], gx, yG - 22, { font: SANS(30, 400), size: 30, color: C.pale, align: 'center', alpha: l1 });
   const yR = ROW.y + 110;
-  dimLineH(ctx, ROW.x0, 990, yR, k2, C.amber, 0.85 * out, 0, 9);
+  dimLineH(ctx, xa, xb, yR, k2, C.amber, 0.85 * out, 0, 9);
   ctx.save();
   ctx.setLineDash([3, 5]);
   ctx.strokeStyle = rgbaHex(C.amber, 0.35 * out * k2);
   ctx.beginPath();
-  ctx.moveTo(ROW.x0, ROW.y + 14);
-  ctx.lineTo(ROW.x0, yR - 10);
-  ctx.moveTo(990, ROW.y + 14);
-  ctx.lineTo(990, yR - 10);
+  ctx.moveTo(xa, ROW.y + 14);
+  ctx.lineTo(xa, yR - 10);
+  ctx.moveTo(xb, ROW.y + 14);
+  ctx.lineTo(xb, yR - 10);
   ctx.stroke();
   ctx.restore();
   const l2 = seg(f, T.dims + 22, T.dims + 34) * out;
-  drawRich(ctx, [{ t: '这一行 ', font: SANS(30, 400) }, ...sup('≈ 2.6×10^{5} 光年')], 540, yR + 50, { font: SANS(30, 400), size: 30, color: C.amber, align: 'center', alpha: l2 });
-  // both ends of the one number: 「0.」 … the first non-zero digit after 2.5×10²⁴ zeros
+  drawRich(ctx, [{ t: '这一行 ', font: SANS(30, 400) }, ...sup('≈ 2.6×10^{5} 光年')], (xa + xb) / 2 + 40, yR + 50, { font: SANS(30, 400), size: 30, color: C.amber, align: 'center', alpha: l2 });
+  // both ends of the one number: 「0.」 (here, at the Sun) … the first non-zero digit after 2.5×10²⁴ zeros
   const e = seg(f, T.dims + 30, T.dims + 40) * out;
-  drawRich(ctx, [{ t: '0.' }], ROW.x0, ROW.y - 18, { font: MONO(30, 700), size: 30, color: C.pale, alpha: e });
-  drawRich(ctx, sup('第 2.5×10^{24} 位'), 990, ROW.y - 18, { font: MONO(20, 400), size: 20, color: C.amber, align: 'right', alpha: 0.85 * e });
+  // 「0.」 sits on the galactic disc: a dark halo keeps it legible
+  ctx.save();
+  ctx.shadowColor = 'rgba(7,6,4,0.95)';
+  ctx.shadowBlur = 10;
+  drawRich(ctx, [{ t: '0.' }], xa - 6, ROW.y - 18, { font: MONO(30, 700), size: 30, color: C.pale, alpha: e });
+  drawRich(ctx, [{ t: '0.' }], xa - 6, ROW.y - 18, { font: MONO(30, 700), size: 30, color: C.pale, alpha: e });
+  ctx.restore();
+  drawRich(ctx, sup('第 2.5×10^{24} 位'), xb, ROW.y - 18, { font: MONO(23, 400), size: 23, color: C.amber, align: 'right', alpha: 0.9 * e });
 }
 
-/** the finished row as a ruler: a tick every 10⁴ light-years, labels every 5×10⁴ */
+/** the finished row as a ruler: a tick every 10⁴ light-years from the Sun, labels every 5×10⁴ */
 function drawLyRuler(ctx: Ctx, f: number) {
   const a = seg(f, T.dims + 30, T.dims + 50) * (1 - seg(f, T.galaxyOut - 4, T.galaxyOut + 8));
   if (a <= 0.003) return;
-  const pxPerLy = 900 / (ROW.lengthM / LY);
+  const cam = camAt(f);
+  const xb = cam.X(ROW.lengthM) + 0.5;
   ctx.save();
   ctx.strokeStyle = rgbaHex(C.amber, 0.45 * a);
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let k = 0; ; k++) {
-    const x = ROW.x0 + k * 1e4 * pxPerLy;
-    if (x > 990) break;
+    const x = cam.X(k * 1e4 * LY);
+    if (x > xb) break;
     const big = k % 5 === 0;
     ctx.moveTo(x, ROW.y + 4);
     ctx.lineTo(x, ROW.y + (big ? 16 : 9));
   }
   ctx.stroke();
-  ctx.font = MONO(13, 400);
+  ctx.font = MONO(18, 400);
   ctx.textAlign = 'center';
-  ctx.fillStyle = rgbaHex(C.amber, 0.5 * a);
+  ctx.fillStyle = rgbaHex(C.amber, 0.62 * a);
   for (let k = 5; ; k += 5) {
-    const x = ROW.x0 + k * 1e4 * pxPerLy;
-    if (x > 960) break;
-    ctx.fillText(`${k}万`, x, ROW.y + 32);
+    const x = cam.X(k * 1e4 * LY);
+    if (x > xb - 30) break;
+    ctx.fillText(`${k}万`, x, ROW.y + 38);
   }
   ctx.restore();
 }
@@ -835,6 +930,9 @@ export function glowZoom(ctx: Ctx, f: number) {
   if (ea > 0) glow(ctx, C.amber, cam.X(cam.cw), cam.Y(RE), RE * cam.s * 1.5, 0.25 * ea);
   const ca = bell(cam.z, 2.4, 6.0, 0.7);
   if (ca > 0) glow(ctx, C.amber, cam.X(cam.cw), cam.Y(0), 6500 * cam.s, 0.14 * ca);
+  // the Sun as a point (after the solar system)
+  const su = smoothstep(15.0, 15.8, cam.z) * (1 - seg(f, T.galaxyOut, T.galaxyOut + 16));
+  if (su > 0) glow(ctx, '#FFE3A3', cam.X(cam.cw), ROW.y, 22, 0.8 * su);
 }
 
 export { mulberry32 as _m32 };

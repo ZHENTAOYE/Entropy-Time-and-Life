@@ -127,7 +127,7 @@ function drawBigBox(ctx: Ctx, f: number, alpha: number) {
     ctx.setLineDash([]);
   }
   // notches where the divider used to sit
-  ctx.fillStyle = rgbaHex(C.amber, 0.9 * alpha * seg(f, T.dividerLift + 4, T.dividerLift + 10));
+  ctx.fillStyle = rgbaHex(C.amber, 0.9 * alpha * seg(f, T.dividerLift + 4, T.dividerLift + 10) * (1 - seg(f, T.deal - 8, T.deal - 1)));
   ctx.fillRect(divider - 5, y0 - 1, 10, 3);
   ctx.fillRect(divider - 5, y1 - 2, 10, 3);
   ctx.restore();
@@ -232,7 +232,7 @@ function drawTape(ctx: Ctx, f: number, alpha: number) {
   const draw = ease.outCubic(seg(f, 6, 20));
   ctx.save();
   // frame + row labels
-  ctx.font = MONO(18, 400);
+  ctx.font = MONO(21, 400);
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'right';
   for (let i = 0; i < 4; i++) {
@@ -286,7 +286,7 @@ function drawTape(ctx: Ctx, f: number, alpha: number) {
     ctx.lineTo(x + TAPE.col, y);
   }
   ctx.stroke();
-  ctx.font = MONO(16, 400);
+  ctx.font = MONO(19, 400);
   ctx.textAlign = 'left';
   ctx.fillStyle = rgbaHex(C.amber, 0.6 * alpha * draw);
   for (const k of [0, 4]) ctx.fillText(String(k), TAPE.x1 + 8, TAPE.trace1 - (k / 4) * (TAPE.trace1 - TAPE.trace0) + 5);
@@ -345,6 +345,8 @@ interface BoxState {
   canon: number;
   /** 0 = box, 1 = compressed into its barcode */
   bar: number;
+  /** 0 = still the big box of the gas (identical look), 1 = a mini world (fill, own barcode, larger dots) */
+  morph: number;
 }
 
 function boxState(c: number, f: number): BoxState | null {
@@ -355,7 +357,9 @@ function boxState(c: number, f: number): BoxState | null {
   let cx: number, cy: number, w: number;
   let alpha = 1;
   let canon = 1;
+  let morph = 1;
   if (c === FREEZE_CODE) {
+    morph = ease.inOutQuad(seg(f, T.deal, T.deal + 12));
     const k = ease.inOutCubic(seg(f, T.deal, T.deal + 14));
     cx = lerp(540, gx, k);
     cy = lerp(900, gy, k);
@@ -386,12 +390,34 @@ function boxState(c: number, f: number): BoxState | null {
   const bar = ease.inOutCubic(seg(f, T.toBars + (4 - popcount(c)) * 1.5, T.toBars + 10 + (4 - popcount(c)) * 1.5));
   alpha *= 1 - seg(f, T.rain - 2, T.rain + 8);
   if (alpha <= 0.003) return null;
-  return { cx, cy, w, alpha, canon, bar };
+  return { cx, cy, w, alpha, canon, bar, morph };
 }
 
 /** a mini world: box + dashed border + 4 dots + its 4-bit barcode */
-export function drawMiniBox(ctx: Ctx, c: number, cx: number, cy: number, w: number, alpha: number, opt: { canon?: number; gasF?: number; bar?: number; white?: number; dotScale?: number } = {}) {
-  const { canon = 1, bar = 0, white = 0 } = opt;
+/** the 4 dot centres of world c drawn as a box centred (cx, cy), width w; canon < 1 blends from the frozen gas */
+export function miniDots(c: number, cx: number, cy: number, w: number, canon = 1, gasF?: number): Array<[number, number]> {
+  const h = (w * 4) / 7;
+  const s = w / 700;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  const out: Array<[number, number]> = [];
+  for (let i = 0; i < 4; i++) {
+    const left = ((c >> (3 - i)) & 1) === 1;
+    const [px, py] = canonical(i, left);
+    let dx = x + px * s;
+    let dy = y + py * s;
+    if (canon < 1 && gasF !== undefined) {
+      const [gx, gy] = gasPos(i, gasF);
+      dx = lerp(x + (gx - BOX.x0) * s, dx, canon);
+      dy = lerp(y + (gy - BOX.y0) * s, dy, canon);
+    }
+    out.push([dx, dy]);
+  }
+  return out;
+}
+
+export function drawMiniBox(ctx: Ctx, c: number, cx: number, cy: number, w: number, alpha: number, opt: { canon?: number; gasF?: number; bar?: number; white?: number; dotScale?: number; morph?: number; frame?: number } = {}) {
+  const { canon = 1, bar = 0, white = 0, morph = 1 } = opt;
   const h0 = (w * 4) / 7;
   const h = lerp(h0, Math.max(10, w * 0.075), bar);
   const s = w / 700;
@@ -399,50 +425,44 @@ export function drawMiniBox(ctx: Ctx, c: number, cx: number, cy: number, w: numb
   const y = cy - h / 2;
   ctx.save();
   const boxA = alpha * (1 - bar);
-  // fill (very faint) so overlapping copies read as solid objects
-  ctx.fillStyle = rgbaHex('#140D05', 0.85 * alpha);
-  ctx.fillRect(x, y, w, h);
+  // fill so overlapping copies read as solid objects (fades in while the gas box becomes a world: no pop on f78)
+  if (morph > 0.003) {
+    ctx.fillStyle = rgbaHex('#140D05', 0.85 * alpha * morph);
+    ctx.fillRect(x, y, w, h);
+  }
   ctx.lineWidth = w > 400 ? 2 : 1.5;
-  ctx.strokeStyle = white > 0 ? `rgba(255,255,255,${(alpha * (0.6 + 0.4 * white)).toFixed(3)})` : rgbaHex(C.amber, 0.85 * alpha);
+  ctx.strokeStyle = white > 0 ? `rgba(255,255,255,${(alpha * (0.6 + 0.4 * white)).toFixed(3)})` : rgbaHex(C.amber, 0.9 * alpha);
   ctx.strokeRect(x, y, w, h);
   if (boxA > 0.01) {
-    ctx.setLineDash([Math.max(2, 6 * s * 3.5), Math.max(2, 8 * s * 3.5)]);
+    // the same marching dashed L|R border as the gas box
+    ctx.setLineDash([6, 8]);
+    ctx.lineDashOffset = -(opt.frame ?? 0) * 0.6;
+    ctx.lineWidth = 1.5;
     ctx.strokeStyle = rgbaHex(C.amber, 0.32 * boxA);
+    const inset = lerp(2, 4, clamp((w - 196) / 504));
     ctx.beginPath();
-    ctx.moveTo(cx, y + 2);
-    ctx.lineTo(cx, y + h - 2);
+    ctx.moveTo(cx, y + inset);
+    ctx.lineTo(cx, y + h - inset);
     ctx.stroke();
     ctx.setLineDash([]);
-    // dots
-    for (let i = 0; i < 4; i++) {
-      const left = ((c >> (3 - i)) & 1) === 1;
-      const [px, py] = canonical(i, left);
-      let dx = x + px * s;
-      let dy = y + py * s;
-      if (canon < 1 && opt.gasF !== undefined) {
-        const [gx, gy] = gasPos(i, opt.gasF);
-        // gas positions mapped into this (shrinking) box
-        const bx = x + (gx - BOX.x0) * s;
-        const by = y + (gy - BOX.y0) * s;
-        dx = lerp(bx, dx, canon);
-        dy = lerp(by, dy, canon);
-      }
-      drawDot(ctx, dx, dy, Math.max(2.6, P4_R * s * (opt.dotScale ?? 1.25)), boxA, white > 0);
-    }
+    ctx.lineDashOffset = 0;
+    // dots (the gas box's dots are r = 10; a mini world draws them 25 % larger so they survive the shrink)
+    const ds = opt.dotScale ?? lerp(1, 1.25, morph);
+    for (const [dx, dy] of miniDots(c, cx, cy, w, canon, opt.gasF)) drawDot(ctx, dx, dy, Math.max(2.6, P4_R * s * ds), boxA, white > 0);
   }
   // barcode: under the box while it is a box; becomes the whole thing when compressed
   const bw = w * lerp(0.42, 1, bar);
   const bh = lerp(Math.max(5, w * 0.045), h, bar);
   const by = lerp(y + h + Math.max(6, w * 0.04), y, bar);
-  barcode(ctx, cx - bw / 2, by, bw, bh, c, 4, white > 0 ? '#FFFFFF' : C.pale, alpha * lerp(0.85, 1, bar), 0.16);
+  barcode(ctx, cx - bw / 2, by, bw, bh, c, 4, white > 0 ? '#FFFFFF' : C.pale, alpha * lerp(0.85, 1, bar) * morph, 0.16);
   ctx.restore();
 }
 
 // ------------------------------------------------------------------ beat drawing
 export function drawCount(ctx: Ctx, f: number) {
   if (f > T.rain + 18) return;
-  // ── the big box + gas (until the deal)
-  if (f < T.deal + 1) {
+  // ── the big box + gas (until the deal; from f78 the frozen world is drawn by the 16-worlds code, identically)
+  if (f < T.deal) {
     const a = 1;
     drawBigBox(ctx, f, a);
     const gf = Math.min(f, T.freeze);
@@ -487,7 +507,7 @@ export function drawCount(ctx: Ctx, f: number) {
       const st = boxState(c, f);
       if (!st) continue;
       const white = c === 15 ? ease.outCubic(seg(f, T.c3a + 8, T.c3a + 16)) * (1 - seg(f, T.c3End - 10, T.c3End)) : 0;
-      drawMiniBox(ctx, c, st.cx, st.cy, st.w, st.alpha, { canon: st.canon, gasF: T.freeze, bar: st.bar, white });
+      drawMiniBox(ctx, c, st.cx, st.cy, st.w, st.alpha, { canon: st.canon, gasF: T.freeze, bar: st.bar, white, morph: st.morph, frame: f });
     }
     drawColumnsChrome(ctx, f);
   }
@@ -515,7 +535,7 @@ function drawColumnsChrome(ctx: Ctx, f: number) {
     ctx.stroke();
     // macro label  左:右
     const la = a * seg(f, T.sort + 18 + kk, T.sort + 24 + kk);
-    ctx.font = MONO(22, 400);
+    ctx.font = MONO(24, 400);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = rgbaHex(C.amber, 0.8 * la);
@@ -530,10 +550,10 @@ function drawColumnsChrome(ctx: Ctx, f: number) {
       ctx.fillText(String(n), x, top - 16);
     }
   }
-  ctx.font = SANS(22, 400);
+  ctx.font = SANS(24, 400);
   ctx.textAlign = 'center';
-  ctx.fillStyle = rgbaHex(C.amber, 0.55 * a * seg(f, T.sort + 24, T.sort + 32));
-  ctx.fillText('左 : 右', 540, AX.base + 82);
+  ctx.fillStyle = rgbaHex(C.amber, 0.6 * a * seg(f, T.sort + 24, T.sort + 32));
+  ctx.fillText('左 : 右', 540, AX.base + 84);
   // card 3 highlights: the all-left world (1/16) and the 2:2 column (6/16)
   const h1 = ease.outCubic(seg(f, T.c3a + 8, T.c3a + 18)) * (1 - seg(f, T.c3End - 10, T.c3End));
   if (h1 > 0) {
@@ -541,7 +561,7 @@ function drawColumnsChrome(ctx: Ctx, f: number) {
     const w = COL_W + 26;
     const h = (COL_W * 4) / 7 + 40;
     brackets(ctx, x - w / 2, y - h / 2 + 4, w, h, 16, C.white, h1 * 0.9, 1.5);
-    ctx.font = MONO(22, 400);
+    ctx.font = MONO(24, 400);
     ctx.textAlign = 'left';
     ctx.fillStyle = `rgba(255,255,255,${(0.85 * h1).toFixed(3)})`;
     ctx.fillText('1/16', x - w / 2, y - h / 2 - 8);
@@ -551,7 +571,7 @@ function drawColumnsChrome(ctx: Ctx, f: number) {
     const x = axX(0.5);
     const top = AX.base - 6 * COL_PITCH - 4;
     brackets(ctx, x - COL_W / 2 - 14, top, COL_W + 28, AX.base - top + 2, 18, C.pale, h2, 1.5);
-    ctx.font = MONO(22, 400);
+    ctx.font = MONO(24, 400);
     ctx.textAlign = 'left';
     ctx.fillStyle = rgbaHex(C.pale, 0.9 * h2);
     ctx.fillText('6/16', x + COL_W / 2 + 22, top + 20);
@@ -561,7 +581,7 @@ function drawColumnsChrome(ctx: Ctx, f: number) {
 
 export function glowCount(ctx: Ctx, f: number) {
   if (f > T.rain + 18) return;
-  if (f < T.deal + 1) {
+  if (f < T.deal) {
     const gf = Math.min(f, T.freeze);
     for (let i = 0; i < 4; i++) {
       const [x, y] = gasPos(i, gf);
@@ -575,6 +595,14 @@ export function glowCount(ctx: Ctx, f: number) {
       ctx.lineWidth = 8;
       ctx.strokeRect(BOX.x0, BOX.y0, BOX.x1 - BOX.x0, BOX.y1 - BOX.y0);
       ctx.restore();
+    }
+  }
+  // the dots' glow follows the frozen world while it shrinks into its cell, fading out (no pop at the deal)
+  if (f >= T.deal && f < T.deal + 12) {
+    const st = boxState(FREEZE_CODE, f);
+    if (st) {
+      const k = 1 - ease.inOutQuad(seg(f, T.deal, T.deal + 12));
+      for (const [x, y] of miniDots(FREEZE_CODE, st.cx, st.cy, st.w, st.canon, T.freeze)) glow(ctx, C.amber, x, y, 34 * Math.sqrt(st.w / 700), 0.55 * k);
     }
   }
   // the 2:2 column glows during card 3 line 2

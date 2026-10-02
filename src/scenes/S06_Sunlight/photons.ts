@@ -136,6 +136,38 @@ const redRise = () =>
     return out;
   });
 
+/** Ledger glyph areas (收/还 heads, the IN/OUT readings, W/m², the category tiles): the streams dim to 22 % in here so
+ *  the numerals stay clean (world ≈ screen while the streams run: the camera push is ≤ 0.3 % before f122). */
+const LEDGER_HOLES: Array<[number, number, number, number]> = [
+  [270, 262, 390, 366],
+  [690, 262, 810, 366],
+  [196, 538, 464, 692],
+  [616, 538, 884, 692],
+  [436, 446, 644, 566],
+];
+const holes = () =>
+  memo('s06:ledgerHoles', () => {
+    const inside = new Path2D();
+    for (const [x0, y0, x1, y1] of LEDGER_HOLES) inside.rect(x0, y0, x1 - x0, y1 - y0);
+    const outside = new Path2D();
+    outside.rect(-4000, -4000, 9000, 9000);
+    outside.addPath(inside);
+    return { inside, outside };
+  });
+/** draw `fn` at full strength outside the ledger glyph areas and at `k` inside them */
+function masked(ctx: CanvasRenderingContext2D, k: number, fn: () => void) {
+  const H = holes();
+  ctx.save();
+  ctx.clip(H.outside, 'evenodd');
+  fn();
+  ctx.restore();
+  ctx.save();
+  ctx.clip(H.inside);
+  ctx.globalAlpha *= k;
+  fn();
+  ctx.restore();
+}
+
 /** Beat-1 ledger streams: gold short-wave rain (left / IN), red long-wave rising (right / OUT). */
 export function drawStreams(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, glow = false) {
   const on = Math.min(seg(frame, T.ledgerIn - 4, T.ledgerIn + 26), 1 - seg(frame, T.streamsDim - 8, T.streamsDim + 16));
@@ -163,11 +195,11 @@ export function drawStreams(ctx: CanvasRenderingContext2D, frame: number, cam: C
   }
   ctx.strokeStyle = glow ? `rgba(255,201,74,${0.5 * on})` : `rgba(255,222,140,${0.75 * on})`;
   ctx.lineWidth = glow ? 5 : 1.2;
-  ctx.stroke(gp);
-  if (!glow) {
-    ctx.fillStyle = `rgba(255,247,224,${0.9 * on})`;
-    ctx.fill(heads);
-  }
+  ctx.fillStyle = `rgba(255,247,224,${0.9 * on})`;
+  masked(ctx, 0.22, () => {
+    ctx.stroke(gp);
+    if (!glow) ctx.fill(heads);
+  });
   // red rising (every direction-ish, lazy long waves), bucketed by fade
   const R = redRise();
   const rp = [new Path2D(), new Path2D(), new Path2D()];
@@ -182,12 +214,14 @@ export function drawStreams(ctx: CanvasRenderingContext2D, frame: number, cam: C
     if (fade <= 0.05) continue;
     waveletPath(rp[Math.min(2, Math.floor(fade * 3))], d.x + dx * t, y0 + dy * t, dx, dy, 150, 7);
   }
-  for (let b = 0; b < 3; b++) {
-    const f = (b + 0.5) / 3;
-    ctx.strokeStyle = glow ? `rgba(255,59,47,${0.4 * on * f})` : `rgba(255,90,70,${0.6 * on * f})`;
-    ctx.lineWidth = glow ? 7 : 1.5;
-    ctx.stroke(rp[b]);
-  }
+  masked(ctx, 0.22, () => {
+    for (let b = 0; b < 3; b++) {
+      const f = (b + 0.5) / 3;
+      ctx.strokeStyle = glow ? `rgba(255,59,47,${0.4 * on * f})` : `rgba(255,90,70,${0.6 * on * f})`;
+      ctx.lineWidth = glow ? 7 : 1.5;
+      ctx.stroke(rp[b]);
+    }
+  });
   ctx.restore();
 }
 
@@ -393,39 +427,54 @@ export function drawImpact(ctx: CanvasRenderingContext2D, frame: number, cam: Ca
   ctx.restore();
 }
 
-/** Beat 4: ghost fans — all the other ways the 20 photons could have left (counting arrangements). */
+/** Beat 4: all the other ways out (S03's counting, in this scene's own glyph). The same 20 one-crest wavelets, dimmed,
+ *  in re-shuffled arrangements around the impact point — each held 6 frames with a soft cross-fade (≤ 2 on screen):
+ *  the same energy, the same 20 photons, another arrangement… and another. */
+const GHOST_HOLD = 6;
 export function drawGhostFans(ctx: CanvasRenderingContext2D, frame: number, cam: Cam) {
   const on = Math.min(seg(frame, T.ghostStart, T.ghostStart + 14), 1 - seg(frame, T.ghostEnd - 24, T.ghostEnd));
   if (on <= 0) return;
   ctx.save();
   applyWorld(ctx, cam);
   ctx.globalCompositeOperation = 'lighter';
-  const period = 2;
-  const cur = Math.floor(frame / period);
   const ox = HERO.x;
   const oy = LIMB_Y - 4;
-  for (let g = 0; g < 5; g++) {
-    const id = cur - g;
-    const age = (frame - id * period) / (period * 5);
-    const a = on * (1 - age);
-    if (a <= 0) continue;
-    const rays = new Path2D();
-    const dots = new Path2D();
-    for (let i = 0; i < 20; i++) {
-      const ang = (hash01(id * 20 + i, 77) - 0.5) * 2 * 1.33;
-      const L = 200 + 520 * Math.sqrt(hash01(id * 20 + i, 78));
-      const x = ox + Math.sin(ang) * L;
-      const y = oy - Math.cos(ang) * L;
-      rays.moveTo(ox + Math.sin(ang) * 24, oy - Math.cos(ang) * 24);
-      rays.lineTo(x, y);
-      dots.moveTo(x + 3.2, y);
-      dots.arc(x, y, 3.2, 0, TAU);
+  const t = frame - T.ghostStart;
+  const cur = Math.floor(t / GHOST_HOLD);
+  for (let id = cur - 1; id <= cur; id++) {
+    if (id < 0) continue;
+    // trapezoid weight: in over 3 frames, hold, out over 3 frames (overlapping the next one)
+    const a0 = id * GHOST_HOLD;
+    const w = Math.min(clamp((t - a0 + 1) / 3), 1 - clamp((t - a0 - GHOST_HOLD + 1) / 3));
+    if (w <= 0.01) continue;
+    const a = on * w;
+    const P = new Path2D();
+    const B = new Path2D();
+    // a fresh permutation of the 20 fan slots
+    const slots = Array.from({ length: 20 }, (_, i) => i);
+    for (let i = 19; i > 0; i--) {
+      const j = Math.floor(hash01(id * 37 + i, 77) * (i + 1));
+      const tmp = slots[i];
+      slots[i] = slots[j];
+      slots[j] = tmp;
     }
-    ctx.strokeStyle = `rgba(255,70,55,${a * 0.24})`;
-    ctx.lineWidth = 1;
-    ctx.stroke(rays);
-    ctx.fillStyle = `rgba(255,150,120,${a * 0.8})`;
-    ctx.fill(dots);
+    for (let i = 0; i < 20; i++) {
+      const sl = slots[i] + 0.5 + (hash01(id * 20 + i, 79) - 0.5) * 0.8;
+      const ang = ((-80 + (160 * sl) / 20) * Math.PI) / 180;
+      const dx = Math.sin(ang);
+      const dy = -Math.cos(ang);
+      const d = 150 + 430 * Math.sqrt(hash01(id * 20 + i, 78));
+      const x0 = ox + dx * d;
+      const y0 = oy + dy * d;
+      waveletPath(P, x0, y0, dx, dy, HERO.redL, HERO.redAmp);
+      const [bx, by] = waveletCrest(x0, y0, dx, dy, HERO.redL, HERO.redAmp);
+      B.rect(bx - 1.6, by - 1.6, 3.2, 3.2);
+    }
+    ctx.strokeStyle = `rgba(255,70,52,${(0.26 * a).toFixed(3)})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke(P);
+    ctx.fillStyle = `rgba(255,170,150,${(0.4 * a).toFixed(3)})`;
+    ctx.fill(B);
   }
   ctx.restore();
 }
@@ -504,7 +553,7 @@ export function drawIR(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, g
   const beads = new Path2D();
   const flashes = new Path2D();
   // the dive leaves the fans behind (they would fly at the camera ×36 magnified)
-  const diveOut = 1 - ease.inOutSine(seg(frame, T.diveStart, T.diveStart + 22));
+  const diveOut = 1 - ease.inOutSine(seg(frame, T.diveStart - 2, T.diveStart + 26));
   if (diveOut <= 0.01) {
     ctx.restore();
     return;
@@ -573,7 +622,7 @@ export function drawIR(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, g
   }
   for (let b = 0; b < NBK; b++) {
     const a = (b + 0.5) / NBK;
-    ctx.strokeStyle = glow ? `rgba(255,59,47,${(0.5 * a).toFixed(3)})` : `rgba(255,84,64,${(0.9 * a).toFixed(3)})`;
+    ctx.strokeStyle = glow ? `rgba(255,59,47,${(0.42 * a).toFixed(3)})` : `rgba(255,96,72,${(0.8 * a).toFixed(3)})`;
     ctx.lineWidth = glow ? 6 : 1.5;
     ctx.stroke(W[b]);
   }
@@ -606,9 +655,8 @@ function wletPath(path: Path2D, x0: number, y0: number, dx: number, dy: number, 
 // 阳光 · 0.5 µm rides the falling gold packet, 红外 · 10 µm one outgoing red packet; both then glide into the ledger
 // under their counters (IN 1 | OUT 20) with λ ×20 between them, and stay until the ledger leaves (f306).
 export const LABEL_FONTS: Array<[string, string]> = [
-  [`400 24px ${FONT.mono}`, '·0.5µm10 λ×'],
-  [`600 28px ${FONT.serif}`, '阳光红外'],
-  [`400 26px ${FONT.mono}`, 'λ×20'],
+  [`400 26px ${FONT.mono}`, '·0.5µm10 λ×20'],
+  [`600 30px ${FONT.serif}`, '阳光红外'],
 ];
 export const labelsOn = (f: number) => f >= T.photonEmit && f < T.ledgerOut + 28;
 
@@ -623,10 +671,10 @@ const labelPick = () =>
 
 function tagWidth(ctx: CanvasRenderingContext2D, cn: string, rest: string) {
   ctx.save();
-  ctx.font = `600 28px ${FONT.serif}`;
+  ctx.font = `600 30px ${FONT.serif}`;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
   const w1 = ctx.measureText(cn).width;
-  ctx.font = `400 24px ${FONT.mono}`;
+  ctx.font = `400 26px ${FONT.mono}`;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
   const w2 = ctx.measureText(rest).width;
   ctx.restore();
@@ -642,7 +690,7 @@ function tag(ctx: CanvasRenderingContext2D, x: number, y: number, cn: string, re
   // dark pill so the tag stays legible over the photons and the ledger
   ctx.fillStyle = 'rgba(4,5,11,0.85)';
   ctx.beginPath();
-  ctx.roundRect(x0 - 14, y - 22, W + 28, 44, 22);
+  ctx.roundRect(x0 - 15, y - 24, W + 30, 48, 24);
   ctx.fill();
   ctx.strokeStyle = glow.replace(/[\d.]+\)$/, '0.35)');
   ctx.lineWidth = 1;
@@ -652,10 +700,10 @@ function tag(ctx: CanvasRenderingContext2D, x: number, y: number, cn: string, re
   ctx.fillStyle = color;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.font = `600 28px ${FONT.serif}`;
+  ctx.font = `600 30px ${FONT.serif}`;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
   ctx.fillText(cn, x0, y + 1);
-  ctx.font = `400 24px ${FONT.mono}`;
+  ctx.font = `400 26px ${FONT.mono}`;
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '2px';
   ctx.fillText(rest, x0 + w1 + 10, y + 1);
   ctx.restore();

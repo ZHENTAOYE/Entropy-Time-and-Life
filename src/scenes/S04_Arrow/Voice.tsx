@@ -4,9 +4,12 @@
 //   · per-glyph custom motion `fx` (越早 / 越低 sinking baselines, 滚落 rolling down the slope)
 //   · `echo` ghost copies (之后 with a motion trail)
 //   · `halo` = a custom legibility halo colour (paper-coloured on light backgrounds, dark on dark ones)
+//   · faster grammar than the lib default (condense: 0.4 f/char stagger, 12 f; diffuse: 13 f) so every line is fully
+//     formed for as long as possible inside the screenplay's card windows
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
-import { FONT, useFontsReady } from '../../lib/fonts';
+import { FONT } from '../../lib/fonts';
+import { useLazyFonts } from './fontGate';
 import { hash01, seedOf } from '../../lib/random';
 import { clamp, ease, seg } from '../../lib/math';
 
@@ -116,9 +119,9 @@ export const Voice: React.FC<VoiceProps> = (p) => {
     letterSpacing = 0.08,
     lineHeight = 1.55,
     maxWidth = 960,
-    enterLen = 18,
-    exitLen = 26,
-    stagger = 1,
+    enterLen = 12,
+    exitLen = 13,
+    stagger = 0.4,
     lineDelay,
     lineDx,
     seed = seedOf(text),
@@ -133,9 +136,9 @@ export const Voice: React.FC<VoiceProps> = (p) => {
   const specs: Array<[string, string]> = [[`${weight} ${size}px ${FONT.serif}`, plain]];
   if (accentWeight) specs.push([`${accentWeight} ${size}px ${FONT.serif}`, plain]);
   if (accent2Weight) specs.push([`${accent2Weight} ${size}px ${FONT.serif}`, plain]);
-  useFontsReady(specs);
-
   const local = frame - from;
+  useLazyFonts(specs, local >= -20 && local < dur);
+
   if (local < 0 || local >= dur) return null;
   const { glyphs, lines } = parse(text);
   const exitStart = dur - exitLen;

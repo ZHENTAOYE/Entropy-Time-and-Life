@@ -18,7 +18,7 @@ export function glowSprite(hex: string): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = S;
     c.height = S;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     const [r, gg, b] = hexToRgb(hex);
     const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     grad.addColorStop(0, `rgba(${r},${gg},${b},1)`);
@@ -45,7 +45,7 @@ export function gridCanvas(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = 1080;
     c.height = 1920;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     const { ox, oy, minor, major } = GRID;
     g.lineWidth = 1;
     g.strokeStyle = C.grid;
@@ -91,7 +91,7 @@ export function vignetteSprite(strength: number): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = 270;
     c.height = 480;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     g.setTransform(270 * 0.75, 0, 0, 480 * 0.62, 135, 240);
     const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
     gr.addColorStop(0, 'rgba(0,0,0,0)');

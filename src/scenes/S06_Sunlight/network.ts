@@ -481,8 +481,9 @@ export function drawInflow(ctx: CanvasRenderingContext2D, frame: number, cam: Ca
   }
   for (let b = 0; b < NB; b++) {
     ctx.strokeStyle = LIFE[b];
-    ctx.globalAlpha = on * (glow ? 0.3 : 0.6) * (0.55 + 0.45 * (b / NB));
-    ctx.lineWidth = glow ? 6 : 1.4;
+    // (main pass: 1 px hairlines at ×1.4 alpha ≈ the 1.4 px strokes S07 continues, at a fraction of the raster cost)
+    ctx.globalAlpha = Math.min(1, on * (glow ? 0.3 : 0.6 * 1.4) * (0.55 + 0.45 * (b / NB)));
+    ctx.lineWidth = glow ? 6 : 1;
     ctx.stroke(FP[b]);
   }
   ctx.globalAlpha = 1;

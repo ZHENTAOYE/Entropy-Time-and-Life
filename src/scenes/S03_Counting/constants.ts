@@ -31,7 +31,8 @@ export const T = {
   // ── card 1 · 4个粒子，数一数。 (0.0–2.2 s)
   click: 0, // cyan → amber flip on 「咔」
   labels: 4,
-  c1: 6,
+  c1: 4,
+  c1End: 94, // C1 stays through the shrink of the box (reading time: 9 chars)
   dividerLift: 10, // divider rises out of the box 10–20 (clack)
   release: 12, // particles may cross from here (closed-form switch of the wall)
   freeze: 74, // the gas decelerates 66–74 and stops: one snapshot = one microstate
@@ -40,9 +41,9 @@ export const T = {
   deal: 78, // the big box shrinks into its cell 78–92; the 15 others peel off it 84–104
   sort: 108, // FLIP into five columns 108–136 (stagger 1 f by code)
   // ── card 3 · 全在左边：1种 / 左右各半：6种 (4.4–7.4 s)
-  c3a: 138,
-  c3b: 160,
-  c3End: 218,
+  c3a: 132,
+  c3b: 150,
+  c3End: 228,
   // ── card 4 · N = 10 → 100 → 10⁴ (7.4–9.4 s)
   toBars: 204, // boxes compress into 4-bit barcodes 204–218
   rain: 214, // N = 10 Galton board: spawns 214–230, all landed by ~251
@@ -50,30 +51,30 @@ export const T = {
   n1e4: 270, // morph to the needle 270–284
   // ── card 5 · 100个粒子全在左边：约 10⁻³⁰ (9.4–12.4 s)
   lottery: 288, // the data curtain falls 288–306
-  c5: 294,
-  c5num: 306,
-  c5End: 374,
+  c5: 290,
+  c5num: 300,
+  c5End: 382,
   // ── card 6 · glass of water (12.4–16.2 s)
-  glass: 366,
-  c6: 374,
+  glass: 372,
+  c6: 382,
   squeeze: 436, // molecules crowd to one side 436–456, hold, relax 474–494
   relax: 474,
-  c6End: 506,
+  c6End: 502,
   // ── card 7 · 每个零，只占1毫米。 (16.2–18.4 s)
   row: 488, // 「P = 0.」 + zeros type on 488–508
-  c7: 504,
+  c7: 500,
   ride: 522, // camera rides along the row (accelerating)
-  c7End: 576,
+  c7End: 600, // C7 rides into the zoom (card 8 has no narration)
   // ── card 8 · powers of ten (18.4–22.0 s)
   zoom: 556,
   zoomEnd: 668,
   // ── card 9 · 这串零，比银河系还长。 (22.0–24.6 s)
-  c9: 664,
+  c9: 654,
   dims: 676,
-  c9End: 742,
+  c9End: 748,
   // ── card 10 · 聚回来，不是不可能——只是太不可能。 (24.6–27.8 s)
-  c10: 742,
-  c10End: 840,
+  c10: 748,
+  c10End: 852,
   // ── card 11 · 熵 (27.8–29.4 s)
   galaxyOut: 826,
   needle: 834,
@@ -81,15 +82,15 @@ export const T = {
   glyphLock: 864,
   // ── card 12 · S = k log W (29.4–31.8 s)
   formula: 890,
-  c12: 892,
+  c12: 884,
   c12End: 960,
   // ── card 13 · 熵不是“乱”。… (31.8–36.4 s)
-  c13: 948,
+  c13: 942,
   boxes6: 958,
-  coarse: 1004,
-  merge: 1020,
-  collapse: 1044,
-  c13End: 1084,
+  coarse: 1000, // the six worlds coarse-grain into the same even stipple 1000–1016
+  merge: 1014, // they slide into one 1014–1032; W = 6 from 1022
+  collapse: 1048, // the box flattens into the row 1048–1072; the line becomes S04's line 1060–1076
+  c13End: 1086, // the last glyph reaches opacity 0 on 1085; 1086-1091 = the bare line
   lineOnly: 1080,
 } as const;
 

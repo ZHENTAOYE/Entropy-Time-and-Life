@@ -69,3 +69,58 @@ export function glowSprite(): HTMLCanvasElement {
     return c;
   });
 }
+
+/**
+ * Draw something gaussian-blurred WITHOUT a canvas `filter` on the big scene canvas (in the software rasteriser a
+ * filtered draw on a 1080×1920 canvas costs ~0.1–0.3 s; on a glyph-sized scratch it is ~0.2 ms). `draw` paints in the
+ * caller's current coordinates, inside the box (x0, y0, w, h); the result is composited with the caller's transform,
+ * clip and globalAlpha. The scratch inherits font / fillStyle / strokeStyle / text alignment / line width.
+ */
+export function drawBlurred(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  blur: number,
+  draw: (s: CanvasRenderingContext2D) => void,
+) {
+  if (blur < 0.15) {
+    draw(ctx);
+    return;
+  }
+  const pad = Math.ceil(blur * 2.6) + 2;
+  const W = Math.ceil((w + 2 * pad) / 32) * 32;
+  const H = Math.ceil((h + 2 * pad) / 32) * 32;
+  const c = scratch(`blur${W}x${H}`, W, H);
+  const s = fresh(c);
+  s.font = ctx.font;
+  s.fillStyle = ctx.fillStyle;
+  s.strokeStyle = ctx.strokeStyle;
+  s.textAlign = ctx.textAlign;
+  s.textBaseline = ctx.textBaseline;
+  s.lineWidth = ctx.lineWidth;
+  s.filter = `blur(${blur.toFixed(2)}px)`;
+  s.translate(pad - x0, pad - y0);
+  draw(s);
+  ctx.drawImage(c, x0 - pad, y0 - pad);
+}
+
+/** the soft dark halo behind text over bright imagery (radial, rgba(2,3,9) 0.6 → 0.34 → 0), cached; draw it scaled
+ *  into the box it should fill (a per-frame radial-gradient fill of that box costs ~30 ms in software) */
+export function haloSprite(): HTMLCanvasElement {
+  return memo('s05:halo', () => {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 128;
+    const x = ctxOf(c);
+    x.setTransform(128, 0, 0, 64, 128, 64);
+    const g = x.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, 'rgba(2,3,8,0.6)');
+    g.addColorStop(0.5, 'rgba(2,3,8,0.36)');
+    g.addColorStop(1, 'rgba(2,3,8,0)');
+    x.fillStyle = g;
+    x.fillRect(-1, -1, 2, 2);
+    return c;
+  });
+}

@@ -114,11 +114,10 @@ export function drawShang(ctx: Ctx, f: number, ready: boolean) {
     ctx.fillText('熵', SHANG.cx, SHANG.cy);
     ctx.restore();
   }
-  // needle label
-  const la = seg(f, T.needle + 4, T.needle + 9) * (1 - seg(f, T.glyph + 2, T.glyph + 8));
+  // needle label (data only: the glass's histogram, N ≈ 10²⁵ — every arrangement sits at 各半)
+  const la = seg(f, T.needle + 3, T.needle + 7) * (1 - seg(f, T.glyph + 4, T.glyph + 10));
   if (la > 0.003) {
-    drawRich(ctx, [{ t: '一杯水 · N ≈ 10' }, { t: '25', sup: true }], 560, ROW.y - NEEDLE_H + 20, { font: MONO(24, 400), size: 24, color: C.pale, alpha: 0.85 * la });
-    drawRich(ctx, [{ t: '几乎全部的排列，都在“各半”' }], 560, ROW.y - NEEDLE_H + 56, { font: SANS(22, 400), size: 22, color: C.amber, alpha: 0.75 * la });
+    drawRich(ctx, [{ t: '一杯水 · N ≈ 10' }, { t: '25', sup: true }], 562, ROW.y - NEEDLE_H * needleH(f) + 18, { font: MONO(28, 400), size: 28, color: C.pale, alpha: 0.9 * la });
   }
 }
 
@@ -145,12 +144,12 @@ interface FormLayout {
 }
 function formLayout(): FormLayout {
   return memo('S03:formLayout', () => {
-    const c = document.createElement('canvas').getContext('2d')!;
+    const c = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
     const xs: number[] = [];
     const ws: number[] = [];
     let total = 0;
-    PARTS.forEach((p) => {
-      c.font = p === ' = ' || p === ' log ' ? LATIN(FORM.size, 600, p === ' log ') : LATIN(FORM.size, 600, true);
+    PARTS.forEach((p, i) => {
+      c.font = partFont(i);
       const w = c.measureText(p).width;
       ws.push(w);
       total += w;
@@ -163,28 +162,34 @@ function formLayout(): FormLayout {
     return { xs, ws, total };
   });
 }
-const partFont = (i: number) => (PARTS[i] === ' = ' ? LATIN(FORM.size, 600) : PARTS[i] === ' log ' ? LATIN(FORM.size, 600, true) : LATIN(FORM.size, 600, true));
+/** S, k, W are variables (italic); = and the function name log are upright, as on the tombstone and in print */
+function partFont(i: number) {
+  return PARTS[i] === ' = ' || PARTS[i] === ' log ' ? LATIN(FORM.size, 600) : LATIN(FORM.size, 600, true);
+}
 
-/** stone texture (memo) */
+/** stone texture (memo): dark granite — near-neutral grey with mineral grains (salt-and-pepper) and faint veins, so
+ * it reads as polished stone under the amber light, not as wood */
 function stoneCanvas(): HTMLCanvasElement {
   return memo('S03:stone', () => {
     const W = STELE.x1 - STELE.x0;
     const H = STELE.y1 - STELE.y0;
     const c = document.createElement('canvas');
-    c.width = Math.ceil(W / 3);
-    c.height = Math.ceil(H / 3);
-    const g = c.getContext('2d')!;
+    c.width = Math.ceil(W / 2);
+    c.height = Math.ceil(H / 2);
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     const img = g.createImageData(c.width, c.height);
     const N = makeNoise(808);
     for (let y = 0; y < c.height; y++) {
       for (let x = 0; x < c.width; x++) {
-        const n = N.fbm2(x / 47, y / 47, 3) * 0.6 + N.n2(x / 4, y / 4) * 0.25 + N.n2(x / 1.2, y / 1.2) * 0.15;
-        const vein = Math.exp(-Math.abs(N.fbm2(x / 107 + 3, y / 60, 2) * 6 - 0.4) * 3) * 0.25;
-        const v = 0.5 + 0.5 * n + vein;
+        const n = N.fbm2(x / 70, y / 70, 3) * 0.55 + N.n2(x / 6, y / 6) * 0.2;
+        const vein = Math.exp(-Math.abs(N.fbm2(x / 150 + 3, y / 90 + x / 400, 2) * 7 - 0.3) * 4) * 0.3;
+        const h = hash01(x * 7919 + y * 104729, 31);
+        const grain = h < 0.05 ? 0.55 : h < 0.12 ? 0.25 : h > 0.95 ? -0.35 : 0;
+        const v = Math.max(0, 0.45 + 0.45 * n + vein + grain);
         const o = (y * c.width + x) * 4;
-        img.data[o] = 22 + 26 * v;
-        img.data[o + 1] = 16 + 18 * v;
-        img.data[o + 2] = 10 + 10 * v;
+        img.data[o] = 21 + 30 * v;
+        img.data[o + 1] = 20 + 27 * v;
+        img.data[o + 2] = 19 + 24 * v;
         img.data[o + 3] = 255;
       }
     }
@@ -200,7 +205,7 @@ function formulaSprite(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = 1080;
     c.height = 360;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     const base = 250; // baseline inside the sprite
     const drawParts = (ctx2: CanvasRenderingContext2D, dx: number, dy: number, skipW = false) => {
       ctx2.textBaseline = 'alphabetic';
@@ -223,7 +228,7 @@ function formulaSprite(): HTMLCanvasElement {
       const t = document.createElement('canvas');
       t.width = c.width;
       t.height = c.height;
-      const tg = t.getContext('2d')!;
+      const tg = t.getContext('2d', { willReadFrequently: true })!;
       tg.fillStyle = '#fff';
       drawParts(tg, 0, 0, true);
       tg.globalCompositeOperation = 'destination-out';
@@ -244,7 +249,7 @@ function wMask(): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = 1080;
     c.height = 360;
-    const g = c.getContext('2d')!;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
     g.font = partFont(4);
     g.fillStyle = '#fff';
     g.textBaseline = 'alphabetic';
@@ -261,7 +266,7 @@ function drawW(ctx: Ctx, f: number, a: number) {
     c.height = 360;
     return c;
   });
-  const g = scratch.getContext('2d')!;
+  const g = scratch.getContext('2d', { willReadFrequently: true })!;
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'source-over';
   g.clearRect(0, 0, 1080, 360);
@@ -274,7 +279,7 @@ function drawW(ctx: Ctx, f: number, a: number) {
     const row = Math.floor((y + scroll) / rowH);
     for (let x = x0, k = 0; x < x1; x += bw + 2, k++) {
       const code = Math.floor(hash01(row * 37 + k, 515) * 1024);
-      barcode(g, x, y - (scroll % rowH), bw, rowH - 1, code, 10, hash01(row + k, 3) > 0.92 ? '#FFFFFF' : C.pale, 1, 0.22);
+      barcode(g, x, y - (scroll % rowH), bw, rowH - 1, code, 10, hash01(row + k, 3) > 0.92 ? '#FFFFFF' : C.pale, 1, 0.34);
     }
   }
   g.globalCompositeOperation = 'destination-in';
@@ -282,7 +287,25 @@ function drawW(ctx: Ctx, f: number, a: number) {
   ctx.save();
   ctx.globalAlpha = a;
   ctx.drawImage(scratch, 0, FORM.y - 250);
+  // a gilded rim so the W reads as a letter made of microstates
+  ctx.drawImage(wOutline(), 0, FORM.y - 250);
   ctx.restore();
+}
+function wOutline(): HTMLCanvasElement {
+  return memo('S03:wOutline', () => {
+    const L = formLayout();
+    const c = document.createElement('canvas');
+    c.width = 1080;
+    c.height = 360;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    g.font = partFont(4);
+    g.textBaseline = 'alphabetic';
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,214,140,0.85)';
+    g.lineWidth = 2;
+    g.strokeText('W', L.xs[4], 250);
+    return c;
+  });
 }
 
 export function steleAlpha(f: number) {
@@ -397,7 +420,7 @@ export function drawStele(ctx: Ctx, f: number, ready: boolean) {
       c.height = 360;
       return c;
     });
-    const g = scratch.getContext('2d')!;
+    const g = scratch.getContext('2d', { willReadFrequently: true })!;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, 1080, 360);
@@ -415,7 +438,7 @@ export function drawStele(ctx: Ctx, f: number, ready: boolean) {
   }
   // inscription + note under W
   const ia = a * seg(f, T.formula + 28, T.formula + 38);
-  drawRich(ctx, [{ t: 'L. BOLTZMANN  ·  1844 – 1906  ·  WIEN, ZENTRALFRIEDHOF' }], 540, STELE.y1 - 40, { font: MONO(17, 400), size: 17, color: C.amber, align: 'center', alpha: 0.7 * ia, tracking: 1.5 });
+  drawRich(ctx, [{ t: 'L. BOLTZMANN  ·  1844 – 1906  ·  WIEN, ZENTRALFRIEDHOF' }], 540, STELE.y1 - 42, { font: MONO(19, 400), size: 19, color: C.pale, align: 'center', alpha: 0.72 * ia, tracking: 1.2 });
   const na = a * seg(f, T.formula + 36, T.formula + 44);
   if (na > 0.003) {
     const wx = L.xs[4] + L.ws[4] * 0.5;
@@ -425,7 +448,7 @@ export function drawStele(ctx: Ctx, f: number, ready: boolean) {
     ctx.moveTo(wx, FORM.y + 22);
     ctx.lineTo(wx, FORM.y + 62);
     ctx.stroke();
-    drawRich(ctx, [{ t: '那串零有多长，熵就差多少' }], Math.min(wx + 60, 900), FORM.y + 96, { font: SANS(25, 400), size: 25, color: C.pale, align: 'right', alpha: 0.9 * na });
+    drawRich(ctx, [{ t: '那串零有多长，熵就差多少' }], Math.min(wx + 60, 900), FORM.y + 98, { font: SANS(27, 400), size: 27, color: C.pale, align: 'right', alpha: 0.92 * na });
   }
   ctx.restore();
 }
@@ -476,6 +499,27 @@ export function glowStele(ctx: Ctx, f: number) {
 }
 
 // ------------------------------------------------------------------ card 13: six worlds, one look → the line
+/** a uniform fine stipple (tile): the coarse-grained density — identical everywhere, whatever the microstate */
+function stipple(): HTMLCanvasElement {
+  return memo('S03:stipple', () => {
+    const S = 48;
+    const c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    const r = mulberry32(4711);
+    for (let j = 0; j < 6; j++) {
+      for (let i = 0; i < 6; i++) {
+        const px = i * 8 + 1 + r() * 5;
+        const py = j * 8 + 1 + r() * 5;
+        g.fillStyle = r() > 0.8 ? 'rgba(255,240,210,0.9)' : 'rgba(255,214,150,0.6)';
+        g.fillRect(px, py, 1.6, 1.6);
+      }
+    }
+    return c;
+  });
+}
+
 const SIX = [3, 5, 6, 9, 10, 12];
 const SIXW = 236;
 function sixCell(j: number): [number, number] {
@@ -515,9 +559,10 @@ export function drawSix(ctx: Ctx, f: number) {
   if (la > 0.003) {
     drawRich(ctx, [{ t: '左 : 右 = 2 : 2' }], 540, 448 + merge * 40, { font: MONO(26, 400), size: 26, color: C.amber, align: 'center', alpha: 0.8 * la });
   }
-  const wa = seg(f, T.merge + 12, T.merge + 20) * (1 - seg(f, T.collapse - 2, T.collapse + 6));
+  // the payoff: six arrangements, one look → W = 6 (held ~0.8 s before everything flattens into the line)
+  const wa = ease.outCubic(seg(f, T.merge + 8, T.merge + 16)) * (1 - seg(f, T.collapse - 2, T.collapse + 6));
   if (wa > 0.003) {
-    drawRich(ctx, [{ t: 'W = 6', font: LATIN(64, 600, true) }], MERGED.cx + MERGED.w / 2 + 28, MERGED.cy + 20, { font: LATIN(64, 600, true), size: 64, color: C.pale, alpha: wa });
+    drawRich(ctx, [{ t: 'W = 6', font: LATIN(76, 600, true) }], MERGED.cx + MERGED.w / 2 + 26, MERGED.cy + 24, { font: LATIN(76, 600, true), size: 76, color: '#FFF1D0', alpha: wa });
   }
 }
 
@@ -547,17 +592,18 @@ function drawWorld(ctx: Ctx, code: number, cx: number, cy: number, w: number, hS
     ctx.lineTo(cx, y + h - 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    // coarse-grained halves: an even density on each side (what a macroscopic eye sees)
+    // coarse-grained halves: what a macroscopic eye sees — the same even density on each side, in every world
     if (coarse > 0.003) {
-      for (const side of [0, 1]) {
-        const gx = x + (side ? w / 2 : 0);
-        const gr = ctx.createLinearGradient(0, y, 0, y + h);
-        gr.addColorStop(0, rgbaHex(C.amber, 0.1 * coarse * a));
-        gr.addColorStop(0.5, rgbaHex(C.pale, 0.26 * coarse * a));
-        gr.addColorStop(1, rgbaHex(C.amber, 0.1 * coarse * a));
-        ctx.fillStyle = gr;
-        ctx.fillRect(gx + 3, y + 3, w / 2 - 6, h - 6);
-      }
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x + 3, y + 3, w - 6, h - 6);
+      ctx.clip();
+      ctx.fillStyle = rgbaHex(C.amber, 0.09 * coarse * a);
+      ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.globalAlpha = 0.75 * coarse * a;
+      ctx.fillStyle = ctx.createPattern(stipple(), 'repeat') ?? rgbaHex(C.pale, 0.2);
+      ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.restore();
     }
     // the two particles on each side
     for (let i = 0; i < 4; i++) {

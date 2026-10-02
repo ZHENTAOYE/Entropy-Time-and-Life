@@ -5,16 +5,17 @@
 //    continents from 3D simplex fbm on the sphere (no map, no seams), evaluated only where the day side can show
 //    them. The Earth does not visibly rotate in 19 s (0.08°), so the cap is static. Drawn clipped to the vector disc
 //    (crisp limb at any zoom).
-//  · DIVE: the cap hands over (by lz ≈ 0.26, hidden by a cloud deck) to dusk LAND drawn as ONE tileable relief
-//    texture at five scales ×4 apart, cross-faded in log-zoom (each layer lives only while it is magnified 0.25–4×):
-//    detail is resolved at every zoom of the ×36 dive. Everything is clipped to the planet disc; the whole world fades
-//    to #04050B over f426–454 (frame-based: ≤ ~2/255 mean luminance per frame) and is not drawn after (no pop).
+//  · DIVE: the cap hands over early (lz 0.015–0.09, before its ¼-res raster is visibly magnified) to dusk LAND drawn
+//    as ONE tileable relief texture at five scales ×4 apart, cross-faded in log-zoom (each layer lives only while it
+//    is magnified 0.25–4×): detail is resolved at every zoom of the ×36 dive; the land carries the terminator shading
+//    (lit near the limb, night below). The IR aura and the atmosphere's outer glow are gone before they are magnified
+//    (no pink band). Everything is clipped to the planet disc; the whole world fades to #04050B over f424–458
+//    (frame-based: ≤ ~2/255 mean luminance per frame) and is not drawn after (no pop).
 import { clamp, ease, memo, smoothstep } from '../../lib/math';
 import { makeNoise } from '../../lib/noise';
 import { hash01, mulberry32 } from '../../lib/random';
 import { Cam, applyWorld, groundScale, worldToScreen } from './camera';
 import { EARTH, LIMB_Y } from './palette';
-import { cloudPuffs } from './textures';
 import { T } from './timing';
 import { lerp, seg } from '../../lib/math';
 
@@ -28,7 +29,7 @@ export function earthGeom(frame: number) {
 
 /** the world fades to deep space towards the end of the dive — over FRAMES (≈1–2/255 mean luminance per frame), not
  *  over log-zoom (which crosses lz 0.6 → 0.86 in only 8 frames); nothing of it is drawn once it has reached 0 */
-export const worldFade = (frame: number) => 1 - smoothstep(T.diveStart + 30, T.diveStart + 58, frame);
+export const worldFade = (frame: number) => 1 - smoothstep(T.diveStart + 28, T.diveStart + 62, frame);
 
 /** planet disc in screen space (for clipping rivers / terrain) */
 export function earthDisc(frame: number, cam: Cam): [number, number, number] {
@@ -286,6 +287,17 @@ export function drawLand(ctx: CanvasRenderingContext2D, frame: number, cam: Cam,
     ctx.fillStyle = pat;
     ctx.fill(disc);
   }
+  // terminator shading in world space: dusk-lit just under the limb, night further down (matches the cap it replaces)
+  const e = earthGeom(frame);
+  const yl = worldToScreen(cam, e.cx, e.cy - e.r)[1];
+  const sh = ctx.createLinearGradient(0, yl, 0, yl + 520 * cam.z);
+  sh.addColorStop(0, 'rgb(255,250,240)');
+  sh.addColorStop(0.35, 'rgb(170,170,185)');
+  sh.addColorStop(1, 'rgb(70,78,104)');
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = sh;
+  ctx.fill(disc);
   ctx.restore();
 }
 
@@ -305,24 +317,29 @@ export function drawEarth(ctx: CanvasRenderingContext2D, frame: number, cam: Cam
   // the sky fills with infrared (B5): a broad, faint red glow above the whole limb
   if (irFill > 0.002) {
     const g = ctx.createRadialGradient(cx, cy, r, cx, cy, r + 1150);
-    g.addColorStop(0, `rgba(255,59,47,${0.2 * irFill})`);
-    g.addColorStop(0.3, `rgba(170,24,34,${0.1 * irFill})`);
+    g.addColorStop(0, `rgba(255,59,47,${0.1 * irFill})`);
+    g.addColorStop(0.3, `rgba(170,24,34,${0.04 * irFill})`);
     g.addColorStop(1, 'rgba(122,14,26,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(cx, cy, r + 1150, Math.PI, 2 * Math.PI);
     ctx.fill();
   }
-  // atmosphere outer glow (forward-scattered sunlight above the limb)
-  const ag = ctx.createRadialGradient(cx, cy, r - 2, cx, cy, r + 120);
-  ag.addColorStop(0, 'rgba(150,225,255,0.62)');
-  ag.addColorStop(0.06, 'rgba(91,200,255,0.3)');
-  ag.addColorStop(0.32, 'rgba(60,140,255,0.07)');
-  ag.addColorStop(1, 'rgba(40,100,255,0)');
-  ctx.fillStyle = ag;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 120, Math.PI, 2 * Math.PI);
-  ctx.fill();
+  // atmosphere outer glow (forward-scattered sunlight above the limb) — kept thin on screen while the camera dives,
+  // and gone before it would be magnified into a coloured band
+  const agA = 1 - smoothstep(0.06, 0.22, cam.lz);
+  if (agA > 0.003) {
+    const AW = 120 / Math.pow(zk, 0.85);
+    const ag = ctx.createRadialGradient(cx, cy, r - 2 / zk, cx, cy, r + AW);
+    ag.addColorStop(0, `rgba(150,225,255,${0.62 * agA})`);
+    ag.addColorStop(0.06, `rgba(91,200,255,${0.3 * agA})`);
+    ag.addColorStop(0.32, `rgba(60,140,255,${0.07 * agA})`);
+    ag.addColorStop(1, 'rgba(40,100,255,0)');
+    ctx.fillStyle = ag;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + AW, Math.PI, 2 * Math.PI);
+    ctx.fill();
+  }
   // IR aura (the Earth glows in the infrared)
   if (irGlow > 0.001) {
     const ig = ctx.createRadialGradient(cx, cy, r, cx, cy, r + 300);
@@ -335,7 +352,7 @@ export function drawEarth(ctx: CanvasRenderingContext2D, frame: number, cam: Cam
     ctx.fill();
   }
   // the planet: shaded cap, clipped to the vector disc; hands over to the land during the dive
-  const capA = 1 - smoothstep(0.03, 0.15, cam.lz);
+  const capA = 1 - smoothstep(0.015, 0.09, cam.lz);
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -368,34 +385,4 @@ export function drawEarth(ctx: CanvasRenderingContext2D, frame: number, cam: Cam
 }
 
 /** land alpha during the dive (takes over from the cap before it is magnified, out with the world) */
-export const landAlpha = (frame: number, cam: Cam) => smoothstep(0.02, 0.13, cam.lz) * worldFade(frame);
-
-/** The cloud deck: the camera falls through it during the dive (screen-space parallax, faster than the ground). */
-export function drawDiveClouds(ctx: CanvasRenderingContext2D, frame: number, cam: Cam) {
-  if (frame < T.diveStart + 6 || frame > T.diveStart + 36) return;
-  const puffs = cloudPuffs();
-  const cx = cam.sx;
-  const cy = cam.sy;
-  ctx.save();
-  // a thin veil while we are inside the deck
-  const veil = Math.exp(-(((frame - (T.diveStart + 20)) / 6) ** 2)) * 0.06;
-  if (veil > 0.01) {
-    ctx.fillStyle = `rgba(190,205,225,${veil})`;
-    ctx.fillRect(0, 0, 1080, 1920);
-  }
-  for (let i = 0; i < 16; i++) {
-    const t0 = T.diveStart + 6 + hash01(i, 91) * 16;
-    const age = frame - t0;
-    if (age < 0 || age > 14) continue;
-    const s = Math.exp(age * 0.2);
-    const a = Math.sin(Math.PI * (age / 14)) * (0.2 + 0.2 * hash01(i, 92));
-    const ang = hash01(i, 93) * Math.PI * 2;
-    const d0 = 60 + 260 * hash01(i, 94);
-    const x = cx + Math.cos(ang) * d0 * s;
-    const y = cy + Math.sin(ang) * d0 * s * 0.8;
-    const w = (260 + 220 * hash01(i, 95)) * s;
-    ctx.globalAlpha = a;
-    ctx.drawImage(puffs[i % 3], x - w / 2, y - w * 0.4, w, w * 0.8);
-  }
-  ctx.restore();
-}
+export const landAlpha = (frame: number, cam: Cam) => smoothstep(0.008, 0.07, cam.lz) * worldFade(frame);

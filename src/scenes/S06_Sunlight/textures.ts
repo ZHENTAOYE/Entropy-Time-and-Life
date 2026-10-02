@@ -84,39 +84,6 @@ export const nebulaTex = () =>
     return c;
   });
 
-/** Soft cloud puffs (white, alpha = density) for the cloud deck the camera passes through during the dive. */
-export const cloudPuffs = () =>
-  memo('s06:cloudPuffs', () => {
-    const nz = makeNoise(4646);
-    const out: HTMLCanvasElement[] = [];
-    const S = 128;
-    for (let v = 0; v < 3; v++) {
-      const c = mk(S, S);
-      const ctx = c.getContext('2d', { willReadFrequently: true })!;
-      const img = ctx.createImageData(S, S);
-      const o = v * 9.3;
-      for (let y = 0; y < S; y++)
-        for (let x = 0; x < S; x++) {
-          const px = (x / S) * 2 - 1;
-          const py = (y / S) * 2 - 1;
-          const q = nz.fbm2(px * 1.6 + o, py * 1.6, 3);
-          const n = nz.fbm2(px * 2.8 + q * 1.4 + o, py * 2.8 + q, 4);
-          const r = Math.hypot(px, py * 1.25) + n * 0.45;
-          const d = Math.max(0, Math.min(1, (0.92 - r) / 0.6));
-          const i = (y * S + x) * 4;
-          // lit from the top (warm), shadowed below (blue-grey)
-          const lit = Math.max(0, Math.min(1, 0.5 - py * 0.6 + n * 0.5));
-          img.data[i] = 150 + 105 * lit;
-          img.data[i + 1] = 160 + 85 * lit;
-          img.data[i + 2] = 185 + 55 * lit;
-          img.data[i + 3] = Math.round(255 * d * d * (0.6 + 0.4 * (n * 0.5 + 0.5)));
-        }
-      ctx.putImageData(img, 0, 0);
-      out.push(c);
-    }
-    return out;
-  });
-
 /** Tinted soft sprite (cached per colour). */
 export const tintDot = (rgb: string) =>
   memo('s06:tdot:' + rgb, () => {

@@ -40,7 +40,7 @@ const Bench: React.FC = () => {
       ctx.getImageData(0, 0, 1, 1);
       return (performance.now() - t1) / n;
     };
-    for (const f of [[20, 100], [150, 176], [200, 230], [270, 330], [370, 470]][bf % 5]) {
+    for (const f of [[20, 56], [92, 128], [160, 200], [222, 290], [372, 470]][bf % 5]) {
       const p = fullParams(webAt(f));
       const geo = webGeometry(p, 160);
       const parts: string[] = [];
@@ -55,6 +55,6 @@ const Bench: React.FC = () => {
     }
     if (ref.current) ref.current.innerText = L.join('\n');
   });
-  return <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#000', color: '#fff', fontSize: 24, fontFamily: 'monospace', padding: 30, whiteSpace: 'pre' }} />;
+  return <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#000', color: '#fff', fontSize: 17, fontFamily: 'monospace', padding: 30, whiteSpace: 'pre' }} />;
 };
 registerRoot(() => <Composition id="Bench" component={Bench} durationInFrames={10} fps={30} width={1080} height={1920} />);

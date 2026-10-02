@@ -75,18 +75,23 @@ export function drawBackground(ctx: CanvasRenderingContext2D, frame: number, cam
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 1080, 1920);
   }
-  // the point's warm light spreads into the cleared space (sun palette only; a soft glow, never a hard disc); it
-  // relaxes into the zodiacal light as the Sun condenses (f22–50)
+  // the point's light floods the cleared space with a short EXPOSURE OVERSHOOT (the eye adapting to light after the
+  // grey): bright warm light fills the opening hole right out to the dissolving front, then settles (f5–38) and
+  // relaxes into the zodiacal light as the Sun condenses (f22–50). Sun palette only; a soft glow, never a hard disc.
   const dawn = Math.min(seg(frame, T.floodStart, T.floodStart + 4), 1 - ease.inOutSine(seg(frame, 22, 50)));
   if (dawn > 0.01) {
-    const Rd = Math.max(80, Math.min(R, 1400) * 0.95);
+    const E = 1 + 1.2 * (1 - seg(frame, 5, 38)) ** 2;
+    const k = (a: number) => Math.min(1, a * dawn * E).toFixed(3);
+    const Rd = Math.max(90, Math.min(R + 30, 1500));
     const g = ctx.createRadialGradient(px, py, 0, px, py, Rd);
-    g.addColorStop(0, `rgba(255,247,224,${0.9 * dawn})`);
-    g.addColorStop(0.03, `rgba(255,222,150,${0.62 * dawn})`);
-    g.addColorStop(0.12, `rgba(255,190,90,${0.34 * dawn})`);
-    g.addColorStop(0.32, `rgba(255,150,50,${0.17 * dawn})`);
-    g.addColorStop(0.6, `rgba(200,100,40,${0.07 * dawn})`);
-    g.addColorStop(1, 'rgba(80,40,20,0)');
+    g.addColorStop(0, `rgba(255,248,230,${k(1)})`);
+    g.addColorStop(0.03, `rgba(255,230,170,${k(0.7)})`);
+    g.addColorStop(0.1, `rgba(255,205,120,${k(0.46)})`);
+    g.addColorStop(0.25, `rgba(255,170,72,${k(0.28)})`);
+    g.addColorStop(0.45, `rgba(240,140,50,${k(0.17)})`);
+    g.addColorStop(0.7, `rgba(210,110,40,${k(0.1)})`);
+    g.addColorStop(0.93, `rgba(190,100,40,${k(0.07)})`);
+    g.addColorStop(1, 'rgba(160,80,30,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 1080, 1920);
   }
@@ -128,11 +133,12 @@ export function drawBackground(ctx: CanvasRenderingContext2D, frame: number, cam
 // (large cells, ≤ 0.10) baked into TWO variants with different offsets that cross-fade and counter-rotate: the
 // surface boils. Chromosphere ring, live prominences and spicules on top.
 const LD_RAMP: Array<[number, [number, number, number]]> = [
-  [0.4, [255, 138, 31]],
-  [0.52, [255, 168, 58]],
-  [0.66, [255, 204, 106]],
-  [0.82, [255, 232, 170]],
-  [1, [255, 248, 228]],
+  [0.4, [255, 128, 26]],
+  [0.5, [255, 152, 42]],
+  [0.62, [255, 186, 82]],
+  [0.78, [255, 220, 142]],
+  [0.9, [255, 238, 196]],
+  [1, [255, 248, 230]],
 ];
 const ldColour = (I: number) => {
   let k = 0;
@@ -171,7 +177,7 @@ const sunDiscCache = (variant: number) =>
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
     ctx.globalCompositeOperation = 'soft-light';
-    ctx.globalAlpha = 0.1;
+    ctx.globalAlpha = 0.24;
     const pat = ctx.createPattern(granTex(), 'repeat')!;
     pat.setTransform(new DOMMatrix().translate(variant * 61, variant * 37).rotate(variant * 33).scale(176 / 128));
     ctx.fillStyle = pat;
@@ -238,13 +244,19 @@ export function drawSun(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, 
   applyWorld(ctx, cam);
   const { cx, cy, r } = s;
   if (glowPass) {
-    // bloom source: the disc (strong while it is a star, still generous when big)
-    ctx.globalAlpha = 0.95 - 0.25 * clamp((r - 60) / 300);
-    ctx.fillStyle = '#FFE09A';
+    // bloom source: the disc with its own limb darkening (a flat bright disc washed the volume out), strong while it is
+    // a star, gentler (and over-exposing only the centre) once it is big
+    const big = clamp((r - 60) / 300);
+    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.1);
+    bg.addColorStop(0, `rgba(255,240,200,${0.95 - 0.3 * big})`);
+    bg.addColorStop(0.6, `rgba(255,214,140,${0.9 - 0.42 * big})`);
+    bg.addColorStop(0.88, `rgba(255,160,70,${0.85 - 0.5 * big})`);
+    bg.addColorStop(0.92, `rgba(255,130,50,${0.8 - 0.5 * big})`);
+    bg.addColorStop(1, 'rgba(255,110,40,0)');
+    ctx.fillStyle = bg;
     ctx.beginPath();
-    ctx.arc(cx, cy, r * 1.04, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r * 1.1, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
     ctx.restore();
     return;
   }
@@ -302,14 +314,29 @@ export function drawSun(ctx: CanvasRenderingContext2D, frame: number, cam: Cam, 
         const hh = h * (1 - q * 0.22);
         const cpx = cx + Math.cos(a0 + (q - 1) * 0.012) * (r + 2 * hh);
         const cpy = cy + Math.sin(a0 + (q - 1) * 0.012) * (r + 2 * hh);
-        ctx.strokeStyle = q === 0 ? 'rgba(255,110,50,0.24)' : 'rgba(255,190,120,0.32)';
-        ctx.lineWidth = q === 0 ? 7 * k : 2 * k;
+        ctx.strokeStyle = q === 0 ? 'rgba(255,106,61,0.26)' : 'rgba(255,196,130,0.4)';
+        ctx.lineWidth = q === 0 ? 12 * k : 2.6 * k;
         ctx.beginPath();
         ctx.moveTo(p0[0], p0[1]);
         ctx.quadraticCurveTo(cpx, cpy, p1[0], p1[1]);
         ctx.stroke();
       }
     }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // the chromosphere: a crisp, over-bright hairline along the limb (the disc cache is ½ res)
+  if (r > 60) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = `rgba(255,244,214,${(0.42 * fadeIn).toFixed(3)})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 0.8, 0, Math.PI);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,120,60,${(0.22 * fadeIn).toFixed(3)})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 3, 0, Math.PI);
+    ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
   // spicule fringe along the lower limb (live)

@@ -1,48 +1,24 @@
-// The cosmic web schedule of S04 (one CosmicWeb layer, mounted f138–584 and f626–953) + the additive content drawn
-// into it (it shares the web's fate: goes out with the inversion, etc.).
+// The cosmic web schedule of S04 (one CosmicWeb layer, mounted f140–554 and f610–953) + the additive content drawn
+// into it (it shares the web's fate: goes out with the inversion, etc.). All times come from timing.ts.
 //
-//   rewind  f150–290  present-day lit web + a merger remnant → un-ignite (stars un-light), un-merge, dissolve into
-//                     gas knots, filaments thicken and smooth (c 1 → 0), everything warms (heat 0 → 1); space
-//                     contracts (zoom 1 → 0.55, field galaxies converge on the centre). Slam on the floor at f288.
-//   plasma  f290–584  the floor of time: boiling white-hot plasma, slow push 0.55 → 0.92 (whiteout into the ink)
-//   ink     f626–704  INVERTED web (ink on paper) — the uniform ink gathers into filaments under gravity (c ↑)
-//   flip    f704–746  invert → 0 with the front far above the frame: the light rises from the bottom
-//   ignite  f728–802  stars ignite at the nodes (flashes, shock rings, spikes, gold sparks)
-//   camera  f640–935  zoom 1.06 → 0.8, roll 0 → 6°; f935–953 = WEB_FINAL (t = f / 30 throughout)
-import { WEB_FINAL, WebParams, drawMerger, drawStarfield } from '../../lib/cosmos';
+//   rewind  f146–276  the iris opens on the present-day lit web + a merger remnant. Locked to the look-back counter:
+//                     until 1亿年 nothing moves but the time-compression streaks; 1亿 → 100亿年 space contracts (zoom
+//                     1 → 0.62, field galaxies converge) and the merger un-merges; 100 → 136亿年 stars un-light and the
+//                     galaxies dissolve into gas, filaments thicken and smooth (c 1 → 0); 136 → 137亿年 the dark ages;
+//                     137 → 138亿年 the heat surge into plasma (heat 0 → 1). Slam on the floor of time at f276.
+//   plasma  f276–554  the floor of time: boiling white-hot plasma, slow push 0.62 → 0.92 (whiteout into the ink)
+//   ink     f610–732  INVERTED web (ink on paper): uniform spent ink; from f676 it gathers into filaments (c ↑)
+//   flip    f732–758  invert → 0 with the front far above the frame: the light rises from the bottom (C7 has gone)
+//   ignite  f744–808  stars ignite at the nodes (flashes, shock rings, spikes, gold sparks)
+//   camera  f628–932  zoom 1.45 → 0.8, roll 0 → 6°; f935–953 = WEB_FINAL (t = f / 30 throughout)
+import { WebParams, drawMerger, drawStarfield } from '../../lib/cosmos';
 import { clamp, ease, lerp, memo, prog, seg, smoothstep } from '../../lib/math';
 import { mulberry32 } from '../../lib/random';
 import { T } from './timing';
 
-export const IX = 540;
-export const IY = -6000;
-
-export function webParams(f: number): WebParams {
-  const t = f / 30;
-  if (f >= T.still) return { ...WEB_FINAL, t };
-  if (f < T.cosmosOff + 20) {
-    // rewind → plasma
-    const ignite = 1 - prog(f, T.unIgnite[0], T.unIgnite[1], ease.inOutSine);
-    const c = 1 - prog(f, T.unClump[0], T.unClump[1], ease.inOutSine);
-    const heat = prog(f, T.heatUp[0], T.heatUp[1], ease.inOutCubic);
-    const zoom = f < 290 ? lerp(1, 0.55, prog(f, T.contract[0], T.contract[1], ease.inOutCubic)) : lerp(0.55, 0.92, prog(f, 290, 600, ease.inOutSine));
-    const roll = -0.05 * prog(f, 150, 290, ease.inOutSine) + 0.03 * prog(f, 300, 600, ease.inOutSine);
-    const exposure = 1 - 0.3 * smoothstep(140, 176, f) * (1 - smoothstep(214, 262, f)) + 0.38 * prog(f, T.whiteOut[0], T.whiteOut[1], ease.inOutSine);
-    // floor of time → Penrose: the camera tilts up (the plasma drifts down the frame)
-    const cy = -0.9 * prog(f, 286, 560, ease.inOutSine);
-    return { c, heat, ignite, igniteRate: 0.55, sparks: 1 - prog(f, 160, 214), zoom, roll, t, exposure, cy };
-  }
-  // gravity: inverted ink gathers → flip to light → ignition → camera settles on WEB_FINAL
-  const kc = prog(f, T.camera[0], T.camera[1], ease.inOutCubic);
-  const zoom = Math.exp(lerp(Math.log(1.45), Math.log(WEB_FINAL.zoom), kc));
-  const roll = lerp(0, WEB_FINAL.roll, kc);
-  const c = lerp(0.12, 1, prog(f, T.clump[0], 792, ease.inOutSine));
-  let invert = 1;
-  if (f >= T.flip[0]) invert = f >= T.flip[1] ? 0 : lerp(0.975, 0.66, prog(f, T.flip[0], T.flip[1], ease.inOutSine));
-  const ignite = prog(f, T.ignite[0], T.ignite[1], ease.inOutSine);
-  const sparks = prog(f, T.sparksUp[0], T.sparksUp[1], ease.inOutSine);
-  return { c, heat: 0, ignite, igniteRate: 0.42, sparks, zoom, roll, t, invert, ix: IX, iy: IY };
-}
+export { IX, IY, ZMIN, webParams } from './webTrack';
+import { ZMIN } from './webTrack';
+import { irisRadius } from './arrow';
 
 // ───────────────────────── field galaxies (converge as space contracts) ─────────────────────────
 interface FieldGal {
@@ -140,17 +116,17 @@ export function drawMotes(ctx: CanvasRenderingContext2D, f: number, zoom: number
 /** Additive content drawn INTO the CosmicWeb canvas (logical px, 'lighter'). */
 export function drawCosmosExtras(ctx: CanvasRenderingContext2D, f: number, P: WebParams) {
   const t = f / 30;
-  if (f < 300) {
-    const a = P.zoom; // scale factor of space (1 → 0.55)
+  if (f < T.slam + 6) {
+    const a = P.zoom; // scale factor of space (1 → ZMIN)
     const kd = prog(f, T.mergerDissolve[0], T.mergerDissolve[1], ease.inOutSine);
     // background starfield of the rewind: radial streaks (time tampered with)
-    const streak = 0.65 * smoothstep(150, 172, f) * (1 - smoothstep(240, 280, f));
-    const sfA = 0.55 * (1 - smoothstep(228, 270, f));
-    if (sfA > 0.01) drawStarfield(ctx, { seed: 12, t, density: 0.7, alpha: sfA, zoom: 1 / Math.max(0.55, a), cx: 540, cy: 900, streak, palette: 'natural' });
-    // field galaxies converge (Hubble flow run backward) and melt into the warming gas
+    const streak = 0.65 * smoothstep(150, 172, f) * (1 - smoothstep(240, 268, f));
+    const sfA = 0.55 * (1 - smoothstep(240, 266, f));
+    if (sfA > 0.01) drawStarfield(ctx, { seed: 12, t, density: 0.7, alpha: sfA, zoom: 1 / Math.max(ZMIN, a), cx: 540, cy: 900, streak, palette: 'natural' });
+    // field galaxies converge (Hubble flow run backward) while their stars un-light and they melt into the gas
     const gs = galSprite();
-    const melt = prog(f, 196, 250, ease.inOutSine);
-    const gA = 1 - prog(f, 226, 260);
+    const melt = prog(f, T.mergerDissolve[0] + 2, T.mergerDissolve[1], ease.inOutSine);
+    const gA = 1 - prog(f, 244, 262);
     if (gA > 0.01) {
       for (const g of fieldGalaxies()) {
         const x = 540 + g.x * a,
@@ -167,10 +143,12 @@ export function drawCosmosExtras(ctx: CanvasRenderingContext2D, f: number, P: We
       }
     }
     // the hero: a merger remnant, played backward (un-merges), then un-lights into gas
-    const mA = 1 - prog(f, 236, 266, ease.inOutSine);
-    if (mA > 0.01 && f >= 138) {
+    const mA = 1 - prog(f, 244, 264, ease.inOutSine);
+    // (still hidden behind the arrow layer until the iris has opened past its lower edge, y ≈ 1200)
+    const hidden = f < T.iris[1] && irisRadius(f) < 1290 - 1220;
+    if (mA > 0.01 && f >= T.cosmosOn && !hidden) {
       const p = lerp(0.98, 0.22, prog(f, T.merger[0], T.merger[1], ease.inOutSine));
-      drawMerger(ctx, { cx: 540, cy: 840, scale: 235 * lerp(1, 0.78, prog(f, T.contract[0], T.contract[1])), p, tilt: 0.55, angle: 0.4, seed: 3, t, dissolve: kd, alpha: mA, exposure: 0.8, palette: 'natural' });
+      drawMerger(ctx, { cx: 540, cy: 900, scale: 235 * lerp(1, 0.78, prog(f, T.contract[0], T.contract[1])), p, tilt: 0.55, angle: 0.4, seed: 3, n: 2400, t, dissolve: kd, alpha: mA, exposure: 0.8, palette: 'natural' });
     }
   }
   // the slam: a shock ring on the floor of time
@@ -194,6 +172,6 @@ export function drawCosmosExtras(ctx: CanvasRenderingContext2D, f: number, P: We
     ctx.restore();
   }
   // foreground motes: stars in the cosmic phases (gone before the last frame)
-  const mot = f < 590 ? 1 - smoothstep(250, 290, f) : smoothstep(740, 780, f) * (1 - smoothstep(T.hudOut[0], T.hudOut[1], f));
+  const mot = f < 590 ? 1 - smoothstep(244, 276, f) : smoothstep(T.flip[1], T.flip[1] + 34, f) * (1 - smoothstep(T.hudOut[0], T.hudOut[1], f));
   drawMotes(ctx, f, P.zoom, 0, clamp(mot));
 }

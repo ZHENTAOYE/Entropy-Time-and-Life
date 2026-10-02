@@ -1,7 +1,12 @@
 // S03 sound cues (scene-local frames) for scripts/audio/score.py. `kind` keywords follow score.py's cue_sound():
-// tick/collision/click/type -> tick, crackle/rain -> crackle, impact/stamp/slam -> impact, whoosh/sweep/zoom -> whoosh,
-// glitch -> glitch, flash/spark/shimmer -> high bell, reveal/chime/pop -> bell; swells/silences/beds are for the bed.
-// Gas collisions and crossings are exact (closed-form gas in count.ts, wall contacts sampled at 0.05 f).
+// tick/collision/click/type -> tick, crackle/rain -> crackle, impact/slam -> impact, stamp/settle -> stamp,
+// strike -> strike, whoosh/sweep/zoom/dissolve -> whoosh, glitch -> glitch, shimmer/sparkle/glint -> high bell,
+// chime/reveal/pop -> bell, swell/rise -> swell; silence/hum/hold belong to the bed.
+// Every frame is derived from the beat clock (constants.ts `T`) or from the exact closed-form gas (count.ts), so the
+// cues cannot drift from the picture.
+import { T } from './constants';
+import { BOUNCES, CROSSINGS, LETTERS } from './count';
+
 export interface Cue {
   frame: number;
   kind: string;
@@ -9,89 +14,110 @@ export interface Cue {
   intensity: number;
 }
 
+const cue = (frame: number, kind: string, description: string, intensity: number): Cue => ({ frame: Math.round(frame), kind, description, intensity });
+
+/** the gas of beat 1: every crossing of the old divider line (the microstate changes) and every wall bounce */
+function gasCues(): Cue[] {
+  const out: Cue[] = [];
+  for (const [f, i] of CROSSINGS) {
+    out.push(cue(f, 'tick', `${LETTERS[i]} crosses the middle — its ledger letter hops bins, a new microstate column on the tape`, 0.5));
+  }
+  const per = new Map<number, number>();
+  for (const f of BOUNCES) per.set(f, (per.get(f) ?? 0) + 1);
+  for (const [f, n] of per) out.push(cue(f, 'collision', n > 1 ? `${n} particles hit the walls on the same frame` : 'a particle bounces off a wall', n > 1 ? 0.45 : 0.3));
+  return out;
+}
+
 export const CUES: Cue[] = [
-  { frame: 0, kind: 'click', description: '「咔」 colour-temperature flip: S02’s cyan box + 4 dots become amber (light pulse peaks f1)', intensity: 0.75 },
-  { frame: 4, kind: 'type', description: 'labels A B C D type on next to the dots (4, 7, 10, 13)', intensity: 0.2 },
-  { frame: 6, kind: 'type', description: 'HUD FIG.03 COUNTING MICROSTATES types on; C1 「4个粒子，数一数。」 condenses', intensity: 0.2 },
-  { frame: 10, kind: 'impact', description: 'the divider lifts out of the box (clack, slide up 10–20)', intensity: 0.45 },
-  { frame: 21, kind: 'collision', description: 'D bounces off a wall', intensity: 0.3 },
-  { frame: 22, kind: 'tick', description: 'C crosses to the right — ledger letter hops bins, tape column flips', intensity: 0.5 },
-  { frame: 23, kind: 'collision', description: 'B bounces off a wall', intensity: 0.3 },
-  { frame: 27, kind: 'collision', description: 'A bounces off a wall', intensity: 0.3 },
-  { frame: 30, kind: 'tick', description: 'A crosses to the right (ledger hop)', intensity: 0.5 },
-  { frame: 37, kind: 'tick', description: 'D crosses to the right (ledger hop)', intensity: 0.5 },
-  { frame: 41, kind: 'collision', description: 'C bounces off a wall', intensity: 0.3 },
-  { frame: 45, kind: 'tick', description: 'B crosses to the right — briefly all four on the right (0:4)', intensity: 0.5 },
-  { frame: 47, kind: 'collision', description: 'C bounces off a wall', intensity: 0.3 },
-  { frame: 51, kind: 'collision', description: 'A, B and D hit walls on the same frame (triple tick)', intensity: 0.45 },
-  { frame: 57, kind: 'collision', description: 'A bounces off a wall', intensity: 0.3 },
-  { frame: 61, kind: 'tick', description: 'C crosses back to the left (ledger hop)', intensity: 0.5 },
-  { frame: 66, kind: 'collision', description: 'B bounces off a wall; the gas starts to decelerate (66–74)', intensity: 0.3 },
-  { frame: 67, kind: 'tick', description: 'D crosses back to the left (ledger hop) — final state 2:2', intensity: 0.5 },
-  { frame: 74, kind: 'stamp', description: 'SHUTTER: the gas freezes, white viewfinder brackets — one snapshot = one microstate', intensity: 0.6 },
-  { frame: 78, kind: 'whoosh', description: 'the big box shrinks into its cell of a 4×4 truth table (78–92)', intensity: 0.35 },
-  { frame: 84, kind: 'tick', description: 'the 15 other arrangements peel off the original one by one, every ~1.3 f (84–102), rippling outward', intensity: 0.3 },
-  { frame: 93, kind: 'tick', description: 'peel ripple continues (copy 8 of 15)', intensity: 0.25 },
-  { frame: 102, kind: 'tick', description: 'last copy lands — 16 worlds on screen', intensity: 0.3 },
-  { frame: 108, kind: 'sweep', description: 'FLIP: the 16 worlds fly into five columns (108–141, staggered 1.1 f)', intensity: 0.45 },
-  { frame: 124, kind: 'tick', description: 'worlds land in their columns 124–141 (soft ticks)', intensity: 0.25 },
-  { frame: 132, kind: 'pop', description: 'column counts appear 1 (f132) 4 (134) 6 (136) 4 (138) 1 (140)', intensity: 0.4 },
-  { frame: 138, kind: 'type', description: 'C3 line 1 「全在左边：」 condenses', intensity: 0.2 },
-  { frame: 146, kind: 'slam', description: 'monumental white 「1」 slams in; the all-left world gets white brackets + 1/16', intensity: 0.6 },
-  { frame: 160, kind: 'type', description: 'C3 line 2 「左右各半：」 condenses', intensity: 0.2 },
-  { frame: 168, kind: 'slam', description: 'monumental amber 「6」 slams in; the 2:2 column brackets + glows (swell under it)', intensity: 0.7 },
-  { frame: 194, kind: 'shimmer', description: 'C3 diffuses (194–218)', intensity: 0.15 },
-  { frame: 204, kind: 'glitch', description: 'the worlds compress into 4-bit barcodes (zip)', intensity: 0.35 },
-  { frame: 214, kind: 'rain', description: 'N = 10 Galton board: 1024 microstates bounce through 10 rows of pegs (one bounce per bit) and stack; dense crackle 214–251, peak ~230', intensity: 0.7 },
-  { frame: 232, kind: 'pop', description: 'width bracket 「宽度 16 %」 appears over the bell', intensity: 0.3 },
-  { frame: 251, kind: 'tick', description: 'last microstate lands: counts read 1 10 45 120 210 252 210 120 45 10 1', intensity: 0.35 },
-  { frame: 254, kind: 'sweep', description: 'N = 100: the bell narrows into 101 striped bars (5 %)', intensity: 0.4 },
-  { frame: 270, kind: 'whoosh', description: 'N = 10⁴: the bell squeezes into a glowing needle (0.5 %) — rising pitch', intensity: 0.5 },
-  { frame: 288, kind: 'glitch', description: 'the chart drops away; a data curtain of random 100-bit trials unrolls (288–306); waterfall shimmer bed runs to ~374', intensity: 0.55 },
-  { frame: 294, kind: 'type', description: 'TARGET row pins in white; TRIALS counter starts; C5 「100个粒子全在左边：」 condenses', intensity: 0.25 },
-  { frame: 306, kind: 'impact', description: 'MONUMENTAL 「约 10⁻³⁰」 slams in on a black slab (biggest hit so far)', intensity: 0.9 },
-  { frame: 324, kind: 'type', description: '「2⁻¹⁰⁰ = 7.9 × 10⁻³¹」 types on under it', intensity: 0.2 },
-  { frame: 366, kind: 'rain', description: 'the waterfall dissolves into loose bits that pour into a glass of water (366–400)', intensity: 0.45 },
-  { frame: 374, kind: 'sweep', description: 'the glass draws on as a technical drawing; C6 「一杯水，约 10²⁵ 个分子——」', intensity: 0.3 },
-  { frame: 394, kind: 'type', description: 'C6 line 2 「全挤到一边的概率：」; labels 250 mL / N ≈ 8×10²⁴', intensity: 0.2 },
-  { frame: 436, kind: 'whoosh', description: 'HYPOTHETICAL: all molecules crowd into the left half (white), right half hatched 「空」 (436–456)', intensity: 0.5 },
-  { frame: 456, kind: 'silence', description: 'held tension: the impossible state (456–474)', intensity: 0.1 },
-  { frame: 474, kind: 'whoosh', description: 'release: the molecules spread back on their own (474–496) — the arrow again', intensity: 0.45 },
-  { frame: 488, kind: 'type', description: '「0.000…」 types out at y 960, rapid ticks (1.6 zeros/frame, 488–506); the glass shrinks to an icon', intensity: 0.4 },
-  { frame: 504, kind: 'pop', description: 'C7 「每个零，只占1毫米。」 + the 「1 mm」 dimension callout (508)', intensity: 0.3 },
-  { frame: 522, kind: 'whoosh', description: 'the camera starts riding along the row (accelerating, zeros streak) — ZEROS counter spins', intensity: 0.4 },
-  { frame: 556, kind: 'zoom', description: 'POWERS OF TEN: endless rising Shepard tone 556–668 (zeros → dots → a line of light)', intensity: 0.7 },
-  { frame: 578, kind: 'pop', description: 'scale label 书桌 ≈ 1 m (desk, the glass at the row start)', intensity: 0.3 },
-  { frame: 600, kind: 'pop', description: 'scale label 城市 ≈ 10 km', intensity: 0.3 },
-  { frame: 620, kind: 'pop', description: 'scale label 地球 ≈ 1.3×10⁴ km (the line leaves the Earth tangentially)', intensity: 0.3 },
-  { frame: 643, kind: 'pop', description: 'scale label 太阳系 ≈ 60 AU', intensity: 0.3 },
-  { frame: 650, kind: 'whoosh', description: 'star layers stream past (fastest part of the zoom, 645–660)', intensity: 0.5 },
-  { frame: 664, kind: 'type', description: 'C9 「这串零，比银河系还长。」 condenses', intensity: 0.15 },
-  { frame: 668, kind: 'reveal', description: 'the amber Milky Way settles on the line; the zoom stops (Shepard tone resolves)', intensity: 0.8 },
-  { frame: 676, kind: 'sweep', description: 'dimension line 银河系 ≈ 10⁵ 光年 draws (676–698)', intensity: 0.3 },
-  { frame: 686, kind: 'sweep', description: 'dimension line 这一行 ≈ 2.6×10⁵ 光年 draws (686–710); light-year ruler ticks on (706–726)', intensity: 0.3 },
-  { frame: 742, kind: 'chime', description: 'C10 golden line 1 「聚回来，不是不可能——」', intensity: 0.4 },
-  { frame: 768, kind: 'chime', description: 'C10 line 2 「只是太不可能。」 (gold, 太 white) — the film’s first golden line', intensity: 0.6 },
-  { frame: 826, kind: 'swell', description: 'the galaxy dissolves into warm gas (826–848); a swell begins', intensity: 0.4 },
-  { frame: 834, kind: 'whoosh', description: 'the glass’s histogram needle (N ≈ 10²⁵) shoots up out of the line (rising)', intensity: 0.6 },
-  { frame: 844, kind: 'shimmer', description: 'the needle’s particles unfold into the glyph 熵 (844–866)', intensity: 0.5 },
-  { frame: 852, kind: 'pop', description: 'pinyin 「shāng」 condenses above', intensity: 0.25 },
-  { frame: 864, kind: 'impact', description: '熵 LOCKS crisp (flash) — the first appearance of the word', intensity: 0.85 },
-  { frame: 882, kind: 'shimmer', description: '熵 breaks back into particles (882–888) that stream into the S of the formula (888–906)', intensity: 0.45 },
-  { frame: 886, kind: 'impact', description: 'the stone stele rises onto the line (low thud)', intensity: 0.5 },
-  { frame: 892, kind: 'type', description: 'C12 「玻尔兹曼墓碑上的公式」 (small)', intensity: 0.15 },
-  { frame: 902, kind: 'glitch', description: 'carving sweep: 「= k log W」 is cut left → right into the stone with a white spark (902–922); W fills with microstates', intensity: 0.4 },
-  { frame: 924, kind: 'sparkle', description: 'specular glint sweeps the gold leaf (924–956); inscription L. BOLTZMANN · WIEN', intensity: 0.4 },
-  { frame: 926, kind: 'type', description: 'note 「那串零有多长，熵就差多少」 under W', intensity: 0.15 },
-  { frame: 948, kind: 'type', description: 'C13 line 1 「熵不是“乱”。」; the stele sinks away', intensity: 0.2 },
-  { frame: 958, kind: 'tick', description: 'the six 2:2 worlds appear one by one: 958, 962, 966, 970, 974, 978', intensity: 0.3 },
-  { frame: 968, kind: 'type', description: 'C13 line 2 「它数的是：多少种微观排列，」', intensity: 0.2 },
-  { frame: 974, kind: 'stamp', description: 'STRIKE: a red line cuts through 乱 (974–982), 乱 dims', intensity: 0.55 },
-  { frame: 988, kind: 'type', description: 'C13 line 3 「看起来一模一样。」', intensity: 0.2 },
-  { frame: 1004, kind: 'whoosh', description: 'coarse-graining: each world’s particles smear into an even glow (1004–1020) — all six look identical', intensity: 0.35 },
-  { frame: 1020, kind: 'whoosh', description: 'the six slide together into one (1020–1038)', intensity: 0.4 },
-  { frame: 1032, kind: 'pop', description: '「W = 6」', intensity: 0.4 },
-  { frame: 1044, kind: 'swell', description: 'the box flattens and stretches into the row (1044–1068), the text diffuses (1058–1084)', intensity: 0.45 },
-  { frame: 1068, kind: 'chime', description: 'the box becomes the line: one glowing amber line, 90 → 990', intensity: 0.6 },
-  { frame: 1084, kind: 'silence', description: 'OUT: the line alone on #070604 — low hum only, into S04', intensity: 0.1 },
-];
+  // ── card 1 · 4个粒子，数一数。
+  cue(T.click, 'click', '「咔」 colour-temperature flip: S02’s cyan box + 4 dots become amber (light pulse peaks f1)', 0.75),
+  cue(T.labels, 'type', 'labels A B C D type on next to the dots; HUD FIG.03 COUNTING MICROSTATES; C1 「4个粒子，数一数。」 condenses', 0.2),
+  cue(T.dividerLift, 'impact', 'the divider lifts out of the box (clack, slides up 10–20)', 0.45),
+  ...gasCues(),
+  cue(T.release + 54, 'hum', 'the gas decelerates (66–74)', 0.1),
+  cue(T.shutter, 'stamp', 'SHUTTER: the gas freezes in white viewfinder brackets — one snapshot = one microstate (C D left, A B right)', 0.6),
+  // ── card 2 · the 16 worlds
+  cue(T.deal, 'whoosh', 'the frozen box shrinks into its cell of a 4×4 table (78–92)', 0.35),
+  cue(T.deal + 6, 'tick', 'the 15 other arrangements peel off the original one by one, every 1.3 f (84–102), rippling outward', 0.3),
+  cue(T.deal + 15, 'tick', 'peel ripple continues (copy 8 of 15)', 0.25),
+  cue(T.deal + 24, 'tick', 'last copy lands — 16 worlds on screen', 0.3),
+  cue(T.sort, 'sweep', 'FLIP: the 16 worlds fly into five columns 1 · 4 · 6 · 4 · 1 (108–141, staggered 1.1 f)', 0.45),
+  cue(T.sort + 16, 'tick', 'worlds land in their columns (124–141), soft ticks', 0.25),
+  // ── card 3 · 全在左边：1种 / 左右各半：6种
+  cue(T.sort + 24, 'pop', 'column counts appear 1 4 6 4 1 (132–140)', 0.4),
+  cue(T.c3a, 'type', 'C3 line 1 「全在左边：」 condenses', 0.2),
+  cue(T.c3a + 8, 'slam', 'monumental white 「1」 slams in; the all-left world gets white brackets + 1/16', 0.6),
+  cue(T.c3b, 'type', 'C3 line 2 「左右各半：」 condenses', 0.2),
+  cue(T.c3b + 8, 'slam', 'monumental amber 「6」 slams in; the 2:2 column brackets and glows (swell under it)', 0.7),
+  cue(T.toBars, 'glitch', 'the worlds compress into 4-bit barcodes (zip); card 3 diffuses (204–228)', 0.35),
+  // ── card 4 · N = 10 → 100 → 10⁴
+  cue(T.rain, 'rain', 'N = 10 Galton board: 1024 microstates bounce through 10 rows of pegs (one bounce per bit) and stack; dense crackle 214–251, peak ~232', 0.7),
+  cue(T.rain + 18, 'pop', 'width bracket 「宽度 ±16 %」 over the bell', 0.3),
+  cue(T.rain + 37, 'tick', 'last microstate lands: the counts read 1 10 45 120 210 252 210 120 45 10 1', 0.35),
+  cue(T.n100, 'sweep', 'N = 100: the bell narrows into 101 striped bars (±5 %)', 0.4),
+  cue(T.n1e4, 'whoosh', 'N = 10⁴: the bell squeezes into a glowing needle (±0.5 %) — rising pitch', 0.5),
+  // ── card 5 · 100个粒子全在左边：约 10⁻³⁰
+  cue(T.lottery, 'glitch', 'the chart drops away; a data curtain of random 100-bit trials unrolls (288–306)', 0.55),
+  cue(T.lottery + 6, 'shimmer', 'waterfall shimmer bed (288–392): uniform grey-amber noise, HITS stays 0 — maximum entropy looks like noise', 0.2),
+  cue(T.c5, 'type', 'TARGET row pins in white, TRIALS counter runs; C5 「100个粒子全在左边：」 condenses', 0.25),
+  cue(T.c5num, 'impact', 'MONUMENTAL 「约 10⁻³⁰」 slams in on a black slab (biggest hit so far)', 0.9),
+  cue(T.c5num + 18, 'type', '「2⁻¹⁰⁰ = 7.9 × 10⁻³¹」 types on under it', 0.2),
+  // ── card 6 · the glass of water
+  cue(T.glass, 'rain', 'the waterfall dissolves into loose bits that pour into a glass of water (372–410)', 0.45),
+  cue(T.glass + 2, 'sweep', 'the glass draws on as a technical drawing', 0.3),
+  cue(T.c6, 'type', 'C6 「一杯水，约 10²⁵ 个分子——」 condenses; labels 250 mL / N ≈ 8×10²⁴ (398)', 0.2),
+  cue(T.c6 + 20, 'type', 'C6 line 2 「全挤到一边的概率：」', 0.2),
+  cue(T.squeeze, 'whoosh', 'HYPOTHETICAL: all molecules crowd into the left half (white), right half hatched 「空」 (436–456)', 0.5),
+  cue(T.squeeze + 20, 'silence', 'held tension: the impossible state (456–474)', 0.1),
+  cue(T.relax, 'whoosh', 'release: the molecules spread back on their own (474–496) — the arrow again', 0.45),
+  // ── card 7 · 每个零，只占1毫米。
+  cue(T.row - 6, 'whoosh', 'the glass shrinks to an icon at the start of the row (482–504)', 0.25),
+  cue(T.row, 'type', '「0.000…」 types out at y 960, rapid ticks (1.6 zeros per frame, 488–520)', 0.4),
+  cue(T.c7, 'type', 'C7 「每个零，只占1毫米。」 condenses', 0.15),
+  cue(T.c7 + 4, 'pop', 'the 「1 mm」 dimension callout over the third zero', 0.3),
+  cue(T.ride, 'whoosh', 'the camera starts riding along the row (accelerating, zeros streak); ZEROS counter spins', 0.4),
+  // ── card 8 · powers of ten
+  cue(T.zoom, 'zoom', 'POWERS OF TEN: endless rising Shepard tone 556–668 (zeros → dots → a line of light)', 0.7),
+  cue(578 - 8, 'pop', 'scale label 书桌 ≈ 1 m (the glass on the desk at the row start)', 0.3),
+  cue(600 - 8, 'pop', 'scale label 城市 ≈ 10 km', 0.3),
+  cue(620 - 8, 'pop', 'scale label 地球 ≈ 1.3×10⁴ km (the row leaves the Earth tangentially)', 0.3),
+  cue(643 - 8, 'pop', 'scale label 太阳系 ≈ 60 AU', 0.3),
+  cue(645, 'whoosh', 'star layers stream past (fastest part of the zoom, 645–660)', 0.5),
+  // ── card 9 · 这串零，比银河系还长。
+  cue(T.c9, 'type', 'C9 「这串零，比银河系还长。」 condenses', 0.15),
+  cue(T.zoomEnd, 'reveal', 'the amber Milky Way has materialised around the row’s start (the Sun); the zoom stops (Shepard tone resolves)', 0.8),
+  cue(T.zoomEnd + 4, 'shimmer', 'light pulses start reading along the finished row (672–830)', 0.15),
+  cue(T.dims, 'sweep', 'dimension line 银河系 ≈ 10⁵ 光年 draws (676–698)', 0.3),
+  cue(T.dims + 10, 'sweep', 'dimension line 这一行 ≈ 2.6×10⁵ 光年 draws (686–710); light-year ruler ticks on (706–726)', 0.3),
+  // ── card 10 · 聚回来，不是不可能——只是太不可能。
+  cue(T.c10, 'chime', 'C10 golden line 1 「聚回来，不是不可能——」', 0.4),
+  cue(T.c10 + 20, 'chime', 'C10 line 2 「只是太不可能。」 (gold, 太 white) — the film’s first golden line', 0.6),
+  // ── card 11 · 熵
+  cue(T.galaxyOut, 'swell', 'the galaxy dissolves into warm gas (826–848) while the row settles onto the handoff line; a swell begins', 0.4),
+  cue(T.needle, 'whoosh', 'the glass’s histogram needle (N ≈ 10²⁵) shoots up out of the line (rising)', 0.6),
+  cue(T.glyph, 'shimmer', 'the needle’s particles unfold into the glyph 熵 (844–866)', 0.5),
+  cue(T.glyph + 8, 'pop', 'pinyin 「shāng」 condenses above', 0.25),
+  cue(T.glyphLock, 'impact', '熵 LOCKS crisp (flash) — the first appearance of the word', 0.85),
+  // ── card 12 · S = k log W
+  cue(T.formula - 8, 'shimmer', '熵 breaks back into particles (882–888) that stream into the S of the formula (888–906)', 0.45),
+  cue(T.c12, 'type', 'C12 「玻尔兹曼墓碑上的公式」 (small)', 0.15),
+  cue(T.formula - 4, 'impact', 'the granite stele rises onto the line (low thud)', 0.5),
+  cue(T.formula + 12, 'glitch', 'carving sweep: 「= k log W」 is cut left → right into the stone with a white spark (902–922); W fills with microstates', 0.4),
+  cue(T.formula + 28, 'type', 'inscription L. BOLTZMANN · 1844 – 1906 · WIEN, ZENTRALFRIEDHOF', 0.15),
+  cue(T.formula + 34, 'glint', 'specular glint sweeps the gold leaf (924–956)', 0.4),
+  cue(T.formula + 36, 'type', 'note 「那串零有多长，熵就差多少」 under W', 0.15),
+  // ── card 13 · 熵不是“乱”。它数的是：多少种微观排列，看起来一模一样。
+  cue(T.c13, 'type', 'C13 line 1 「熵不是“乱”。」; the stele sinks away (940–956)', 0.2),
+  cue(T.c13 + 12, 'type', 'C13 line 2 「它数的是：多少种微观排列，」', 0.2),
+  cue(T.boxes6, 'tick', 'the six 2:2 worlds appear one by one: 958, 962, 966, 970, 974, 978', 0.3),
+  cue(T.c13 + 24, 'strike', `STRIKE: a red line cuts through 乱 (${T.c13 + 24}–${T.c13 + 32}), 乱 dims`, 0.55),
+  cue(T.c13 + 26, 'type', 'C13 line 3 「看起来一模一样。」', 0.2),
+  cue(T.coarse, 'dissolve', `coarse-graining: each world’s particles smear into the same even stipple (${T.coarse}–${T.coarse + 16}) — all six look identical`, 0.35),
+  cue(T.merge, 'whoosh', `the six slide together into one (${T.merge}–${T.merge + 18})`, 0.4),
+  cue(T.merge + 8, 'pop', '「W = 6」 — six arrangements, one look', 0.45),
+  cue(T.collapse, 'swell', `the box flattens and stretches into the row (${T.collapse}–${T.collapse + 24})`, 0.45),
+  cue(T.collapse + 12, 'rise', `the line brightens into S04’s glowing amber line (${T.collapse + 12}–${T.lineOnly - 4})`, 0.35),
+  cue(T.c13End - 23, 'shimmer', `C13 diffuses (${T.c13End - 23}–${T.c13End - 1})`, 0.15),
+  cue(T.lineOnly - 4, 'chime', 'the single glowing amber line, 90 → 990 — everything has resolved into it', 0.5),
+  cue(T.c13End, 'hum', 'OUT (1086–1091): the line alone on #070604 — low hum only, into S04', 0.1),
+].sort((a, b) => a.frame - b.frame);

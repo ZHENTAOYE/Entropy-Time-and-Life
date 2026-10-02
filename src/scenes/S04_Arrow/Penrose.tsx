@@ -3,9 +3,12 @@
 // boiling plasma shows only through it (the soft white halo of each glyph lets its light bleed out). The camera
 // starts so close that the base “10” bursts out of the frame, climbs the tower (exponent 10, then 123) and pulls
 // back to the whole fraction; then a wall of zeros (“1 followed by 10¹²³ zeros”) pours in and scrolls into a blur.
+// The base “10” is a window from the first frame of the darkness, so it EMERGES as the plasma around it goes dark
+// (no empty frame); its arrival is punctuated by a scale kick + flash + shake at T.base10.
 // DOM (not canvas) so the numerals can use Cormorant Garamond's LINING figures.
 import React from 'react';
-import { FONT, useFontsReady } from '../../lib/fonts';
+import { FONT } from '../../lib/fonts';
+import { useLazyFonts } from './fontGate';
 import { clamp, ease, lerp, seg, smoothstep } from '../../lib/math';
 import { T } from './timing';
 
@@ -30,7 +33,7 @@ const BAR_Y = 772;
 const KEYS: Array<[number, number, number, number]> = [
   [T.base10, BASE.x + wB / 2, BASE.y + 0.5 * BS, 2.7],
   [T.exp10 + 6, EXP.x + wE * 0.5, EXP.y + 0.5 * ES, 2.0],
-  [T.exp123 + 8, TOP.x + wT * 0.35, TOP.y + 0.55 * TS, 1.75],
+  [T.pullBack[0], TOP.x + wT * 0.35, TOP.y + 0.55 * TS, 1.75],
   [T.pullBack[1], 540, 880, 1.0],
   [T.overlayOut[1], 540, 880, 0.95],
 ];
@@ -56,9 +59,11 @@ const pop = (f: number, f0: number) => {
   const k = seg(f, f0, f0 + 12);
   return { a: smoothstep(0, 0.35, k), s: 1 + 0.22 * (1 - ease.outBack(k)) };
 };
+/** the base: present (as a window) from the start of the darkness; a smooth scale kick when it "lands" */
+const emerge = (f: number) => ({ a: smoothstep(T.overlayIn[0], T.overlayIn[0] + 6, f), s: 1 + 0.07 * Math.sin(Math.PI * seg(f, T.base10, T.base10 + 9)) });
 
-const Num: React.FC<{ txt: string; size: number; x: number; y: number; f0: number; f: number; rim: boolean }> = ({ txt, size, x, y, f0, f, rim }) => {
-  const p = pop(f, f0);
+const Num: React.FC<{ txt: string; size: number; x: number; y: number; f0: number; f: number; rim: boolean; base?: boolean; glow: number; glowR: number }> = ({ txt, size, x, y, f0, f, rim, base, glow, glowR }) => {
+  const p = base ? emerge(f) : pop(f, f0);
   if (p.a <= 0) return null;
   return (
     <div
@@ -79,7 +84,7 @@ const Num: React.FC<{ txt: string; size: number; x: number; y: number; f0: numbe
         display: 'flex',
         ...(rim
           ? { color: 'transparent', WebkitTextStroke: `${(1.6 * (380 / size) ** 0.3).toFixed(2)}px rgba(255,201,74,0.55)` }
-          : { color: '#FFFFFF', textShadow: `0 0 ${Math.round(size * 0.09)}px rgba(255,255,255,0.75), 0 0 ${Math.round(size * 0.3)}px rgba(255,255,255,0.28)` }),
+          : { color: '#FFFFFF', textShadow: glow > 0.02 ? `0 0 ${Math.round(size * 0.12 * glowR)}px rgba(255,255,255,${(0.62 * glow).toFixed(3)})` : 'none' }),
       }}
     >
       {Array.from(txt).map((ch, i) => (
@@ -93,16 +98,20 @@ const Num: React.FC<{ txt: string; size: number; x: number; y: number; f0: numbe
 
 const Formula: React.FC<{ f: number; rim: boolean }> = ({ f, rim }) => {
   const [cx, cy, s] = camera(f);
+  // the halo is blurred in screen space: while the camera is right up against the glyphs (they fill the frame) the
+  // halo is invisible anyway and costly (a ~1000 px glyph blurred twice) — it fades in during the pull back
+  const glow = clamp((2.2 - s) / 0.8); // halo strength
+  const glowR = 1 / Math.max(1, s * 0.6); // halo radius factor (bounded on screen)
   const kf = seg(f, T.fraction[0], T.fraction[1]);
   const kl = seg(f, T.fraction[0] + 6, T.fraction[1] + 10);
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 1080, height: 1920, transform: `translate(${(540 - cx * s).toFixed(2)}px, ${(960 - cy * s).toFixed(2)}px) scale(${s.toFixed(4)})`, transformOrigin: '0 0' }}>
-      <Num txt="10" size={BS} x={BASE.x} y={BASE.y} f0={T.base10} f={f} rim={rim} />
-      <Num txt="10" size={ES} x={EXP.x} y={EXP.y} f0={T.exp10} f={f} rim={rim} />
-      <Num txt="123" size={TS} x={TOP.x} y={TOP.y} f0={T.exp123} f={f} rim={rim} />
+      <Num txt="10" size={BS} x={BASE.x} y={BASE.y} f0={T.base10} f={f} rim={rim} base glow={glow} glowR={glowR} />
+      <Num txt="10" size={ES} x={EXP.x} y={EXP.y} f0={T.exp10} f={f} rim={rim} glow={glow} glowR={glowR} />
+      <Num txt="123" size={TS} x={TOP.x} y={TOP.y} f0={T.exp123} f={f} rim={rim} glow={glow} glowR={glowR} />
       {kf > 0 ? (
         <>
-          <div style={{ position: 'absolute', left: 0, width: 1080, top: NUM_Y, textAlign: 'center', fontFamily: FONT.latin, fontWeight: 600, fontSize: 200, lineHeight: 1, fontVariantNumeric: 'lining-nums', opacity: ease.outCubic(kf), ...(rim ? { color: 'transparent', WebkitTextStroke: '1.4px rgba(255,201,74,0.5)' } : { color: '#fff', textShadow: '0 0 18px rgba(255,255,255,0.7), 0 0 60px rgba(255,255,255,0.25)' }) }}>
+          <div style={{ position: 'absolute', left: 0, width: 1080, top: NUM_Y, textAlign: 'center', fontFamily: FONT.latin, fontWeight: 600, fontSize: 200, lineHeight: 1, fontVariantNumeric: 'lining-nums', opacity: ease.outCubic(kf), ...(rim ? { color: 'transparent', WebkitTextStroke: '1.4px rgba(255,201,74,0.5)' } : { color: '#fff', textShadow: '0 0 24px rgba(255,255,255,0.62)' }) }}>
             1
           </div>
           {!rim ? <div style={{ position: 'absolute', left: 540 - 330 * ease.inOutCubic(kf), width: 660 * ease.inOutCubic(kf), top: BAR_Y - 3, height: 6, background: '#fff', boxShadow: '0 0 16px rgba(255,255,255,0.7)' }} /> : null}
@@ -153,11 +162,14 @@ const Zeros: React.FC<{ f: number }> = ({ f }) => {
 };
 
 export const PenroseLayer: React.FC<{ f: number }> = ({ f }) => {
-  useFontsReady([
-    [`600 380px ${FONT.latin}`, '0123'],
-    [`600 70px ${FONT.serif}`, '概率≈'],
-    [`400 30px ${FONT.mono}`, '01'],
-  ]);
+  useLazyFonts(
+    [
+      [`600 380px ${FONT.latin}`, '0123'],
+      [`600 70px ${FONT.serif}`, '概率≈'],
+      [`400 30px ${FONT.mono}`, '01'],
+    ],
+    f >= T.overlayIn[0] - 10 && f < T.overlayOut[1],
+  );
   const A = penroseDark(f);
   if (A <= 0.002) return null;
   return (

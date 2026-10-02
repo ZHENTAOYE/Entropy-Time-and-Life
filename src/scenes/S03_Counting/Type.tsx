@@ -26,7 +26,7 @@ export interface GItem {
 const fontStr = (g: { family: keyof typeof FONT; size: number; weight: number; italic?: boolean }) => `${g.italic ? 'italic ' : ''}${g.weight} ${g.size}px ${FONT[g.family]}`;
 
 function mctx(): CanvasRenderingContext2D {
-  return memo('S03:measureCtx', () => document.createElement('canvas').getContext('2d')!);
+  return memo('S03:measureCtx', () => document.createElement('canvas').getContext('2d', { willReadFrequently: true })!);
 }
 /** advance width of `ch` (cached per font, only valid once fonts are loaded — callers gate on `ready`) */
 export function adv(family: keyof typeof FONT, size: number, weight: number, ch: string, italic = false): number {
@@ -91,13 +91,18 @@ export interface GlyphsProps {
   stagger?: number;
   seed?: number;
   shadow?: boolean;
+  /** share of the exit over which glyph start times are scattered (0.45 = narration; small = a number leaves as one
+   * unit, so it never reads as a different number mid-exit) */
+  exitSpread?: number;
 }
 
-export const Glyphs: React.FC<GlyphsProps> = ({ items, from, dur, enter = 'condense', exit = 'diffuse', enterLen = 18, exitLen = 24, stagger = 2, seed = 7, shadow = false }) => {
+export const Glyphs: React.FC<GlyphsProps> = ({ items, from, dur, enter = 'condense', exit = 'diffuse', enterLen = 18, exitLen = 24, stagger = 2, seed = 7, shadow = false, exitSpread = 0.45 }) => {
   const frame = useCurrentFrame();
   const local = frame - from;
   if (local < 0 || local >= dur) return null;
-  const exitStart = dur - exitLen;
+  // the exit ends exactly on the last mounted frame (dur − 1): every glyph is at opacity 0 there, so unmounting
+  // the card on the next frame can never pop
+  const exitStart = dur - 1 - exitLen;
   return (
     <>
       {items.map((g, idx) => {
@@ -134,8 +139,8 @@ export const Glyphs: React.FC<GlyphsProps> = ({ items, from, dur, enter = 'conde
         }
         if (local >= exitStart && exit !== 'none') {
           if (exit === 'diffuse') {
-            const d0 = exitStart + r4 * exitLen * 0.45;
-            const q = seg(local, d0, d0 + exitLen * 0.55);
+            const d0 = exitStart + r4 * exitLen * exitSpread;
+            const q = seg(local, d0, d0 + exitLen * (1 - exitSpread));
             const e = ease.inQuad(q);
             const a = r2 * Math.PI * 2 + (r3 - 0.5) * 2;
             const R = (50 + r1 * 110) * Math.max(1, g.size / 110);
@@ -146,7 +151,7 @@ export const Glyphs: React.FC<GlyphsProps> = ({ items, from, dur, enter = 'conde
             sc *= 1 + e * 0.25;
             op *= 1 - ease.inCubic(q);
           } else {
-            op *= 1 - ease.inOutQuad(seg(local, exitStart, dur));
+            op *= 1 - ease.inOutQuad(seg(local, exitStart, dur - 1));
           }
         }
         let color = g.color;

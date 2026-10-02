@@ -1,5 +1,5 @@
 // The five narration cards of S06 (text locked by docs/screenplay.md v1; curly quotes U+201C/U+201D).
-// Timing (timing.ts CAP): screenplay v1 ±0.5 s; per-line stagger; C5's second line is formed by local ~30.
+// Timing (timing.ts CAP): screenplay v1 ±0.5 s; per-line stagger 0.8 (lines formed by local ~25).
 import { CaptionSpec } from './RichCaption';
 import { P } from './palette';
 import { CAP, YOU_AT } from './timing';
@@ -23,8 +23,8 @@ export const CAPTIONS: CaptionSpec[] = [
   {
     from: CAP.c2.at,
     dur: CAP.c2.dur,
-    // line 2 condenses as the gold packet lands and starts to unzip
-    lineDelay: [0, 22],
+    // line 2 condenses as the gold packet lands and starts to unzip (f151)
+    lineDelay: [0, 32],
     lines: [
       [{ text: '进来' }, { text: '1', color: P.gold, size: 74, glow: 0.45 }, { text: '个光子，' }],
       [{ text: '出去约' }, { text: '20', color: RED_DEEP, size: 74, glow: 0.45 }, { text: '个。' }],
@@ -51,13 +51,12 @@ export const CAPTIONS: CaptionSpec[] = [
     from: CAP.c4.at,
     dur: CAP.c4.dur,
     lineDelay: [0, 6],
-    lines: [[{ text: '像那滴墨，' }], [{ text: '阳光在地球上“' }, { text: '散开', color: '#FFF1EA', fx: 'ink', fxAt: 36 }, { text: '”了。' }]],
+    lines: [[{ text: '像那滴墨，' }], [{ text: '阳光在地球上“' }, { text: '散开', color: '#FFF1EA', fx: 'ink', fxAt: 30 }, { text: '”了。' }]],
   },
   {
     from: CAP.c5.at,
     dur: CAP.c5.dur,
     lineDelay: [0, 6],
-    stagger: 0.8,
     lines: [
       [{ text: '这一“散”的' }, { text: '差价', color: P.leaf, glow: 0.3 }, { text: '，' }],
       [{ text: '养活了绿叶，也养活了' }, { text: '你', fx: 'bright', fxAt: YOU_AT - CAP.c5.at }, { text: '。' }],

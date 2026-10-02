@@ -22,7 +22,7 @@ const HY = 279; // timecode baseline (DOM top 250)
 
 /** ▶▶ direction lost: 0..1 */
 const lostK = (f: number) => ease.inOutSine(seg(f, T.hudLose[0], T.hudLose[1]));
-const hudCol = (f: number): RGB => lerpRGB(VOICE, [168, 168, 168], ease.inOutSine(seg(f, 170, 280)));
+const hudCol = (f: number): RGB => lerpRGB(VOICE, [168, 168, 168], ease.inOutSine(seg(f, 150, 260)));
 
 function speedExp(f: number): number {
   if (f < T.lockIn) return Math.round(3 + 7 * ease.inOutSine(seg(f, T.ffOn, T.lockIn + 4)));
@@ -116,19 +116,19 @@ export function holeCount(f: number): number {
 }
 
 export function drawCounters(ctx: CanvasRenderingContext2D, f: number) {
-  const a = Math.min(seg(f, 30, 42), 1 - seg(f, 192, 210));
+  const a = Math.min(seg(f, 30, 42), 1 - seg(f, 168, 186));
   if (a <= 0.003) return;
   ctx.save();
   ctx.font = F.hudSmall;
   ctx.textAlign = 'left';
   ctx.fillStyle = rgbStr(hudCol(f));
-  const stars = f < 125 ? starCount(f) : 0;
+  const stars = f < 112 ? starCount(f) : 0;
   ctx.globalAlpha = a * 0.62;
   ctx.fillText('STARS', HX, HY + 44);
   ctx.fillText('BLACK HOLES', HX, HY + 74);
   ctx.globalAlpha = a * (stars === 0 ? 0.45 : 0.9);
   ctx.fillText(String(stars).padStart(4, '0'), HX + 190, HY + 44);
-  const holes = f > 80 && f < 200 ? holeCount(f) : 0;
+  const holes = f > 60 && f < 180 ? holeCount(f) : 0;
   ctx.globalAlpha = a * (holes === 0 ? 0.45 : 0.9);
   ctx.fillText(String(holes).padStart(4, '0'), HX + 190, HY + 74);
   ctx.restore();
@@ -140,10 +140,10 @@ const GY0 = 560;
 const GY1 = 1360;
 const sAt = knots([
   [0, 0.72],
-  [60, 0.77],
-  [120, 0.85],
-  [186, 0.91],
-  [250, 0.975],
+  [50, 0.77],
+  [108, 0.85],
+  [168, 0.91],
+  [236, 0.975],
   [T.gaugePeg, 1],
 ]);
 function gaugeBody(ctx: CanvasRenderingContext2D, f: number, col: RGB, glow: boolean) {
@@ -158,13 +158,17 @@ function gaugeBody(ctx: CanvasRenderingContext2D, f: number, col: RGB, glow: boo
   // pegged: the needle slams into the top stop and chatters there
   const peg = f >= T.gaugePeg ? Math.exp(-(f - T.gaugePeg) / 6) * Math.sin((f - T.gaugePeg) * 2.4) * 3 : 0;
   const yy = Math.max(GY0 - 2, GY1 - (GY1 - GY0) * clamp(sAt(f)) + peg);
-  ctx.fillStyle = rgbStr(col);
   if (glow) {
-    ctx.shadowColor = rgbStr(col);
-    ctx.shadowBlur = 8;
+    // a soft glow drawn by hand (no shadowBlur: a shadow on the full-frame canvas is a full-frame blur)
+    const ga = ctx.globalAlpha;
+    ctx.fillStyle = rgbStr(col, 0.1);
+    ctx.fillRect(GX - 13, yy - 5, 27, 10);
+    ctx.fillStyle = rgbStr(col, 0.16);
+    ctx.fillRect(GX - 11, yy - 3, 23, 6);
+    ctx.globalAlpha = ga;
   }
+  ctx.fillStyle = rgbStr(col);
   ctx.fillRect(GX - 9, yy - 1, 19, 2);
-  ctx.shadowBlur = 0;
   ctx.font = F.gaugeS;
   ctx.textAlign = 'left';
   ctx.fillText('S', GX + 16, yy + 9);
@@ -172,7 +176,7 @@ function gaugeBody(ctx: CanvasRenderingContext2D, f: number, col: RGB, glow: boo
 export function drawGauge(ctx: CanvasRenderingContext2D, f: number) {
   const a = ease.inOutSine(seg(f, 6, 26));
   if (a <= 0.003) return;
-  const col = lerpRGB(VOICE, [176, 176, 176], ease.inOutSine(seg(f, 180, 290)));
+  const col = lerpRGB(VOICE, [176, 176, 176], ease.inOutSine(seg(f, 160, 270)));
   if (f < T.gaugeDie[0]) {
     ctx.save();
     ctx.globalAlpha = a;
@@ -224,7 +228,7 @@ export function lastStarFrame(): number {
 }
 
 export function drawReticles(ctx: CanvasRenderingContext2D, f: number) {
-  if (f < 80 || f > 200) return;
+  if (f < 60 || f > 180) return;
   const p = webAt(f);
   const cam = webCamera(p);
   ctx.save();
@@ -232,9 +236,9 @@ export function drawReticles(ctx: CanvasRenderingContext2D, f: number) {
   // last star
   const ls = lastStar();
   const fd = lastStarFrame();
-  if (f > 84 && f < fd + 16) {
+  if (f > 66 && f < fd + 16) {
     const [x, y] = webToScreen(cam, ls.wx, ls.wy);
-    const inK = ease.outCubic(seg(f, 86, 100));
+    const inK = ease.outCubic(seg(f, 68, 82));
     const out = ease.outCubic(seg(f, fd, fd + 14));
     const s = 26 + 60 * (1 - inK) + 34 * out;
     const blink = f > fd - 2 && f < fd + 4 ? (Math.floor(f) % 2 === 0 ? 1 : 0.35) : 1;

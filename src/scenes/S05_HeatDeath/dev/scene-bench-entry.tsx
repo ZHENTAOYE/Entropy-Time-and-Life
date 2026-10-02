@@ -3,7 +3,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { Composition, Sequence, registerRoot, useCurrentFrame } from 'remotion';
 import { Scene } from '../Scene';
 
-const FRAMES = [40, 150, 200, 230, 280, 320, 470];
+const FRAMES = [20, 92, 128, 160, 200, 222, 290, 372, 470];
 const times: number[] = [];
 let t0 = 0;
 const Start: React.FC = () => {
@@ -31,4 +31,4 @@ const B: React.FC = () => {
     </>
   );
 };
-registerRoot(() => <Composition id="B" component={B} durationInFrames={7} fps={30} width={1080} height={1920} />);
+registerRoot(() => <Composition id="B" component={B} durationInFrames={9} fps={30} width={1080} height={1920} />);

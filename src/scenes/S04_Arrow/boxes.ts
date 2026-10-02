@@ -76,17 +76,27 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
     const right = b === 1;
     ctx.save();
     // exit motion: left box slides away, right box swells to fill the frame
+    // (the right box's parts leave in order — frame, paper, gas, light — so nothing of the lab plate is left when the
+    //  whole spent-ink universe starts to gather, and long before the paper turns into light)
     let sc = 1,
       dx = 0,
       al = 1;
+    let kFrame = 1,
+      kPaper = 1,
+      kGas = 1,
+      kLight = 1;
     if (!right) {
       dx = -160 * kOutL;
       al = 1 - kOutL;
     } else {
       sc = 1 + 6 * kOutR;
-      al = 1 - smoothstep(0.35, 1, kOutR);
+      kFrame = 1 - smoothstep(0, 0.32, kOutR);
+      kPaper = 1 - smoothstep(0.04, 0.4, kOutR);
+      kGas = 1 - smoothstep(0.1, 0.55, kOutR);
+      kLight = 1 - smoothstep(0.18, 0.7, kOutR);
+      al = 1 - smoothstep(0.55, 1, kOutR);
     }
-    if (al <= 0.003) {
+    if (al <= 0.003 || (right && kGas <= 0.003 && kLight <= 0.003 && kFrame <= 0.003)) {
       ctx.restore();
       continue;
     }
@@ -99,9 +109,9 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
 
     // paper inside the box (calms the haze), then the frame drawn on like a pen stroke
     ctx.fillStyle = 'rgba(244,238,226,0.72)';
-    ctx.globalAlpha = al * smoothstep(0.45, 1, kin) * (right ? 1 - smoothstep(0.1, 0.6, kOutR) : 1);
+    ctx.globalAlpha = al * smoothstep(0.45, 1, kin) * kPaper;
     ctx.fillRect(0, 0, S, S);
-    ctx.globalAlpha = al;
+    ctx.globalAlpha = al * kFrame;
     ctx.strokeStyle = ink;
     ctx.lineWidth = 1.6 / sc;
     const per = 4 * S;
@@ -116,7 +126,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
     ctx.setLineDash([]);
     // corner ticks (a lab plate)
     ctx.lineWidth = 1 / sc;
-    ctx.globalAlpha = al * 0.6 * kin;
+    ctx.globalAlpha = al * 0.6 * kin * kFrame;
     for (const [x, y] of [
       [0, 0],
       [S, 0],
@@ -141,7 +151,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
       g.addColorStop(0, `rgba(255,214,120,${0.95 * q0})`);
       g.addColorStop(0.25, `rgba(255,170,60,${0.45 * q0})`);
       g.addColorStop(1, 'rgba(255,150,40,0)');
-      ctx.globalAlpha = al;
+      ctx.globalAlpha = al * kLight;
       ctx.fillStyle = g;
       ctx.fillRect(CLUMP.x - R, CLUMP.y - R, 2 * R, 2 * R);
     }
@@ -162,7 +172,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
         x = lerp(x, cxp, q);
         y = lerp(y, cyp, q);
       }
-      ctx.globalAlpha = al * kp * 0.88;
+      ctx.globalAlpha = al * kp * 0.88 * kGas;
       ctx.beginPath();
       ctx.arc(x, y, G.sz[i] / Math.sqrt(sc), 0, Math.PI * 2);
       ctx.fill();
@@ -191,7 +201,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
         const lg = ctx.createLinearGradient(hx, hy, tx, ty);
         lg.addColorStop(0, 'rgba(214,120,10,1)');
         lg.addColorStop(1, 'rgba(240,160,40,0)');
-        ctx.globalAlpha = al * fa;
+        ctx.globalAlpha = al * fa * kLight;
         ctx.strokeStyle = lg;
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -210,7 +220,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
     const gx = S - 22;
     const gy0 = S - 26,
       gy1 = 26;
-    ctx.globalAlpha = al * 0.45 * kp;
+    ctx.globalAlpha = al * 0.45 * kp * kFrame;
     ctx.strokeStyle = ink;
     ctx.lineWidth = 1 / sc;
     ctx.beginPath();
@@ -218,7 +228,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
     ctx.lineTo(gx, gy1);
     ctx.stroke();
     const ty = lerp(gy0, gy1, sv);
-    ctx.globalAlpha = al * kp;
+    ctx.globalAlpha = al * kp * kFrame;
     ctx.lineWidth = 3.2 / sc;
     ctx.strokeStyle = right ? '#B8651A' : ink;
     ctx.beginPath();
@@ -227,7 +237,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
     ctx.stroke();
     if (right) {
       // where it started
-      ctx.globalAlpha = al * kp * 0.35;
+      ctx.globalAlpha = al * kp * 0.35 * kFrame;
       ctx.lineWidth = 1 / sc;
       const y0 = lerp(gy0, gy1, 0.24);
       ctx.setLineDash([3, 3]);
@@ -237,7 +247,7 @@ export function drawBoxes(ctx: CanvasRenderingContext2D, f: number, ink: string)
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    ctx.globalAlpha = al * kp;
+    ctx.globalAlpha = al * kp * kFrame;
     ctx.fillStyle = right ? '#B8651A' : ink;
     ctx.font = `italic 600 36px ${FONT.latin}`;
     ctx.textBaseline = 'middle';

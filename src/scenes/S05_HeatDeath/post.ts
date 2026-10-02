@@ -9,35 +9,38 @@ import { ctxOf, fresh, scratch } from './gfx';
 
 const HW = 540;
 const HH = 960;
+const QW = 270;
+const QH = 480;
 
-/** web image + fast-forward smear / fringes (all built at half res, composited with ONE upscale) */
+/** web image + fast-forward smear / fringes (built at quarter res — it is all soft light — and composited with ONE
+ *  upscale; at half res the 9 zoom copies alone cost ~0.3 s in the software rasteriser) */
 export function drawWebPost(ctx: CanvasRenderingContext2D, src: CanvasImageSource, f: number) {
   ctx.drawImage(src, 0, 0, 1080, 1920);
   // the smear belongs to the stellar fast-forward; it is gone before the black holes (their rings would smear)
-  const k = ffK(f) * (1 - ease.inOutSine(seg(f, 92, 132)));
+  const k = ffK(f) * (1 - ease.inOutSine(seg(f, 80, 116)));
   if (k < 0.01) return;
-  // half-res bright-pass: x·x·x keeps the stars, drops the gas
-  const hp = scratch('ff_half', HW, HH);
+  // quarter-res bright-pass: x·x·x keeps the stars, drops the gas
+  const hp = scratch('ff_q', QW, QH);
   const h = fresh(hp);
   h.imageSmoothingEnabled = true;
-  h.drawImage(src, 0, 0, HW, HH);
+  h.drawImage(src, 0, 0, QW, QH);
   h.globalCompositeOperation = 'multiply';
   h.drawImage(hp, 0, 0);
   h.drawImage(hp, 0, 0);
-  const fx = scratch('ff_fx', HW, HH);
+  const fx = scratch('ff_qfx', QW, QH);
   const s = fresh(fx);
   s.globalCompositeOperation = 'lighter';
   // radial time-smear: zoom-burst copies about the centre (light streaks outward, like a ▶▶ through the ages)
-  const cx = HW / 2;
-  const cy = HH / 2;
+  const cx = QW / 2;
+  const cy = QH / 2;
   for (let i = 1; i <= 9; i++) {
     const z = 1 + 0.018 * i * k;
-    s.globalAlpha = 0.26 * (1 - i / 10.5);
-    s.drawImage(hp, cx - cx * z, cy - cy * z, HW * z, HH * z);
+    s.globalAlpha = 0.3 * (1 - i / 10.5);
+    s.drawImage(hp, cx - cx * z, cy - cy * z, QW * z, QH * z);
   }
   // chromatic fringes: red ghost right, cyan ghost left (jittering a little, like the timecode's split)
-  const d = ((2.5 + 2.5 * hash01(f, 515)) * k) / 2;
-  const tint = scratch('ff_tint', HW, HH);
+  const d = ((2.5 + 2.5 * hash01(f, 515)) * k) / 4;
+  const tint = scratch('ff_qtint', QW, QH);
   for (const [col, dx] of [
     ['rgb(255,40,80)', d],
     ['rgb(40,200,255)', -d],
@@ -46,7 +49,7 @@ export function drawWebPost(ctx: CanvasRenderingContext2D, src: CanvasImageSourc
     t.drawImage(hp, 0, 0);
     t.globalCompositeOperation = 'multiply';
     t.fillStyle = col;
-    t.fillRect(0, 0, HW, HH);
+    t.fillRect(0, 0, QW, QH);
     s.globalAlpha = 0.9;
     s.drawImage(tint, dx, 0);
   }

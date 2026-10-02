@@ -4,7 +4,6 @@
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
 import { Caption } from '../../lib/Caption';
-import { FONT, useFontsReady } from '../../lib/fonts';
 import { ease, memo, seg } from '../../lib/math';
 import { C, T } from './constants';
 import { GItem, Glyphs, RunSpec, adv, layout, width } from './Type';
@@ -49,13 +48,13 @@ function card5(): { l1: GItem[]; big: GItem[]; small: GItem[] } {
     const bigI = layout(big, 540 - wb / 2, 1032, base).items;
     const sm: RunSpec[] = [
       { t: '2' },
-      { t: '−100', size: 16, rise: 11 },
+      { t: '−100', size: 19, rise: 13 },
       { t: ' = 7.9 × 10' },
-      { t: '−31', size: 16, rise: 11 },
+      { t: '−31', size: 19, rise: 13 },
     ];
-    const sb = { family: 'mono' as const, size: 26, weight: 400, color: C.amber };
+    const sb = { family: 'mono' as const, size: 30, weight: 400, color: C.amber };
     const ws = width(sm, sb);
-    const small = layout(sm, 540 - ws / 2, 1092, sb).items;
+    const small = layout(sm, 540 - ws / 2, 1098, sb).items;
     return { l1, big: bigI, small };
   });
 }
@@ -104,7 +103,7 @@ function pinyin(): GItem[] {
 }
 
 // ------------------------------------------------------------------ card 13 · 熵不是“乱”。/ 它数的是：多少种微观排列，/ 看起来一模一样。
-const STRIKE_F = T.c13 + 26;
+const STRIKE_F = T.c13 + 24;
 function card13(): { l1: GItem[]; l2: GItem[]; l3: GItem[]; luan: { x: number; w: number; y: number } } {
   return memo('S03:card13', () => {
     const center = (runs: RunSpec[], y: number) => {
@@ -125,7 +124,8 @@ function card13(): { l1: GItem[]; l2: GItem[]; l3: GItem[]; luan: { x: number; w
 
 const StrikeLine: React.FC<{ f: number; x: number; w: number; y: number }> = ({ f, x, w, y }) => {
   const k = ease.inOutCubic(seg(f, STRIKE_F, STRIKE_F + 8));
-  const out = 1 - seg(f, T.c13End - 22, T.c13End - 8);
+  // leaves with 乱 (line 1 diffuses over the last C13_EXIT frames)
+  const out = 1 - ease.inQuad(seg(f, T.c13End - 1 - C13_EXIT, T.c13End - 1 - C13_EXIT * 0.4));
   if (k <= 0 || out <= 0) return null;
   const flash = Math.exp(-Math.max(0, f - STRIKE_F - 8) / 4);
   return (
@@ -147,35 +147,33 @@ const StrikeLine: React.FC<{ f: number; x: number; w: number; y: number }> = ({ 
 };
 
 // ------------------------------------------------------------------ all cards
-export const Cards: React.FC = () => {
+/** lib Captions are mounted only inside their own window: a mounted Caption loads its font slices even when hidden */
+const within = (f: number, from: number, to: number) => f >= from && f < to;
+/** narration 12 「玻尔兹曼墓碑上的公式」 (small, under the stele) */
+const C12 = { from: T.c12, dur: T.c12End - T.c12 };
+/** card 13 leaves over its last C13_EXIT frames; its last glyph reaches opacity 0 on frame T.c13End − 1 */
+const C13_EXIT = 22;
+
+export const Cards: React.FC<{ ready: boolean }> = ({ ready }) => {
   const f = useCurrentFrame();
-  const ready = useFontsReady([
-    [`600 56px ${FONT.serif}`, '全在左边：种左右各半100个粒子聚回来，不是不可能——只是太。熵不“乱”它数的：多少微观排列看起一模样'],
-    [`600 60px ${FONT.serif}`, '聚回来，不是不可能——只是太。'],
-    [`900 96px ${FONT.serif}`, '约'],
-    [`700 156px ${FONT.mono}`, '16'],
-    [`400 26px ${FONT.mono}`, '2−100=7.9×10−31 '],
-    [`600 270px ${FONT.latin}`, '10−30 25'],
-    [`400 150px ${FONT.mono}`, '−'],
-    [`600 56px ${FONT.serif}`, '一杯水，约个分子——全挤到边的概率：'],
-    [`italic 600 72px ${FONT.latin}`, 'shāng'],
-  ]);
   return (
     <>
       {/* 1 · 4个粒子，数一数。 */}
-      <Caption text="{4}个粒子，数一数。" from={T.c1} dur={T.deal + 4 - T.c1} accent={C.amber} accentWeight={900} />
+      {within(f, T.c1, T.c1End) ? <Caption text="{4}个粒子，数一数。" from={T.c1} dur={T.c1End - T.c1} accent={C.amber} accentWeight={900} /> : null}
       {ready && f >= T.c3a && f < T.c3End ? <Card3 /> : null}
       {ready && f >= T.c5 && f < T.c5End ? <Card5 /> : null}
       {/* 6 · 一杯水… */}
       {ready && f >= T.c6 && f < T.c6End ? <Card6 /> : null}
       {/* 7 · 每个零，只占1毫米。 */}
-      <Caption text="每个零，只占{1毫米}。" from={T.c7} dur={T.c7End - T.c7} accent={C.amber} shadow />
+      {within(f, T.c7, T.c7End) ? <Caption text="每个零，只占{1毫米}。" from={T.c7} dur={T.c7End - T.c7} accent={C.amber} stagger={1.6} shadow /> : null}
       {/* 9 · 这串零，比银河系还长。 */}
-      <Caption text="这串零，比{银河系}还长。" from={T.c9} dur={T.c9End - T.c9} accent={C.pale} shadow />
+      {within(f, T.c9, T.c9End) ? <Caption text="这串零，比{银河系}还长。" from={T.c9} dur={T.c9End - T.c9} accent={C.pale} stagger={1.6} shadow /> : null}
       {ready && f >= T.c10 && f < T.c10End ? <Card10 /> : null}
       {ready && f >= T.glyph + 8 && f < T.formula + 6 ? <Glyphs items={pinyin()} from={T.glyph + 8} dur={T.formula + 6 - (T.glyph + 8)} stagger={2} exitLen={16} seed={11} /> : null}
       {/* 12 · 玻尔兹曼墓碑上的公式 (small) */}
-      <Caption text="玻尔兹曼墓碑上的公式" from={T.c12} dur={T.c12End - T.c12} size={40} y={1042} color={C.voice} opacity={0.88} exitLen={20} />
+      {within(f, C12.from, C12.from + C12.dur) ? (
+        <Caption text="玻尔兹曼墓碑上的公式" from={C12.from} dur={C12.dur} size={42} y={1046} color={C.voice} opacity={0.9} stagger={1.5} enterLen={16} exitLen={18} />
+      ) : null}
       {ready && f >= T.c13 && f < T.c13End ? <Card13 f={f} /> : null}
     </>
   );
@@ -189,7 +187,7 @@ const Card3: React.FC = () => {
       <Glyphs items={c.l1} from={T.c3a} dur={end - T.c3a} seed={31} />
       <Glyphs items={c.n1} from={T.c3a + 8} dur={end - T.c3a - 8} enter="slam" enterLen={12} seed={32} />
       <Glyphs items={c.z1} from={T.c3a + 12} dur={end - T.c3a - 12} seed={33} />
-      <Glyphs items={c.l2} from={T.c3b} dur={end - T.c3b} seed={34} />
+      <Glyphs items={c.l2} from={T.c3b} dur={end - T.c3b} stagger={1.6} seed={34} />
       <Glyphs items={c.n2} from={T.c3b + 8} dur={end - T.c3b - 8} enter="slam" enterLen={12} seed={35} />
       <Glyphs items={c.z2} from={T.c3b + 12} dur={end - T.c3b - 12} seed={36} />
     </>
@@ -201,7 +199,7 @@ const Card5: React.FC = () => {
   return (
     <>
       <Glyphs items={c.l1} from={T.c5} dur={T.c5End - T.c5} stagger={1.4} seed={51} />
-      <Glyphs items={c.big} from={T.c5num} dur={T.c5End - T.c5num} enter="slam" enterLen={14} stagger={2.5} seed={52} />
+      <Glyphs items={c.big} from={T.c5num} dur={T.c5End - T.c5num} enter="slam" enterLen={14} stagger={2.5} seed={52} exitSpread={0.1} />
       <Glyphs items={c.small} from={T.c5num + 18} dur={T.c5End - T.c5num - 18} enter="type" stagger={0.7} seed={53} />
     </>
   );
@@ -221,8 +219,8 @@ const Card10: React.FC = () => {
   const c = card10();
   return (
     <>
-      <Glyphs items={c.a} from={T.c10} dur={T.c10End - T.c10} stagger={1.5} seed={101} shadow />
-      <Glyphs items={c.b} from={T.c10 + 26} dur={T.c10End - T.c10 - 26} stagger={2} seed={102} shadow />
+      <Glyphs items={c.a} from={T.c10} dur={T.c10End - T.c10} stagger={1.4} seed={101} shadow />
+      <Glyphs items={c.b} from={T.c10 + 20} dur={T.c10End - T.c10 - 20} stagger={1.8} seed={102} shadow />
     </>
   );
 };
@@ -231,10 +229,10 @@ const Card13: React.FC<{ f: number }> = ({ f }) => {
   const c = card13();
   return (
     <>
-      <Glyphs items={c.l1} from={T.c13} dur={T.c13End - T.c13} stagger={1.5} seed={131} exitLen={26} />
+      <Glyphs items={c.l1} from={T.c13} dur={T.c13End - T.c13} stagger={1.5} seed={131} exitLen={C13_EXIT} />
       <StrikeLine f={f} {...c.luan} />
-      <Glyphs items={c.l2} from={T.c13 + 20} dur={T.c13End - T.c13 - 20} stagger={1.2} seed={132} exitLen={26} />
-      <Glyphs items={c.l3} from={T.c13 + 40} dur={T.c13End - T.c13 - 40} stagger={1.5} seed={133} exitLen={26} />
+      <Glyphs items={c.l2} from={T.c13 + 12} dur={T.c13End - T.c13 - 12} stagger={1.1} seed={132} exitLen={C13_EXIT} />
+      <Glyphs items={c.l3} from={T.c13 + 26} dur={T.c13End - T.c13 - 26} stagger={1.4} seed={133} exitLen={C13_EXIT} />
     </>
   );
 };
