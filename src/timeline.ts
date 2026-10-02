@@ -12,15 +12,15 @@ export interface SceneDef {
 }
 
 export const SCENES: SceneDef[] = [
-  { id: 'S01', dir: 'S01_Drop', title: '墨滴', durationInFrames: 420 },
-  { id: 'S02', dir: 'S02_Symmetry', title: '对称', durationInFrames: 660 },
-  { id: 'S03', dir: 'S03_Counting', title: '数一数', durationInFrames: 1080 },
-  { id: 'S04', dir: 'S04_Arrow', title: '时间之箭', durationInFrames: 840 },
-  { id: 'S05', dir: 'S05_HeatDeath', title: '热寂', durationInFrames: 360 },
-  { id: 'S06', dir: 'S06_Sunlight', title: '阳光的账本', durationInFrames: 660 },
+  { id: 'S01', dir: 'S01_Drop', title: '墨滴', durationInFrames: 390 },
+  { id: 'S02', dir: 'S02_Symmetry', title: '对称', durationInFrames: 522 },
+  { id: 'S03', dir: 'S03_Counting', title: '数一数', durationInFrames: 1092 },
+  { id: 'S04', dir: 'S04_Arrow', title: '时间之箭', durationInFrames: 954 },
+  { id: 'S05', dir: 'S05_HeatDeath', title: '热寂', durationInFrames: 522 },
+  { id: 'S06', dir: 'S06_Sunlight', title: '阳光的账本', durationInFrames: 582 },
   { id: 'S07', dir: 'S07_Vortex', title: '涡旋', durationInFrames: 900 },
-  { id: 'S08', dir: 'S08_Memory', title: '记忆', durationInFrames: 660 },
-  { id: 'S09', dir: 'S09_Ink', title: '墨的形状', durationInFrames: 720 },
+  { id: 'S08', dir: 'S08_Memory', title: '记忆', durationInFrames: 570 },
+  { id: 'S09', dir: 'S09_Ink', title: '墨的形状', durationInFrames: 848 },
 ];
 
 export const sceneStarts = (() => {

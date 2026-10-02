@@ -1,0 +1,69 @@
+{
+  "fps": 30,
+  "total": 6380,
+  "scenes": [
+    {
+      "id": "S01",
+      "dir": "S01_Drop",
+      "title": "墨滴",
+      "frames": 390,
+      "start": 0
+    },
+    {
+      "id": "S02",
+      "dir": "S02_Symmetry",
+      "title": "对称",
+      "frames": 522,
+      "start": 390
+    },
+    {
+      "id": "S03",
+      "dir": "S03_Counting",
+      "title": "数一数",
+      "frames": 1092,
+      "start": 912
+    },
+    {
+      "id": "S04",
+      "dir": "S04_Arrow",
+      "title": "时间之箭",
+      "frames": 954,
+      "start": 2004
+    },
+    {
+      "id": "S05",
+      "dir": "S05_HeatDeath",
+      "title": "热寂",
+      "frames": 522,
+      "start": 2958
+    },
+    {
+      "id": "S06",
+      "dir": "S06_Sunlight",
+      "title": "阳光的账本",
+      "frames": 582,
+      "start": 3480
+    },
+    {
+      "id": "S07",
+      "dir": "S07_Vortex",
+      "title": "涡旋",
+      "frames": 900,
+      "start": 4062
+    },
+    {
+      "id": "S08",
+      "dir": "S08_Memory",
+      "title": "记忆",
+      "frames": 570,
+      "start": 4962
+    },
+    {
+      "id": "S09",
+      "dir": "S09_Ink",
+      "title": "墨的形状",
+      "frames": 848,
+      "start": 5532
+    }
+  ]
+}

@@ -1,125 +1,169 @@
-# 熵、时间与生命 — Screenplay (DRAFT v0)
+# 熵、时间与生命 — Screenplay v1 (LOCKED TEXT)
 
-Vertical 1080×1920, 30 fps, ~210 s. No voice-over: narration is **on-screen Chinese typography** that is
-itself part of the visual system, plus a fully **procedural score / sound design** (generated in code).
+Vertical 1080×1920, 30 fps, 6380 frames ≈ 3:33. No voice-over: narration is **on-screen Chinese typography**
+(`Caption` component — lines condense out of blur and leave by diffusing) plus a **procedural score**.
+v1 merges a science fact-check, a copy/dramaturgy edit and a visual-direction review of v0.
 
-Core thesis, delivered as an emotional arc:
-1. *Concept*: the arrow of time is not in the laws of motion; it is in **counting** (entropy = number of
-   microscopic arrangements that look the same).
-2. *Cosmos*: the arrow exists because the universe began in an absurdly improbable low-entropy state and has
-   been "rolling downhill" ever since, toward heat death.
-3. *Life*: on that downhill slope, local order appears — not against entropy, but *through* it. Earth trades
-   1 visible photon for ~20 infrared photons; life is a vortex that keeps its shape while matter flows through.
-4. *Self*: you are a process, not a thing; your sense of time passing is entropy's echo in your own body.
-   Ending: the ink will diffuse — but on its way, it drew you.
+## The film in one breath
+Concept → cosmos → life → self. The arrow of time is not in the laws of motion; it lives in **counting**
+(how many microscopic arrangements look the same — and its logarithm). It exists because the universe began
+absurdly improbable and has been "rolling" toward more possibilities ever since (heat death at the end). On the way,
+structure appears *through* entropy, not against it: Earth trades 1 sunlight photon for ~20 infrared photons; life
+is a vortex that keeps its shape while matter flows through. You are a process. Your arrow of memory is the same
+arrow. Ending: the ink will spread — but on its way, it drew you.
 
-Visual principle: **every scene invents a new visual language**, and the language itself demonstrates the science.
-Escalation: tactile macro (ink) → clean physics diagrams → data/combinatorics → cosmic scale → decay of the image
-itself → light & photons → organic flow → neural/memory traces → everything converges back into the ink.
+## Vocabulary rules (science-critical, apply to every on-screen word)
+- Never equate entropy with "disorder/混乱/秩序" — say **低熵 / 高熵 / 散开 / 结构**. (S03 says 熵不是“乱”.)
+- Entropy defines the **direction / arrow** of time (时间之箭/方向), not time itself.
+- Life does not violate or "fight" the 2nd law — it lives **by** it (借着熵增).
+- Laws of **motion** are time-symmetric (don't claim all microphysics is).
+- Use Chinese punctuation and curly quotes “ ”. Numbers: real superscripts (10⁻³⁰, 10²⁵, 10¹²³, 10¹⁰⁰).
+
+## Recurring motifs (tie the film together)
+1. **◀◀ / ▶▶ symbol** (mono, top-left HUD with a timecode): S01 rewind ◀◀ → S04 cosmic rewind ◀◀ → S05 fast-forward
+   ▶▶ → S09 ◀◀ tries to rewind, the ink refuses, the ◀◀ itself diffuses into ink.
+2. **散开 (spreading)**: S01 ink → S03 "ways to spread" → S04 "like spent ink" → S06 sunlight "spreads" → S09 "on the
+   way of spreading".
+3. **The number ladder** (monumental mono numerals, growing each time): 1 : 6 → 10⁻³⁰ → the galaxy-long row of
+   zeros → 1 followed by 10¹²³ zeros → ~10¹⁰⁰ years (which fades to grey).
+4. **“……的路上——”**: S05 「但在滚落的路上——」 and S09 「但在散开的路上——」 use the identical layout & position.
+5. **The gold point**: the first colour in S05's grey IS the sunlight photon of S06 (same object, no cut).
+6. **The human figure** (`src/lib/human.ts`) — same person in S07, S08, S09.
+7. **你** — the viewer is addressed throughout; S09's final 「你」 is the only glyph drawn with an ink-brush texture.
+
+## Global durations (frames)
+| Scene | Frames | Seconds | Film start |
+|---|---|---|---|
+| S01 墨滴 | 390 | 13.0 | 0:00.0 |
+| S02 对称 | 522 | 17.4 | 0:13.0 |
+| S03 数一数 | 1092 | 36.4 | 0:30.4 |
+| S04 时间之箭 | 954 | 31.8 | 1:06.8 |
+| S05 热寂 | 522 | 17.4 | 1:38.6 |
+| S06 阳光的账本 | 582 | 19.4 | 1:56.0 |
+| S07 涡旋 | 900 | 30.0 | 2:15.4 |
+| S08 记忆 | 570 | 19.0 | 2:45.4 |
+| S09 墨的形状 | 848 | 28.3 | 3:04.4 |
+
+Each table below gives scene-local times in seconds (frame = s × 30). "/" = line break. Timing may be nudged by
+±0.5 s per card for rhythm, but text is locked (except where marked "optional").
 
 ---
 
-## S01 墨滴 / The Drop (≈14 s)
-Visual language: macro photography of ink in water, rendered as dense particle smoke (curl-noise flow),
-creamy-white water, black ink. Tactile, photographic, quiet.
-- Black → a horizontal line of light: the water surface in a glass (side view, macro).
-- A black drop falls, punches through the surface, blooms into descending vortex rings and fractal tendrils.
-- 「一滴墨，落入水中。」
-- 「你见过它散开——」
-- 「却从没见过它，自己聚回来。」
-- VHS-style REWIND (◀◀ timecode running backward, scanline jitter, chromatic split): the ink un-diffuses,
-  re-forms the drop, the drop leaps back out of the water.
-- Hard cut to black, single word: 「为什么？」
+## S01 墨滴 / The Drop — 13.0 s (390 f)
+Cold open. Frame 0 is already moving: no black, no title.
+| # | t (s) | On-screen text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–0.3 | — | — | A spread ink cloud in water is *rolling back* (reverse playback). HUD top-left: ◀◀ + timecode running backward. Sound: reversed reverb inhale. |
+| 2 | 0.3–3.0 | 这是倒放。/ 你一眼就知道。 | 倒放 = glitch (RGB split, scanline jitter); line 2 enters 0.6 s later | The ink re-gathers into a drop that leaps out of the water at ~2.4 s. Reversed "plop". |
+| 3 | 3.0–5.4 | — | — | Tape-stop "clunk", HUD switches to ▶. The drop falls, hits the water at ~4.2 s, blooms in slow motion. |
+| 4 | 5.4–8.8 | 现实里，/ 没人见过它自己聚回来。 | 聚回来 – its characters drift slightly apart while displayed | Vortex ring descends, fractal tendrils. |
+| 5 | 8.8–11.0 | — | — | The bloom breathes alone; sound swells. |
+| 6 | 11.0–13.0 | 为什么？ | the only big word, screen centre | Hard cut to black; all sound cuts to room tone. |
 
-## S02 对称 / Symmetry (≈22 s)
-Visual language: clean blueprint physics — cyan lines on near-black, grid, motion trails, split screen.
-- Split screen, two panels labelled A / B. In each, two glowing balls collide elastically. One panel is played
-  in reverse. 「哪一段，是倒放的？」
-- You can't tell. 「分不出来。」 「在微观世界，物理定律不区分过去和未来。」
-  (Visual: an equation with t → −t that stays unchanged.)
-- Escalate: 2 balls → 10 → 400. With each step the reversed panel looks more "wrong". A guess-meter
-  "能分辨吗？" goes from ? to !!.
-- Macro example: a wine glass (line art / refractive highlights) falls and shatters into Voronoi shards; then
-  reversed: shards fly up and fuse. Absurd. 「方向，出现了。」
-- 「时间之箭，不在任何一个粒子里。」 「它藏在"很多"之中。」
+## S02 对称 / Symmetry — 17.4 s (522 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–2.2 | 哪一段，是倒放？ | 倒放 reuses S01's glitch treatment | Split screen A / B: two balls collide elastically. One panel is the same simulation played backward. |
+| 2 | 2.2–4.4 | — (3·2·1 dot countdown) | — | Time for the viewer to guess. |
+| 3 | 4.4–5.8 | 分不出来。 | cyan | A and B both light up "?". |
+| 4 | 5.8–8.6 | 运动定律，/ 不分正放倒放。 | 正放 / 倒放 mirrored around the centre axis | Newton: m·d²x/dt² = F(x); t → −t flips and the equation is unchanged. |
+| 5 | 8.6–13.0 | — (mono counter 2 → 10 → 400; label “能分辨吗？” ? → ! → !!) | — | Escalation. **Forward panel must start from a compact low-entropy cluster** (e.g. 400 balls packed in a corner/triangle rack); the reversed panel is the *same* run played backward, so it ends un-spreading into the cluster — obviously "wrong". |
+| 6 | 13.0–14.6 | 方向，出现了。 | 方向 followed by an arrow → | |
+| 7 | 14.6–17.4 | 时间之箭，/ 藏在“很多”之中。 | 时间之箭 wide-tracked (first use of the term); 很多 assembled from the 400 balls | |
 
-## S03 数一数 / Counting (≈36 s)
-Visual language: data visualisation & combinatorics — amber/gold on black, crisp tabular numbers,
-grids that rearrange themselves into histograms, then an exponential "powers of ten" zoom.
-- A box with a divider, 4 particles on the left. 「把4个粒子放进盒子。」 Divider lifts; particles bounce.
-- All 16 left/right arrangements tile the screen as mini boxes. They slide into columns by "#left": 1·4·6·4·1.
-  「"全在左边"只有1种；"左右各半"有6种。」
-- N = 10: histogram 1 … 252 … 1. N = 100: histogram collapses into a needle.
-  「100个粒子：全挤在左边的概率，约为 10⁻³⁰。」
-  「就算从宇宙诞生起，每秒试一万亿次——也很可能一次都等不到。」 (4.4e17 s × 1e12 = 4.4e29 tries;
-  p = 7.9e-31 → expected 0.35 occurrences.)
-- 「一杯水，大约有 10²⁵ 个分子。」 「这个概率写成小数，"0."后面的零——」
-  Camera rides along an endless row of zeros, zooming out exponentially: desk → city → Earth → Solar System →
-  Milky Way. 「每个零只占1毫米，这一行也比银河系还长。」 (p = 2^(-8.4e24) = 10^(-2.5e24) → 2.5e24 digits ×
-  1 mm = 2.5e21 m ≈ 2.7e5 light-years > Milky Way diameter ~1e5 ly.)
-- 「墨会散开，不是因为"聚回来"被禁止，」 「而是因为散开的方式，多到无法想象。」
-- The histogram needle morphs into the engraved formula **S = k log W** (Boltzmann's tombstone, Vienna).
-  「熵，就是在数这些可能性。」 「熵不是"乱"。熵是：有多少种微观排列，看起来一模一样。」
+## S03 数一数 / Counting — 36.4 s (1092 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–2.2 | 4个粒子，数一数。 | amber 4 | Box with divider; divider lifts; 4 particles bounce. |
+| 2 | 2.2–4.4 | — | — | All 16 left/right arrangements tile the screen as mini boxes, then slide into five columns 1·4·6·4·1. |
+| 3 | 4.4–7.4 | 全在左边：1种 / 左右各半：6种 | monumental mono 1 and 6, colon-aligned | |
+| 4 | 7.4–9.4 | — (data labels only: N=10 → 1…252…1; N=100; N=10⁴ needle) | — | Histogram sharpens with N (relative width ~1/(2√N): 16 % at N=10, 5 % at 100, 0.5 % at 10⁴). Becomes a needle at N=10⁴. |
+| 5 | 9.4–12.4 | 100个粒子全在左边：/ 约 10⁻³⁰ | monumental 10⁻³⁰ | (2⁻¹⁰⁰ = 7.9×10⁻³¹) |
+| 6 | 12.4–16.2 | 一杯水，约 10²⁵ 个分子——/ 全挤到一边的概率： | 10²⁵ | Schematic glass with molecules crowded to one side. |
+| 7 | 16.2–18.4 | 每个零，只占1毫米。 | 1毫米 | "0.000…" starts to extend; camera rides along the row. |
+| 8 | 18.4–22.0 | — (small scale labels: 书桌 → 城市 → 地球 → 太阳系 → 银河系) | — | Exponential pull-back (powers of ten). Endless rising Shepard tone. (2.5×10²⁴ zeros × 1 mm ≈ 2.7×10⁵ light-years > Milky Way ≈ 1–2×10⁵ ly. Don't zoom beyond the galaxy.) |
+| 9 | 22.0–24.6 | 这串零，比银河系还长。 | 银河系 | The river of zeros spans the galactic disc. |
+| 10 | 24.6–27.8 | 聚回来，不是不可能——/ 只是太不可能。 | 不是不可能 / 太不可能 aligned as mirror lines | First "golden line" of the film. |
+| 11 | 27.8–29.4 | 熵 (pinyin shāng above) | the first appearance of 熵, largest glyph so far | The needle histogram morphs into the glyph 熵. |
+| 12 | 29.4–31.8 | S = k log W / 玻尔兹曼墓碑上的公式 | formula large (latin italic), caption small | Stone-carved texture. Write **log** (as on the tombstone), not ln. Optional tiny note under W: “那串零有多长，熵就差多少” (number of zeros = log₁₀ of the ratio of possibilities ∝ entropy difference). |
+| 13 | 31.8–36.4 | 熵不是“乱”。/ 它数的是：多少种微观排列，/ 看起来一模一样。 | 乱 gets struck through; amber 多少种; 一模一样 | The only 3-line card. |
 
-## S04 时间之箭 / The Arrow (≈28 s)
-Visual language: cosmic — starfields, galaxies, glowing plasma, gravitational collapse into the cosmic web;
-monumental typography for giant numbers.
-- 「所以，时间的方向，就是熵增加的方向。」 Particles stream into an arrow.
-- 「但如果熵一直在增加——过去，它一定更低。」
-- Rewind the universe: galaxies fly apart backward, un-merge, stars un-light, matter smooths into a hot,
-  glowing, almost perfectly uniform plasma. Year counter racing backward: 1天 … 1亿年 … 138亿年.
-- 「宇宙的起点，熵低得不可思议。」 Penrose estimate: odds ~ 1 in 10^(10^123), rendered as a towering numeral.
-- Twist: 「奇怪的是，那时的宇宙几乎完全均匀。」 「而对引力来说，均匀，恰恰是低熵。」
-  The uniform field collapses into filaments / cosmic web; stars ignite at the nodes.
-- 「物质开始抱团，恒星点亮——宇宙开始从那个起点，一路滚落。」
-- 「你经历的每一个"之后"，都是这场滚落的一部分。」
+## S04 时间之箭 / The Arrow — 31.8 s (954 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–3.0 | 熵增的方向，/ 就是时间的方向。 | 熵增 and 时间 same colour & weight (an equation) | A particle stream flows into a giant arrow. |
+| 2 | 3.0–5.4 | 往回追：/ 越早，熵越低。 | 越早 / 越低: baselines sink char by char | |
+| 3 | 5.4–10.0 | — (◀◀ + year counter: 1天 → 1亿年 → 138亿年) | monumental counter | Cosmic rewind: space **contracts** — galaxies converge, dissolve, stars un-light, matter smooths into white-hot, almost perfectly uniform plasma. |
+| 4 | 10.0–12.8 | 宇宙的起点，/ 熵低得不可思议： | 不可思议 | Near-perfectly uniform glowing plasma. |
+| 5 | 12.8–16.8 | 概率 ≈ 1 / 10^(10¹²³) · 1后面，跟着 10¹²³ 个零 | the biggest numeral of the film, bursting out of frame; small corner note “彭罗斯估算” | This card is to be *seen*, not read. (Rhymes with S03's zeros: 10¹²³ zeros is more than the ~10⁸⁰ particles in the observable universe.) |
+| 6 | 16.8–20.4 | 怪的是：它几乎完全均匀，/ 像散尽的墨。 | 均匀 | Dissolve to S01's fully spread ink — a contradiction with what we just learned. |
+| 7 | 20.4–24.4 | 但对引力来说：/ 均匀是低熵，抱团才是熵增。 | 均匀 / 抱团 weight contrast | While this reads, the uniform field collapses into filaments (cosmic web). |
+| 8 | 24.4–25.4 | — | — | Cosmic web forms; stars ignite at the nodes. |
+| 9 | 25.4–27.8 | 宇宙，从那里一路滚落。 | 滚落 slides down a slope | "Rolling" = into an ever wider valley of possibilities (never draw a falling entropy curve). |
+| 10 | 27.8–31.8 | 你经历的每一个“之后”，/ 都是这场滚落。 | 之后 with motion trail | First time "you" at cosmic scale; 0.6 s still at the end. |
 
-## S05 热寂 / Heat Death (≈12 s)
-Visual language: the image itself dies — desaturation, contrast collapse, grain eating everything.
-- Fast-forward. 「一直滚下去，终点在哪里？」 Counter: 10¹⁴年 最后的恒星熄灭 · 10¹⁰⁰年 黑洞蒸发.
-- Stars wink out, black holes evaporate in faint flashes, everything spreads into uniform dim grey noise.
-- 「温度处处相同。没有温差，就再也没有任何事情可以发生。」 「这叫——热寂。」
-- Hold on the grey. Sound collapses into flat noise, then near-silence.
-- 「但在通往终点的下坡路上——」 A single point of colour flickers inside the grey…
+## S05 热寂 / Heat Death — 17.4 s (522 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–1.8 | 滚到最后呢？ | ▶▶ HUD (inverse of S01's ◀◀) | Fast-forward. |
+| 2 | 1.8–4.2 | ~10¹⁴ 年 · 最后的恒星熄灭 | monumental mono | Stars wink out one by one. |
+| 3 | 4.2–6.2 | ~10¹⁰⁰ 年 · 最大的黑洞蒸发殆尽 | the numerals lose contrast as they display | Faint evaporation flashes. |
+| 4 | 6.2–8.2 | 温度处处相同。 | — | Everything becomes uniform, cold, dim grey noise (cold, not hot). |
+| 5 | 8.2–11.6 | 能量都还在，/ 却再也做不了任何事。 | 都还在 / 做不了 | |
+| 6 | 11.6–13.8 | 这叫——热寂。 | 热寂 fades to exactly the background grey while displayed | Sound collapses to flat noise. |
+| 7 | 13.8–15.2 | — | — | Pure grey. The film's only true silence. |
+| 8 | 15.2–17.4 | 但在滚落的路上—— | identical layout to S09 #10 | First colour inside the grey: one gold point of light (it becomes S06's photon — no cut). |
 
-## S06 阳光的账本 / The Sun's Ledger (≈22 s)
-Visual language: light & photons — wavelengths drawn as waves (short, bright gold vs long, deep red),
-ledger/accounting aesthetic, then branching flow networks (rivers, leaf veins).
-- 「地球并没有从太阳那里"攒下"能量。」 「它吸收多少，就向太空辐射多少。」 Energy bars: IN = OUT.
-- 「真正的交易，在这里：」 One bright visible photon enters; ~20 long-wave infrared photons leave.
-  Counter: 1 → 20. 「每收进1个可见光光子，地球就送走约20个红外光子。」 「能量相同，熵，却多了约20倍。」
-  (T_sun ≈ 5800 K, T_earth,eff ≈ 255 K; equal energy, photon count & entropy flux ∝ T ratio ≈ 20.)
-- 「地球收进"秩序"，送出"混乱"。」 「这笔差额，养活了一切。」
-  The incoming order flows as glowing branching streams into leaves → plants → animals → you.
+## S06 阳光的账本 / The Sun's Ledger — 19.4 s (582 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–3.2 | 地球不“攒”阳光：/ 收多少，几乎就还多少。 | 收 / 还 as two ledger columns | IN ≈ OUT energy bars (label "≈"). |
+| 2 | 3.2–4.4 | — | — | Ledger flips from "energy" column to "photon count" column. |
+| 3 | 4.4–7.4 | 进来1个光子，/ 出去约20个。 | gold 1, deep red 20; labels 阳光 / 红外 | One short-wave photon in; ~20 long-wave photons out (wavelength ~20× longer, e.g. 0.5 µm → 10 µm). Counter 1 → 20. |
+| 4 | 7.4–10.2 | 能量一样多——/ 熵，多了约20倍。 | 20倍 is the largest type in the scene | (T_sun/T_earth ≈ 5800/255–288 ≈ 20–23.) |
+| 5 | 10.2–13.4 | 像那滴墨，/ 阳光在地球上“散开”了。 | 散开 spreads like S01's ink | The gold photon shatters into red infrared haze. |
+| 6 | 13.4–17.2 | 这一“散”的差价，/ 养活了绿叶，也养活了你。 | 差价; 你 brightened alone | The light flow branches like river networks → leaf veins → plants → animals → a human. |
+| 7 | 17.2–19.4 | — | — | The branching flows gather into a vortex (→ S07). |
 
-## S07 涡旋 / The Vortex (≈30 s)
-Visual language: organic flow fields, a whirlpool/flame made of streaming particles; a human figure made of
-streams; thermal-camera (infrared) palette.
-- 「1944年，薛定谔问：生命是什么？」 「他的回答：生命以"负熵"为食。」
-- A vortex made of thousands of streaming particles. One particle is highlighted: it enters, circles, leaves.
-  「看这个漩涡：形状一直都在，组成它的水，却没有一滴停留。」
-- 「你也是这样。」 The vortex unfolds into a human figure built of flowing particles: streams in (food, air),
-  streams out (heat, CO₂, water). 「你体内的大部分原子，几个月前还不在这里。」 (Body water turnover
-  half-life ≈ 7–10 days; water dominates atom count.)
-- Switch to infrared palette: 「此刻，你正以约100瓦的功率，向宇宙散发热量——像一只亮着的灯泡。」
-- 「你吃进秩序，排出混乱。你维持自己的方式，恰恰是加速宇宙的熵增。」
-- 「你不是一个东西。」 「你是一个过程。」
+## S07 涡旋 / The Vortex — 30.0 s (900 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–2.8 | 1944年，薛定谔问：/ 生命是什么？ | 生命是什么？ in book-title style | |
+| 2 | 2.8–5.0 | 他写道：/ 生命以“负熵”为食。 | 负熵 | |
+| 3 | 5.0–7.0 | — | — | A vortex of thousands of particles; one gold particle is tracked: it enters, circles, leaves. |
+| 4 | 7.0–10.2 | 形状一直都在，/ 水，没有一滴停留。 | 形状 / 没有一滴 | |
+| 5 | 10.2–11.8 | 你也是。 | big | The vortex unfolds into the human figure. |
+| 6 | 11.8–15.4 | 你的大部分原子，/ 几个月前还不在这里。 | 几个月前 | Streams in: food, air (O₂). Streams out: heat, CO₂, water. (Body-water turnover half-life 7–14 days; water ≈ 60 % of atoms.) |
+| 7 | 15.4–19.0 | 此刻，你像一只100瓦的灯泡，/ 向宇宙散热。 | 100瓦 in thermal palette | Switch to infrared thermal-camera palette. |
+| 8 | 19.0–21.8 | 按每公斤算，/ 你发的热是太阳的约7000倍。 | 7000倍 monumental | Tiny bar comparison: 太阳 0.0002 W/kg vs 你 1.4 W/kg. (100 W/70 kg ≈ 1.4 W/kg; Sun 3.8×10²⁶ W / 2.0×10³⁰ kg ≈ 1.9×10⁻⁴ W/kg → ≈7400×.) |
+| 9 | 21.8–25.0 | 你不是在对抗熵增——/ 你借着它，活着。 | 对抗 appears then dissolves; 借着 replaces it | |
+| 10 | 25.0–26.8 | 你不是一个东西。 | — | Music drops out. |
+| 11 | 26.8–30.0 | 你是一个过程。 | 过程 built from flowing particles: the glyph shape persists while its particles are constantly replaced | 0.8 s hold. |
 
-## S08 记忆 / Memory (≈22 s)
-Visual language: traces — footprints appearing in sand, branching neural dendrites growing, warm sepia/gold.
-- 「最后一个问题：为什么你只记得过去，不记得未来？」
-- Footprints appear one by one across sand; wind erases older ones. 「脚印，只指向过去。」
-- 「因为留下痕迹，本身就是一次不可逆的熵增。」 Neural traces grow like branching lightning.
-- 「每一段记忆，都是大脑里一次不可逆的改变。」
-- 「你感受到的"时间在流逝"，正是熵增，在你身体里的回声。」
+## S08 记忆 / Memory — 19.0 s (570 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–4.8 | 最后一个问题：/ 你为什么记得昨天，/ 却记不得明天？ | first line small; 昨天 warm gold; 明天 cold white, nearly invisible | Warm brown & gold palette. |
+| 2 | 4.8–6.2 | — | — | Footprints appear one by one across sand; wind erases the oldest. |
+| 3 | 6.2–8.4 | 脚印，只指向过去。 | 过去 | |
+| 4 | 8.4–11.4 | 痕迹，/ 只能顺着熵增的方向留下。 | 顺着 | |
+| 5 | 11.4–13.8 | 记忆，是大脑里的脚印。 | 记忆 | The line of footprints grows into branching neural dendrites, like lightning. |
+| 6 | 13.8–19.0 | 你感到的“时间之箭”——/ 也许，正是熵增 / 在你身体里的回声。 | 回声 followed by two fading echo copies | 0.8 s hold, long reverb tail. |
 
-## S09 墨的形状 / The Shape of Ink (≈24 s)
-Visual language: everything converges — powers-of-ten zoom out, cosmic web ⇄ ink tendrils, ink briefly
-drawing a human form, typographic dissolution.
-- Pull back: person → city lights → Earth at night → galaxy → cosmic web (rhymes with S04).
-- 「宇宙从一个不可思议的起点出发，一路滚向平衡。」 「途中，它在一些角落，暂时堆起了秩序——」
-  「星系。细胞。你。」 「然后，这些秩序抬起头，问：时间是什么？」
-- The cosmic web morphs into ink tendrils in water (rhymes with S01).
-- 「墨，终将散开。」 「但在散开之前——」 The diffusing ink briefly gathers into the shape of a human figure…
-  「它画出了你。」 …and keeps diffusing.
-- Title: 熵 · 时间 · 生命 (letters dissolve into particles). Final drip sound. Silence.
+## S09 墨的形状 / The Shape of Ink — 28.3 s (848 f)
+| # | t | Text | Emphasis | Picture · Sound |
+|---|---|---|---|---|
+| 1 | 0.0–1.2 | — | — | Pull back: the person → city lights → Earth at night. |
+| 2 | 1.2–3.6 | 宇宙，一路滚向平衡。 | — | → the galaxy. |
+| 3 | 3.6–7.0 | 途中，它在一些角落，/ 暂时织出了结构： | 暂时 | → the cosmic web (rhymes with S04). |
+| 4 | 7.0–8.0 | 星系。 | — | Hard cut + hit. |
+| 5 | 8.0–9.0 | 细胞。 | — | Hard cut + hit. |
+| 6 | 9.0–10.6 | 你。 | — | An eye close-up; silence after the third hit. |
+| 7 | 10.6–14.2 | 然后，其中最小的一块，/ 抬起头问：时间是什么？ | 时间是什么？ | Philosophical peak, followed by pure picture. |
+| 8 | 14.2–16.2 | — | — | The cosmic web morphs into ink tendrils in water (rhymes with S01). |
+| 9 | 16.2–18.2 | 墨，终将散开。 | — | |
+| 10 | 18.2–20.4 | 但在散开的路上—— | identical layout & position to S05 #8 | The spreading ink briefly gathers into the human figure. |
+| 11 | 20.4–24.0 | 它画出了你。 | 你 is the only glyph in the film with an ink-brush texture | The figure holds a beat, then keeps spreading. |
+| 12 | 24.0–25.2 | — | — | ◀◀ flickers in the corner, tries to rewind; the ink doesn't respond; the ◀◀ itself diffuses into ink. |
+| 13 | 25.2–27.3 | 熵 · 时间 · 生命 (pinyin shāng over 熵) | — | Title letters dissolve into particles; a final water drop sound. |
+| 14 | 27.3–28.3 | — (black) | — | Silence. The last frame can loop back to frame 0. |
