@@ -1,0 +1,57 @@
+{
+ "score": 7.5,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "major",
+   "frames": "146-186 (audit), 236-266 (law plate)",
+   "problem": "The conservation audit is a dense textbook chart shown for 1.3 s, and it crowds out the law beat's payoff. Over f146-186 both panels draw momentum polygons (m₁v₁, m₂v₂, the Σp ribbon, dashed before / solid after chains), two-row ΣE bars with 33.55 totals, and the gutter strip 'A · Σp ✓ ΣE ✓ | B · Σp ✓ ΣE ✓'. All of this runs under C3 「分不出来。」. A general viewer cannot parse vector closure plus energy bars in 40 frames. It is the most PowerPoint-like moment in the film and breaks the 'one narration line + two HUD elements' rule (f168 shows C3 plus about six HUD/chart elements). It is also not in the screenplay, where card 3 is only 'A and B both light up ?'. The cost is real: it pushes the equation late, so the thesis statement 「t → −t：不变 ✓」 is fully opaque for only f244-256 (0.4 s) and legible for about 0.7 s in total (drawLawHud: k ramps 236-244, win fades 256-266). That is too short for the scene's scientific punchline. The physics in the audit is correct (I checked Σp = (3.68, 0.32)·34 px and ΣE = 33.55 by hand); the issue is clarity and pacing, not accuracy.",
+   "fix": "Cut the audit and give its 40 frames to the law beat.\n1. Remove drawAudit(...) from world.ts drawWorld and drawGlow, and remove drawAuditLabel (hud.ts) from drawWorld.\n2. Let drawQStamps keep its '?' hold f134-146 and retreat to the corner badges f146-156 as now.\n3. Retime T in constants.ts to: eqIn ≈ 150 (equations write on while C3 is still up, so the picture leads and the text confirms), subst ≈ 166, twin ≈ 174, annihilate ≈ 188, collapse ≈ 192, invariant ≈ 204, eqOut ≈ 254.\n4. Hold 「t → −t：不变 ✓」 fully opaque for at least 30 frames (about 212-250).\n5. Decouple C4 from T.eqIn so it does not collide with C3 (f130-182) in the same lane. Use a literal C4_FROM = 176 with dur ≈ 88 (ends ~264, close to the screenplay's 5.8-8.6 s), and drive MirrorAxis from C4_FROM rather than T.eqIn.\n6. Leave wipe10 / run10 unchanged, or start them ~4 f earlier.\n7. Drop the audit lines from cues.ts (f146/148/154/162/168) and add cues for the earlier equation beats.\n8. If a 'why' for N = 2 must stay, make it wordless and slow, for example B's strobe trail sliding onto A's trajectory. No Σ notation."
+  },
+  {
+   "severity": "minor",
+   "frames": "436-446",
+   "problem": "The C7 entrance collides with the swarm and with B's leftover drop.\n- The swarm's bowed flight paths cross y ≈ 640 exactly while 「时间之箭，」 condenses there, so its first glyphs form inside a field of streaks (f442).\n- B's ejected drop lingers as a large blurred grey disc at about (330, 1120) under 「藏在“」 (f440-444). It reads as a smudge, not a tape ejection.",
+   "fix": "1. In finale.ts ballState, bend the bow control point (mx, my) so the flights stay below y ≈ 720, or delay T.c7Line1 to about 444 so line 1 condenses after the swarm has crossed.\n2. In world.ts panelBWithGlitch, make B's content leave with its tape slices: translate it off-panel (e.g. +200 px x, or down) and bring alpha to 0 by f436, instead of fading the blurred bloom in place (bA / bEject)."
+  },
+  {
+   "severity": "minor",
+   "frames": "404-426",
+   "problem": "The HUD is overloaded during C6's crisp hold. On screen at once:\n- C6 「方向，出现了。」\n- the gutter N = 400 plate, 能分辨吗？ and !!\n- the ▶ 正放 / ◀◀ 倒放 stamps\n- two clocks and two S-gauges\n- the t = 0 ghost label and the gold arrow\nThe gold arrow (the actual explanation) has to compete with all of it.",
+   "fix": "Fade the N plate and 能分辨吗？ right after the reveal (about f396-404) in drawEscalationHud, keep only !! until about f410, and dim the panel clocks to 60 % while C6 is crisp. The eye then goes t = 0 ghost → gold arrow → 方向→."
+  },
+  {
+   "severity": "minor",
+   "frames": "390-450",
+   "problem": "C6 typography breaks the narration grammar.\n- The whole line is Serif 900 / 64 px (narration is 600 / 56, and 900 means assertion), so 出现了。 reads heavy.\n- The full-width comma after the gold → leaves a visible hole before 出 (f418: 「方向→，  出现了。」).",
+   "fix": "Use weight 600 / 56-60 px for the line and emWeight 900 for {方向} only (Voice already supports emWeight). Pull the comma in with glyphTracking for idx 2 ≈ −0.25 em (or reduce ArrowAfter's marginRight further) so 「，出现了」 closes up."
+  },
+  {
+   "severity": "minor",
+   "frames": "196-266",
+   "problem": "The C4 mirror axis (MirrorAxis, a 2 px cyan bar at x ≈ 570 between 放|倒, about 110 px tall) reads as a text caret stuck in the caption once the flip has finished. Its top also touches line 1's descender zone under 定律.",
+   "fix": "Show the axis only during the flip (local 10-36), then fade it out. Alternatively, make it a dashed hairline confined to line 2's glyph height (y ≈ LANE_Y + 43 ± 36) with small ◁ ▷ ticks so it reads as a mirror, not a cursor."
+  },
+  {
+   "severity": "minor",
+   "frames": "8-114, 184-280",
+   "problem": "Two card timings go beyond the screenplay's ±0.5 s nudge, and C1 starts before its subject exists.\n- C1 runs f8-114 (to 3.8 s) against the screenplay's 0-2.2 s, filling card 2's silent countdown.\n- C4 ends at f280 (9.33 s) against 8.6 s.\n- C1 also condenses from f8 over a near-empty black frame, while the panels only draw on at f14-40 and the balls arrive at f38. The question is asked before there are two segments to compare.",
+   "fix": "Start C1 at about f22-26 so it condenses as the panel frames draw. It can keep ending around f100-114; 8 characters need only about 72 f. Once the law beat is retimed (major issue above), C4 lands at about 176-264, inside the screenplay window."
+  },
+  {
+   "severity": "minor",
+   "frames": "392-444",
+   "problem": "B's post-reveal clock 「◀◀ t = 00.00 s」 is a custom static mono label that only blinks. It does not use the film-wide ◀◀ Timecode language (lib/hud.tsx: chromatic aberration whenever time is tampered with), so the ◀◀ motif S01 → S02 → S04 → S09 does not visibly rhyme here.",
+   "fix": "Draw B's revealed clock with the same RGB split as the Timecode (2 + 2·hash px red/cyan offset, as already used on 倒放 in Voice.tsx), or render the lib <Timecode> in DOM over B's plate for f392-444."
+  }
+ ],
+ "strengths": [
+  "Handoffs are frame-exact. f0 is pure black with the warm-white dot at Q_DOT (744, 1000). f516-521 is a static OUT: BOX (190,700)-(890,1100), divider at x = 540, 4 cyan dots r = 10 at P4, #03070C, grid at 20 % and vignette 0.42, matching S03's IN code (gridAlpha 20 %, vignette 0.42). No caption remains on the last frame.",
+  "All on-screen narration matches the screenplay character for character, including the curly quotes U+201C/U+201D in 「藏在“很多”之中。」. Emphasis is as specified: 倒放 glitch, cyan 分不出来, mirrored 正放倒放, gold → after 方向, wide-tracked 时间之箭 with an untracked comma, 很多 built from the 400 balls.",
+  "The physics is exact and honest. The 2-ball oblique elastic collision (m 1.5 : 1, radii ratio² ≈ 1.54) is closed-form. B is the same recording indexed backward by construction. The N = 10 reverse break re-racks into a diamond. The N = 400 run starts from a compact amorphous drop (not a lattice), and the S-gauges show a real coarse-grained entropy: A rising, B red and falling. The t = 0 gold ghost and the arrow into the spread gas put the arrow of time where it belongs, in the special starting condition. m d²x/dt² = F(x) with the twin minus born from the square and annihilating is a correct and clever visual for (−1)² = 1.",
+  "The blind test is genuinely fair until f392. Both panels carry identical scrambled clocks and identical strobe and annotation treatment, then everything (clocks, ▶ 正放 / ◀◀ 倒放 stamps, B's red frame) resolves on a single frame. The N = 400 beat (luminous drop bursting in A, haze gathering and brightening in B, push-in, !! shake, tape-tear glitch) is the strongest image in the scene.",
+  "Motion checked on consecutive frames 313-325, 388-393, 424-437, 446-450, 494-518: no pops. The swarm hand-off from the gas is seamless, B's bloom fades with its slices, and the box closes symmetrically from the top/bottom centre while line 2 diffuses. A grid-brightness flicker on shake frames appears only in downscaled previews; measured at scale 1 it is unchanged (bottom-strip YAVG 5.42 → 5.34).",
+  "Technical checks pass. No Math.random/Date/performance calls; the only module-level buffer (eCnt) is synchronous scratch. The incremental recorder is order-independent. The baked swarm table is guarded by a signature, and the font windowing gates every canvas draw. tsc reports no S02 errors.",
+  "Performance could not be measured cleanly: load average was 10-12 on 4 CPUs. Scale-1 renders took 1.1-2.1 s/frame, but heavy frames cost at most 1.55× the trivial f0 in the same run, so they are likely within the ~900 ms budget on a quiet machine. Re-measure there to confirm."
+ ]
+}

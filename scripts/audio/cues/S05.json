@@ -1,0 +1,338 @@
+[
+ {
+  "frame": 0,
+  "kind": "continue",
+  "description": "S04's swell / lit-web shimmer carries over (frame 0 = S04's last frame)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 2,
+  "kind": "transport",
+  "description": "▶▶ engages: tape-transport clunk + a short overexposed kick of the highlights",
+  "intensity": 0.8
+ },
+ {
+  "frame": 3,
+  "kind": "ff-whir",
+  "description": "fast-forward whir starts and keeps rising in pitch (Shepard-like riser) until ~f170",
+  "intensity": 0.5
+ },
+ {
+  "frame": 4,
+  "kind": "text",
+  "description": "「滚到最后呢？」 condenses (soft breath)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 50,
+  "kind": "ember-pluck",
+  "description": "star 1 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 50,
+  "kind": "ember-pluck",
+  "description": "star 2 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 52,
+  "kind": "ember-pluck",
+  "description": "star 3 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 53,
+  "kind": "ember-pluck",
+  "description": "star 4 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 53,
+  "kind": "ember-pluck",
+  "description": "star 5 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 54,
+  "kind": "ember-pluck",
+  "description": "star 6 burns out: soft warm pluck + a short exhale of air (its light shell leaves)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 60,
+  "kind": "ember-cascade",
+  "description": "cascade of tiny ember plucks thickens (one per dying star, ~3 per frame at the peak f74–96), panned by screen x; a warm dusk pad swells as the light haze fills the voids",
+  "intensity": 0.45
+ },
+ {
+  "frame": 72,
+  "kind": "odometer-tick",
+  "description": "year exponent rolls to 10^11",
+  "intensity": 0.4
+ },
+ {
+  "frame": 79,
+  "kind": "odometer-tick",
+  "description": "year exponent rolls to 10^12",
+  "intensity": 0.4
+ },
+ {
+  "frame": 86,
+  "kind": "odometer-tick",
+  "description": "year exponent rolls to 10^13",
+  "intensity": 0.4
+ },
+ {
+  "frame": 88,
+  "kind": "gravity-swell",
+  "description": "six black holes form on the heaviest clusters: sub-bass swell under everything until ~f176",
+  "intensity": 0.5
+ },
+ {
+  "frame": 100,
+  "kind": "odometer-tick",
+  "description": "year exponent rolls to 10^14 — lands (heavier tick)",
+  "intensity": 0.55
+ },
+ {
+  "frame": 108,
+  "kind": "ember-pluck",
+  "description": "one of the very last stars goes out",
+  "intensity": 0.3
+ },
+ {
+  "frame": 109,
+  "kind": "ember-pluck",
+  "description": "one of the very last stars goes out",
+  "intensity": 0.3
+ },
+ {
+  "frame": 109,
+  "kind": "ember-pluck",
+  "description": "one of the very last stars goes out",
+  "intensity": 0.3
+ },
+ {
+  "frame": 110,
+  "kind": "ember-pluck",
+  "description": "one of the very last stars goes out",
+  "intensity": 0.3
+ },
+ {
+  "frame": 110,
+  "kind": "last-star",
+  "description": "THE LAST STAR goes out (reticle blinks): a single high glassy tink, then the cascade stops",
+  "intensity": 0.7
+ },
+ {
+  "frame": 126,
+  "kind": "hawking-rise",
+  "description": "a black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.2
+ },
+ {
+  "frame": 132,
+  "kind": "bh-pop",
+  "description": "black hole evaporates: faint pin-prick pop (high, short)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 132,
+  "kind": "hawking-rise",
+  "description": "a black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.2
+ },
+ {
+  "frame": 134,
+  "kind": "odometer-whirr",
+  "description": "the exponent whirrs 14 → 100 (accelerating mechanical spin, peak speed ~f152)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 138,
+  "kind": "bh-pop",
+  "description": "black hole evaporates: faint pin-prick pop (high, short)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 139,
+  "kind": "hawking-rise",
+  "description": "a black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.2
+ },
+ {
+  "frame": 145,
+  "kind": "bh-pop",
+  "description": "black hole evaporates: faint pin-prick pop (high, short)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 146,
+  "kind": "hawking-rise",
+  "description": "a black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.2
+ },
+ {
+  "frame": 152,
+  "kind": "bh-pop",
+  "description": "black hole evaporates: faint pin-prick pop (high, short)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 153,
+  "kind": "hawking-rise",
+  "description": "a black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.2
+ },
+ {
+  "frame": 159,
+  "kind": "bh-pop",
+  "description": "black hole evaporates: faint pin-prick pop (high, short)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 164,
+  "kind": "hawking-rise",
+  "description": "the LARGEST black hole shrinks and heats up: a rising crackle of quanta",
+  "intensity": 0.4
+ },
+ {
+  "frame": 170,
+  "kind": "odometer-land",
+  "description": "the exponent lands on 10^100 (thunk), the numerals start losing contrast",
+  "intensity": 0.45
+ },
+ {
+  "frame": 172,
+  "kind": "dissolve",
+  "description": "THE IMAGE DIFFUSES: every tone of the score starts to random-walk (pitch scatter) and smear into pink noise",
+  "intensity": 0.5
+ },
+ {
+  "frame": 176,
+  "kind": "last-pop",
+  "description": "the largest black hole evaporates: pin-prick flash, the sub-bass cuts out, a faint wide wavefront rolls across the frame",
+  "intensity": 0.65
+ },
+ {
+  "frame": 184,
+  "kind": "text",
+  "description": "「温度处处相同。」",
+  "intensity": 0.15
+ },
+ {
+  "frame": 184,
+  "kind": "instrument",
+  "description": "histogram instrument appears: dry data ticks; its bars collapse into one needle by ~f240 (a narrowing filter sweep on the noise)",
+  "intensity": 0.25
+ },
+ {
+  "frame": 196,
+  "kind": "detune",
+  "description": "▶▶ loses its direction: the ff-whir wobbles, detunes and stops meaning anything",
+  "intensity": 0.35
+ },
+ {
+  "frame": 230,
+  "kind": "noise-white",
+  "description": "pink noise → white noise: no more pitch anywhere",
+  "intensity": 0.45
+ },
+ {
+  "frame": 247,
+  "kind": "loupe-open",
+  "description": "loupe opens (glass tick); the magnified gas: a granular crackle whose density follows the collisions",
+  "intensity": 0.3
+ },
+ {
+  "frame": 262,
+  "kind": "collisions",
+  "description": "collision crackle peaks (the stream thermalises f262–300); afterwards a steady, directionless crackle",
+  "intensity": 0.3
+ },
+ {
+  "frame": 262,
+  "kind": "hud-dissolve",
+  "description": "the timecode dissolves into the noise (its whir is gone)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 284,
+  "kind": "gauge-peg",
+  "description": "the S-gauge slams into its top stop and chatters (small metallic clack)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 328,
+  "kind": "loupe-close",
+  "description": "loupe shrinks to the point (soft reverse tick)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 344,
+  "kind": "text",
+  "description": "「这叫——」",
+  "intensity": 0.15
+ },
+ {
+  "frame": 356,
+  "kind": "name",
+  "description": "「热寂。」 appears: a low breath under the flat noise",
+  "intensity": 0.3
+ },
+ {
+  "frame": 374,
+  "kind": "collapse",
+  "description": "NOISE-DEATH: the sound collapses into flat, featureless noise (no spectral shape) and fades with the word",
+  "intensity": 0.4
+ },
+ {
+  "frame": 408,
+  "kind": "silence",
+  "description": "TRUE SILENCE (the film's only one): digital zero / at most −40 dB room tone until the gold point",
+  "intensity": 0
+ },
+ {
+  "frame": 444,
+  "kind": "gold-ignite",
+  "description": "the GOLD POINT ignites: one warm, pure high sine (the first tone after the silence)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 448,
+  "kind": "gold-flicker",
+  "description": "the point flickers back on (tiny glassy tick)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 448,
+  "kind": "warm-pad",
+  "description": "「但在滚落的路上——」 condenses in warm white: a low warm pad swells under the sine, rising toward S06's sun",
+  "intensity": 0.4
+ },
+ {
+  "frame": 450,
+  "kind": "gold-flicker",
+  "description": "the point flickers back on (tiny glassy tick)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 453,
+  "kind": "gold-flicker",
+  "description": "the point flickers back on (tiny glassy tick)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 455,
+  "kind": "gold-flicker",
+  "description": "the point flickers back on (tiny glassy tick)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 521,
+  "kind": "handoff",
+  "description": "last frame: grey + gold point; sine + pad continue into S06 (the point swells into the Sun)",
+  "intensity": 0.4
+ }
+]

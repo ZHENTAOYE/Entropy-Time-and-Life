@@ -33,7 +33,7 @@
   "frame": 108,
   "kind": "footstep",
   "description": "footprint 2 lands (left foot, pan L), soft sand crunch + grain puff",
-  "intensity": 0.39
+  "intensity": 0.38999999999999996
  },
  {
   "frame": 114,
@@ -75,7 +75,7 @@
   "frame": 156,
   "kind": "footstep",
   "description": "footprint 5 lands (right foot, pan R), soft sand crunch + grain puff",
-  "intensity": 0.45
+  "intensity": 0.44999999999999996
  },
  {
   "frame": 172,
@@ -120,16 +120,16 @@
   "intensity": 0.53
  },
  {
+  "frame": 228,
+  "kind": "transition",
+  "description": "macro zoom-in begins (the walk camera glides into a ×2.4 macro); time slows (tape-slow / time-stretch, sub swell into the impact)",
+  "intensity": 0.5
+ },
+ {
   "frame": 236,
   "kind": "footstep",
   "description": "footprint 10 lands (left foot, pan L), soft sand crunch + grain puff",
   "intensity": 0.55
- },
- {
-  "frame": 236,
-  "kind": "transition",
-  "description": "macro zoom-in begins; time slows (tape-slow / time-stretch, sub swell into the impact)",
-  "intensity": 0.5
  },
  {
   "frame": 252,
@@ -138,9 +138,9 @@
   "intensity": 0.2
  },
  {
-  "frame": 262,
+  "frame": 252,
   "kind": "swell",
-  "description": "the invisible foot’s shadow slides in from the left and sharpens as it descends — low rumble rising to the impact",
+  "description": "the invisible foot’s soft shadow slides in from the left and converges on the landing spot as it descends — low rumble rising to the impact",
   "intensity": 0.55
  },
  {
@@ -170,20 +170,38 @@
  {
   "frame": 310,
   "kind": "rewind",
-  "description": "◀◀ rewind attempt: tape strain / reverse squeal + glitch tears; a law-cyan ghost of the undented sand and of every grain’s origin flickers over the print; grains tremble but do not return",
+  "description": "◀◀ ×¼ rewind attempt: tape strain / reverse squeal + glitch tears; law-cyan return paths from every grain back to where it came from; the grains are dragged ~35 % of the way back (trembling, lifting) and the dent partly refills; S-gauge falls red",
   "intensity": 0.75
  },
  {
-  "frame": 326,
-  "kind": "impact",
-  "description": "FAIL: ✕ 不可逆 — the cyan target shatters (glassy crack) while the real print stays; hard stop, then near-silence (wind tail only)",
-  "intensity": 0.9
+  "frame": 322,
+  "kind": "swell",
+  "description": "the strain peaks (pitch bending up, the reversal almost “working”)",
+  "intensity": 0.6
  },
  {
-  "frame": 334,
+  "frame": 330,
+  "kind": "impact",
+  "description": "FAIL: everything snaps back at once (2-frame camera jolt) — a red ✕ slashes across the print with a short flash, ✕ 不可逆 stamps in (held > 1 s); the cyan target shatters (glassy crack); then near-silence (wind tail only)",
+  "intensity": 0.95
+ },
+ {
+  "frame": 331,
+  "kind": "texture",
+  "description": "grains resettling after the snap (short granular patter)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 332,
   "kind": "transition",
   "description": "pull back from the macro (reverse-cymbal whoosh); prints fill with molten gold",
   "intensity": 0.5
+ },
+ {
+  "frame": 334,
+  "kind": "tick",
+  "description": "S-gauge eases back up (red → cream)",
+  "intensity": 0.15
  },
  {
   "frame": 342,
@@ -297,7 +315,7 @@
   "frame": 432,
   "kind": "pulse",
   "description": "delay tap +14 f (echo 0.26) (fired at f418)",
-  "intensity": 0.18
+  "intensity": 0.182
  },
  {
   "frame": 437,
@@ -327,7 +345,7 @@
   "frame": 462,
   "kind": "pulse",
   "description": "delay tap +14 f (echo 0.26) (fired at f448)",
-  "intensity": 0.18
+  "intensity": 0.182
  },
  {
   "frame": 467,
@@ -363,7 +381,7 @@
   "frame": 492,
   "kind": "pulse",
   "description": "delay tap +14 f (echo 0.26) (fired at f478)",
-  "intensity": 0.18
+  "intensity": 0.182
  },
  {
   "frame": 497,
@@ -399,7 +417,7 @@
   "frame": 522,
   "kind": "pulse",
   "description": "delay tap +14 f (echo 0.26) (fired at f508)",
-  "intensity": 0.18
+  "intensity": 0.182
  },
  {
   "frame": 527,
@@ -435,7 +453,7 @@
   "frame": 552,
   "kind": "pulse",
   "description": "delay tap +14 f (echo 0.26) (fired at f538)",
-  "intensity": 0.18
+  "intensity": 0.182
  },
  {
   "frame": 557,

@@ -1,0 +1,100 @@
+{
+ "score": 7,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "major",
+   "frames": "f66–76 (esp. f71, f72, f73); same blank-at-contact at f126",
+   "problem": "The key image of card 2 is \"the ink re-gathers into a drop that leaps out of the water\" at 2.4 s. It plays out in about 3 frames at tape speed ×1.82 and includes an EMPTY frame. f71 shows the reversed crown with the torus flattened under the crater. f72, the reversed-plop cue frame, shows a flat, empty surface: no ink, no drop, no crown. That is because age == 0 exactly, so InkBloom is empty and inkDropFall returns visible=false. By f73 the drop is already ~110 px above the water. The camera is also mid push-in (z≈2.6, surface sliding down the frame ~40 px/frame). The viewer never perceives the ink gathering into a drop; the hook's payoff is a flicker. f126 has the same empty contact frame, though the flash masks it there.",
+   "fix": "(a) Never sample the contact on an integer frame. In Scene.tsx render the drop with inkDropFall(Math.abs(st.age) < 0.03 ? -0.004 : st.age, …) so f72 and f126 show the drop sitting in the closing crater. Alternatively, shift the tape normalisation so age crosses 0 at f72.5. (b) Slow-mo the leap the way the impact is slow-mo'd. In timeline.ts dip the rewind speed to ≈×0.35 over age 0.35→0 (≈f62–76) so the crown visibly closes, the Worthington jet retracts and the drop emerges over ~12 frames. Replace the linear tape-stop with a smooth speed profile on f72→F.stop constrained to ∫ = T_FALL, and move F.stop to ≈f96 (3.2 s, within the ±0.5 s nudge), keeping the impact at f126. (c) Hold the camera at z ≤ 1.5 until the drop has cleared the surface; start the 3× push at ≈f74 so the leap happens in a stable frame."
+  },
+  {
+   "severity": "major",
+   "frames": "card 4 f162–264 (f190, f225, f250); card 2 f9–92 (f45, f60, f82)",
+   "problem": "Reading time is too short. Card 4 is 15 characters and the film's rule asks ≥3.8 s. With stagger 2, lineDelay 8, enterLen 18 and exitLen 26, the last glyph finishes condensing at f209 and glyphs start diffusing at f238. The whole card is fully legible for only ≈1.0 s, line 2 is readable for ≈2 s, and by f250 it is already half gone. Card 2 is similar: line 2 「你一眼就知道。」 is complete at f54 and starts diffusing at f72, so it is fully formed for ≈0.8 s, and its blurred remnants are still on screen during the tape-stop at f90–92.",
+   "fix": "Card 4: from=150, end=276 (both inside the ±0.5 s nudge), stagger=1, lineDelay=4, enterLen=14, exitLen=20. That gives full legibility ≈f180–256 (2.5 s) and ≈4.2 s visible; the bloom-breathes-alone beat becomes f276–330 (1.8 s, fine). Card 2: stagger=1.2, enterLen=12, dur to f100 with exitLen=18, so it diffuses during the hang (the words drift away while the drop hangs, a nice rhyme). Line 2 is then complete ≈f45–84."
+  },
+  {
+   "severity": "major",
+   "frames": "f90–126 (f90, f104, f120)",
+   "problem": "The 1.2 s macro still life (tape-stop → hang → fall) is the emptiest stretch of the scene and does not read as macro high-speed photography. About 60 % of the frame is flat brown air with generic bokeh. The hero drop is a 78 px dot (r13 × 3) and the hairline is a flat grey bar. The lower 40 % is blank cream except for a grey featureless smudge under the hairline: InkDrop's reflection, at ~(540,1120) in f104–125. Momentum dies right after the hook.",
+   "fix": "Go genuinely macro. Set the CAM keyframes at f90/f106 to z≈4.5 with the apex at screen y≈640 and the surface at y≈1360 (z = 720 / (360 − 200)). Then track down and pull back to the contact framing by f126. At ~120 px the drop can carry detail. In fx.ts (z 30.5) add the lower-half cream reflection band of the light table and a thin bright arc of the hairline mirrored in the sphere, plus tiny bokeh specks in the specular. Pass reflection={0} to InkDrop (see the physics minor). Optional: an out-of-focus glass pipette tip entering from the top edge (the drop's origin in forward time) gives the hang a reason and composes the empty upper frame."
+  },
+  {
+   "severity": "major",
+   "frames": "f126–160 (f129, f140)",
+   "problem": "At 2.7–2.78× the impact hero shot exposes the shared crown as vector line art: a hollow white-outlined trapezoid with white bead dots, beside a soft, photographic Beer–Lambert torus. Two rendering languages collide on the scene's physical climax, and the zoom thickens the hairline strokes.",
+   "fix": "Either frame the impact at ≈1.8× instead of 2.7× (CAM f126 / f138), the scale the crown was designed for, or give the crown a body yourself. In drawSpray (z 31, under the GL multiply), paint a filled crown sheet using the same age-driven radius and height: a translucent cream-lit sheet with a vertical gradient rgba(255,248,236,0→.35), a darker refracting band below the rim and a 1.5 px rim highlight. Draw the jets as tapered filled strokes ending in beads with dark refracting cores, like your spray droplets. Pass crown={0.5} to InkTank so the lib outline becomes a highlight on that sheet rather than the shape itself."
+  },
+  {
+   "severity": "minor",
+   "frames": "f76–89, f188–250, f286–329",
+   "problem": "The HUD misreports the playback speed. During the rewind tape-stop it shows \"◀◀ ×1\" while the tape slows from 1.4 to 0.1 (Math.round with max 1). In forward play there is no label at all while the bloom runs at ×1.7 and later ×1.1, so ▶ implies real time while diffusion is actually fast-forwarded (a physicist will object). The slow motion, by contrast, is labelled.",
+   "fix": "Change speedLabel: rewind → a < 0.95 ? '×' + a.toFixed(2) : '×' + Math.round(a). Play → show '×' + a.toFixed(a < 1 ? 2 : 1) whenever |a − 1| > 0.05."
+  },
+  {
+   "severity": "minor",
+   "frames": "f30–90 (f45, f60, f78)",
+   "problem": "倒放 is glitched almost permanently: a 2.6 px base RGB split, bursts on ~42 % of 2-frame ticks, and slices offset up to ±36 px. The emphasised word is the least legible word of the card; in f60, 放 is torn into an unreadable shape.",
+   "fix": "In Voice glitch mode: burst threshold hb > 0.8 (≈20 %), base split 1.2 px, slices only during bursts with offsets ≤ 12 px. Add guaranteed bursts tied to tape events (f31, f51, f72) so the glitch rhymes with the picture instead of reading as random noise."
+  },
+  {
+   "severity": "minor",
+   "frames": "f0–4 and f90–93",
+   "problem": "The V-hold roll and the clunk roll redraw the entire picture (stage canvas plus re-multiplied GL at 0.33 res) into the 0.5-res front canvas. The film's very first frames, often the auto-cover, are its softest: bokeh, hairline and ink are visibly mushy at f0 while the DOM HUD is crisp.",
+   "fix": "Implement the roll as a CSS transform on the InkStage container (style={{transform: `translateY(${roll}px)`}}) plus a DOM black blanking bar and a 2 px head line, instead of a pixel copy into the half-res front canvas. It is full-res and cheaper."
+  },
+  {
+   "severity": "minor",
+   "frames": "f331–389 (f345, f368)",
+   "problem": "In 「为什么？」 the hook's glow (shadowBlur 22) is hard-clipped by the rect at dot.top−2 and xs−20, leaving a visible straight edge under the hook when levels are lifted. The dot circle has no glow, so it looks flatter than the glyphs. The dot also grows from about r6 to r10 while the grains disperse, so the one surviving point visibly GATHERS mass as everything else spreads: a mixed message in a scene about ink never gathering back. Separately, the word is fully legible for only ≈1 s (f333–~362).",
+   "fix": "Give the dot the same shadowColor and shadowBlur. Clip the hook with a soft mask instead of a hard rect: render the ？ to an offscreen canvas and punch out the dot with a radial destination-out gradient. Draw the dot at Q_DOT.r = 10 from f331 (a heavier dot reads as the drop, an intentional accent) and keep its radius constant. Start the diffusion at f366 with D_LEN 16; the dot alone still holds from f384."
+  },
+  {
+   "severity": "minor",
+   "frames": "f73–76, f104–125",
+   "problem": "Physics nit: InkDrop's \"inverted reflection under the hairline\" is optically inconsistent with a camera looking through the tank wall below the waterline. Total internal reflection on the underside of the surface mirrors only underwater content; an airborne drop is not reflected there. At macro zoom it reads as a grey smudge on the light table.",
+   "fix": "Pass reflection={0} to InkDrop, or at most 0.3 and only while zoom < 1.3."
+  },
+  {
+   "severity": "minor",
+   "frames": "f80–90, f110–128",
+   "problem": "With DT = 0.042 s, the strobe ghosts near the apex are spaced less than one drop diameter apart. They pile into a coil of hollow rings (a slinky), so the t² spacing they are meant to teach is not readable.",
+   "fix": "Use DT ≈ 0.065 s and KMAX = 5. Skip any ghost closer than 2.4·r to the previous one. Give the ghosts a light body fill (alpha ≈ 0.25) instead of outline only, so each flash reads as a frozen drop."
+  },
+  {
+   "severity": "minor",
+   "frames": "f0–12, f300–329",
+   "problem": "At zoom 1.13 about y = 900 the surface rises to y ≈ 290, and the timecode (y 250–285) sits on the silver hairline. This is cramped on the cold-open frames and the last pre-cut frames.",
+   "fix": "Ease Timecode y to 220 when zoom > 1.05, or push in about y ≈ 1000 instead of 900 so the surface stays at y ≥ 320. If you change the origin, change it in both f0 and f329 to keep the match."
+  },
+  {
+   "severity": "minor",
+   "frames": "cues f72, f90, f126",
+   "problem": "The cues duplicate the score's S01 bed. scripts/audio/score.py bed_S01 already has the reversed plop at 2.4 s, the clunk at 3.0 s and the impact plop and boom at 4.2 s. On top of that, CUES add a FORWARD 'drop' plop at f72 (contradicts the reversed plop), a 1.5 s 'impact' boom at f90 (its tail fills the intended silence of the hang) and a second 'drop' at f126 (a double, phasey plop).",
+   "fix": "f72 → kind 'swell' (handled by the bed). f90 → 'tick' at intensity 0.3, or remove. f126 → 'splash' at ≤ 0.4, or remove. Keep one sound source per event."
+  },
+  {
+   "severity": "minor",
+   "frames": "rewind f0–90",
+   "problem": "Performance could not be verified cleanly; load average was 13–17 on 4 CPUs while other agents rendered. Measured back to back under the same load: S01 averaged 1.86 s/frame (rewind 2.3–3.0 s, forward 1.3–1.6 s), the signed-off InkPreview 2.73 s and the empty InkBaseline 0.87 s. Forward frames are well under the shared preview's cost and rewind frames are about equal to it, about 1.8× the forward cost because the front canvas, tears and GL readback are active.",
+   "fix": "Re-measure f10, f20 and f45 at --scale 1 on an idle box. If they exceed ~900 ms, mount the front canvas only on frames that actually have tears or roll, cap tracking-band lines at 10, and skip the GL re-multiply for tear bands outside the ink's bounding box."
+  },
+  {
+   "severity": "minor",
+   "frames": "—",
+   "problem": "Stale comments. The timeline.ts header says the splits are at f188–200 and f228–240 and the pull-out at f136–194. cues.ts and the build summary say f186–188 and f222–227 and f138–196.",
+   "fix": "Sync the timeline.ts header comments to the actual beat frames."
+  }
+ ],
+ "strengths": [
+  "The cold open is literally the scene's last pre-cut image rewound: same age (8.33 s), spread .3, zoom 1.13 about y 900 and tape clock 12:15. The viewer sees one physical event played both ways, a rigorous and elegant framing of 「你一眼就知道」.",
+  "The Beer–Lambert chandelier frames (f200–300) are genuinely beautiful. Cream light table, navy-to-slate dilution, filament tethers and warm bokeh make dilution visible as colour without any label.",
+  "The tape-tamper language is physically convincing. Real horizontal tears slice the composited frame (stage canvas plus re-multiplied GL ink), with a tracking band rolling up, chroma fringes, a V-hold roll lock-in and a clunk roll. The chromatic aberration is used only while time is tampered with, as the design system requires.",
+  "The S-gauge is a state function of the ink's age: red and falling with jitter during the rewind, ink-coloured and rising through the bloom.",
+  "Text is exact to the screenplay (verified code point by code point). Ink-coloured captions sit in the lower-third lane over clean cream, 聚回来 visibly opens while displayed, and safe zones are respected.",
+  "The ending handoff is exact: hard cut to black at f330, 「为什么？」 Serif 200 136 px optically centred with its dot solved onto Q_DOT, diffusing into √t-spreading grains, and the last frame is black with only the r10 dot at (744, 1000).",
+  "Engineering is clean: a single pure-function tape remap (memoised integral, segment normalisation), camera keyframes interpolated in (z, ty) so the zoom origin never jumps, all 2D layers drawn into one stage canvas by z-order, the front canvas mounted only while needed, no Math.random/Date.now/performance.now, and tsc is clean for the S01 folder. Effect order is safe: InkBloom's GL layout effect runs before the stage replays the tamper layer, so the tears always copy the current frame.",
+  "Beats land on the screenplay times: card 2 at f9 with line 2 at +0.6 s, leap f72 (2.4 s), clunk f90 (3.0 s), impact f126 (4.2 s, which is also the tape clock), card 4 f162–264, cut f330 (11.0 s)."
+ ]
+}

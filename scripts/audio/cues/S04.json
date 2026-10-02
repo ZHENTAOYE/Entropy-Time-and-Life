@@ -1,0 +1,422 @@
+[
+ {
+  "frame": 0,
+  "kind": "drone",
+  "description": "IN: S03’s amber zero-line hum continues (same line, same tone)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 4,
+  "kind": "shimmer",
+  "description": "an arrowhead grows on the right end of the line",
+  "intensity": 0.3
+ },
+ {
+  "frame": 14,
+  "kind": "whoosh",
+  "description": "the line swings up −90° to vertical (peak of the swing ~f40)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 38,
+  "kind": "crackle",
+  "description": "gold dust starts streaming out of the tail point (granular stream, rising until f104)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 54,
+  "kind": "tick",
+  "description": "width bracket 1 measures the plume",
+  "intensity": 0.25
+ },
+ {
+  "frame": 58,
+  "kind": "tick",
+  "description": "width bracket 2",
+  "intensity": 0.25
+ },
+ {
+  "frame": 67,
+  "kind": "tick",
+  "description": "width bracket 3",
+  "intensity": 0.25
+ },
+ {
+  "frame": 76,
+  "kind": "tick",
+  "description": "width bracket 4 (widest, near the arrowhead)",
+  "intensity": 0.25
+ },
+ {
+  "frame": 98,
+  "kind": "tape-stop",
+  "description": "the flow clock stalls (pitch slows to zero at f104)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 106,
+  "kind": "glitch",
+  "description": "◀◀ appears top-left, chromatic split on the dust",
+  "intensity": 0.45
+ },
+ {
+  "frame": 118,
+  "kind": "rewind swell",
+  "description": "the dust runs backward and narrows into the tail (reversed granular stream)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 126,
+  "kind": "whoosh",
+  "description": "the camera dives into the tail point (accelerating rush until f186)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 135,
+  "kind": "impact",
+  "description": "the last dust is swallowed by the tail point — soft gathered thump, the point flares",
+  "intensity": 0.55
+ },
+ {
+  "frame": 142,
+  "kind": "reveal",
+  "description": "the tail point opens (iris with a gold rim) onto the present-day cosmos",
+  "intensity": 0.6
+ },
+ {
+  "frame": 150,
+  "kind": "rewind",
+  "description": "falling Shepard tone starts (cosmic rewind, until the slam at f288)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 158,
+  "kind": "rumble",
+  "description": "the merger remnant starts to un-merge (low rumble until f240)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 172,
+  "kind": "tick",
+  "description": "monumental counter appears: 1 天",
+  "intensity": 0.35
+ },
+ {
+  "frame": 182,
+  "kind": "ticks",
+  "description": "odometer clicks accelerate into a whirr (1天 → 年 → 万年 → 亿年, until f286)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 196,
+  "kind": "spark reversed",
+  "description": "first stars un-light (reversed plinks; cluster un-ignitions 196–216)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 202,
+  "kind": "spark reversed",
+  "description": "un-ignition cluster",
+  "intensity": 0.35
+ },
+ {
+  "frame": 206,
+  "kind": "spark reversed",
+  "description": "un-ignition cluster (densest)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 211,
+  "kind": "spark reversed",
+  "description": "un-ignition cluster",
+  "intensity": 0.35
+ },
+ {
+  "frame": 216,
+  "kind": "spark reversed",
+  "description": "last stars go out",
+  "intensity": 0.3
+ },
+ {
+  "frame": 236,
+  "kind": "silence dip",
+  "description": "the dark ages: everything dims for a beat",
+  "intensity": 0.2
+ },
+ {
+  "frame": 244,
+  "kind": "swell",
+  "description": "the heat surge: red → orange → white-hot plasma (roar builds until f274)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 286,
+  "kind": "click",
+  "description": "the counter lands on 138 亿年",
+  "intensity": 0.6
+ },
+ {
+  "frame": 288,
+  "kind": "impact",
+  "description": "SLAM — the floor of time: flash, shock ring, camera shake",
+  "intensity": 1
+ },
+ {
+  "frame": 292,
+  "kind": "whoosh",
+  "description": "the counter flies into the HUD (◀◀ 138亿年)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 296,
+  "kind": "drone",
+  "description": "boiling plasma bed (sustained until the darkness at f376)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 312,
+  "kind": "type",
+  "description": "HUD types 涨落 ×10⁵ 放大",
+  "intensity": 0.15
+ },
+ {
+  "frame": 376,
+  "kind": "muffle",
+  "description": "darkness falls over the plasma (low-pass)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 390,
+  "kind": "impact",
+  "description": "the base “10” punches in, bursting out of frame (plasma inside the glyph)",
+  "intensity": 0.9
+ },
+ {
+  "frame": 405,
+  "kind": "impact",
+  "description": "exponent “10” pops (higher pitch)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 419,
+  "kind": "impact",
+  "description": "exponent “123” pops (higher still)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 424,
+  "kind": "type",
+  "description": "note 彭罗斯估算 types in",
+  "intensity": 0.2
+ },
+ {
+  "frame": 432,
+  "kind": "whoosh",
+  "description": "camera pulls back to the whole fraction",
+  "intensity": 0.4
+ },
+ {
+  "frame": 438,
+  "kind": "sweep",
+  "description": "the fraction bar draws, 1 and 概率 ≈ appear",
+  "intensity": 0.3
+ },
+ {
+  "frame": 448,
+  "kind": "type",
+  "description": "the wall of zeros types in, accelerating into a crackle/whirr (until f512)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 500,
+  "kind": "swell",
+  "description": "the darkness lifts: the uniform plasma returns",
+  "intensity": 0.5
+ },
+ {
+  "frame": 516,
+  "kind": "sweep",
+  "description": "the temperature probe draws its flat trace (thin sine, steady pitch = uniform)",
+  "intensity": 0.25
+ },
+ {
+  "frame": 538,
+  "kind": "swell",
+  "description": "whiteout of the plasma",
+  "intensity": 0.5
+ },
+ {
+  "frame": 556,
+  "kind": "water",
+  "description": "dissolve into S01’s spent ink: underwater hush, cream light table",
+  "intensity": 0.4
+ },
+ {
+  "frame": 574,
+  "kind": "chime",
+  "description": "S墨 appears at the TOP of the gauge, S宇宙 at the bottom — the contradiction",
+  "intensity": 0.45
+ },
+ {
+  "frame": 602,
+  "kind": "pen",
+  "description": "the two thought-experiment boxes draw on in ink",
+  "intensity": 0.3
+ },
+ {
+  "frame": 628,
+  "kind": "crackle",
+  "description": "the gas in both boxes jiggles (soft)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 646,
+  "kind": "swell",
+  "description": "the whole spent-ink universe starts to gather (deep swell until f726)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 648,
+  "kind": "whoosh",
+  "description": "gravity on: the right box’s gas falls together",
+  "intensity": 0.45
+ },
+ {
+  "frame": 656,
+  "kind": "spark",
+  "description": "first light sparks leave the heated clump (sparks continue to ~f730)",
+  "intensity": 0.5
+ },
+ {
+  "frame": 690,
+  "kind": "impact",
+  "description": "the clump settles (soft thud); its S tick has climbed",
+  "intensity": 0.5
+ },
+ {
+  "frame": 692,
+  "kind": "whoosh",
+  "description": "left box slides away, right box swells to fill the frame",
+  "intensity": 0.45
+ },
+ {
+  "frame": 704,
+  "kind": "sweep",
+  "description": "the paper goes dark from the bottom up: ink becomes light (sub drop, until f746)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 708,
+  "kind": "tick",
+  "description": "▶ 38万年",
+  "intensity": 0.3
+ },
+ {
+  "frame": 720,
+  "kind": "swell",
+  "description": "deep swell of the ignition era (until f800)",
+  "intensity": 0.8
+ },
+ {
+  "frame": 734,
+  "kind": "tick",
+  "description": "▶ 2亿年",
+  "intensity": 0.3
+ },
+ {
+  "frame": 740,
+  "kind": "ignition",
+  "description": "first star ignites (centre-bottom cluster): flash + shock ring + spikes",
+  "intensity": 0.65
+ },
+ {
+  "frame": 745,
+  "kind": "ignition",
+  "description": "ignition cascade (3 clusters)",
+  "intensity": 0.55
+ },
+ {
+  "frame": 747,
+  "kind": "ignition",
+  "description": "ignition cascade (6 clusters)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 751,
+  "kind": "ignition",
+  "description": "ignition",
+  "intensity": 0.5
+ },
+ {
+  "frame": 753,
+  "kind": "ignition",
+  "description": "heaviest on-screen cluster ignites (left, y≈1000)",
+  "intensity": 0.75
+ },
+ {
+  "frame": 756,
+  "kind": "ignition",
+  "description": "ignition (top right)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 760,
+  "kind": "ignition",
+  "description": "ignition",
+  "intensity": 0.5
+ },
+ {
+  "frame": 767,
+  "kind": "spark",
+  "description": "groups ignite (second, finer wave of sparkles until ~f795)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 772,
+  "kind": "tick",
+  "description": "▶ 10亿年",
+  "intensity": 0.3
+ },
+ {
+  "frame": 784,
+  "kind": "glissando",
+  "description": "滚落 slides down the slope (second glyph f789)",
+  "intensity": 0.35
+ },
+ {
+  "frame": 806,
+  "kind": "tick",
+  "description": "▶ 50亿年",
+  "intensity": 0.3
+ },
+ {
+  "frame": 840,
+  "kind": "tick",
+  "description": "▶ 138亿年",
+  "intensity": 0.3
+ },
+ {
+  "frame": 846,
+  "kind": "shimmer",
+  "description": "之后 rises with its trail",
+  "intensity": 0.3
+ },
+ {
+  "frame": 866,
+  "kind": "tick",
+  "description": "▶ 现在",
+  "intensity": 0.4
+ },
+ {
+  "frame": 896,
+  "kind": "release",
+  "description": "HUD and gauge fade out",
+  "intensity": 0.15
+ },
+ {
+  "frame": 935,
+  "kind": "hold",
+  "description": "0.6 s still on the lit web: sustained chord, no new events; cut is continuous into S05",
+  "intensity": 0.3
+ }
+]

@@ -1,0 +1,93 @@
+{
+ "score": 6.5,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "major",
+   "frames": "292–334 (hero macro print), 262–282 (foot shadow)",
+   "problem": "The macro hero print does not read as a footprint. The sun is 12° high and the dent is 8 world px deep, so the cast shadow (8/0.217 ≈ 37 px) fills the heel and ball. The whole dent goes black except a lit crescent, and at f305/f328 it reads as a dark S-squiggle or ink blob with no toes, arch or heel. The macro frame is also dominated by black ripple lee stripes about 20 px wide that read as zebra skin or wood veneer, not sand. At contact (f282) the foot shadow is a crisp black foot silhouette that reads like a sticker. This is the scene's key 'trace' image and it is unreadable.",
+   "fix": "sandShader.ts: make the sun a uniform (u_L, u_tanE) and during f236–334 lerp its elevation from 12° to about 28° (TANE ≈ 0.53). Inside prints, raise the ambient/sky bounce (amb 0.26 → about 0.45 where dep > 0.05) so heel, ball and five toe pits shade as a gradient, not solid black. For the macro print only, scale DEP to about 0.6 or cap occ at 0.6 inside dents. In macro, cut ripple AMP to about 1.8 and use a softer lee (LEE 0.22 → 0.3). In groundFx foot shadows, keep the penumbra at least SHADOW_LEVELS[2] at contact and drop alpha to about 0.45 so it reads as shadow, not a decal. Check that the print silhouette reads at --scale 0.3."
+  },
+  {
+   "severity": "major",
+   "frames": "310–352",
+   "problem": "The rewind-fail beat, the scene's 'wow' per visual-direction, does not land. (1) The grains move at most 7% toward their origin (k = 0.07·rewind), which is invisible. (2) The law-cyan 'target' is a few faint cyan specks inside the dark dent (ghost alpha 0.32; return paths only every 15th grain and only while shatter < 0.05). (3) '✕ 不可逆' is a 34 px corner label, and lib Timecode blinks on absolute frames: floor(326/15) = 21 is odd, so f326–329 renders at 25% opacity, and the fail lands in the dim phase on a dark box. (4) The builder report claims 'a red hairline ✕ snaps across the fresh print, anchored in world space', but no such drawing exists in the code: grep finds ✕ only in the HUD and cues.",
+   "fix": "Move the fail from f326 to f330 (REWIND[1] in timing.ts; floor(330/15) = 22 starts a blink-on phase), or overlay your own non-blinking label. In groundFx, add the claimed world-anchored alarm-red ✕ over the print: two 2 px hairlines, snap in over 2 f with a 3 f additive flash, held to f352. During f312–326, pull grains 30–40% back toward (x0, y0) (k ≈ 0.35·ease) with tremble, then snap them back at the fail frame with a 2-frame shake, so the viewer sees the reversal tried and refused. Draw the cyan return paths for every 3rd grain at about 0.7 alpha and raise the shader ghost alpha to about 0.7. Keep '✕ 不可逆' fully visible for at least 1 s."
+  },
+  {
+   "severity": "major",
+   "frames": "98–252 (ruler), 150–362 (S-gauge)",
+   "problem": "The explanatory HUD is nearly invisible over the bright sand. The time ruler sits at x = 150, 250–400 px from the trail. Its leaders to the prints are 1 px dotted at 0.32 alpha and invisible at full res, so '−1 s … −4 s' float unconnected to any print. '未来 · ？' is cold #DCE7F5 at 0.55× opacity on light sand and is illegible. The '现在' hairline is barely visible. The S-gauge (#F6DFB2 on #D9B27C sand) is invisible, so 'S rises one notch per print' is lost. At f230 the 未来 label sits at y ≈ 170–200, above the y ≥ 220 safe zone.",
+   "fix": "hud.tsx: put a soft dark backing strip behind the ruler (a left-edge gradient, x 40–340, rgba(10,7,5,0.35) fading right) for f98–252. Raise label opacity to about 0.95, and 未来·？ to about 0.65 with a dark text halo. Make the leaders solid 1.5 px at about 0.6 alpha, each ending in a 6 px ring around the trail point it names, or move the labels next to the trail (tx + 60). Clamp the 未来 label to y ≥ 240. Give the SGauge a dark ink colour (e.g. #2A1A0E) during the sand phase, or let the same left strip back it."
+  },
+  {
+   "severity": "major",
+   "frames": "400–496",
+   "problem": "The network ghost (drawNetGhost) is detached from the network. It is drawn at a fixed screen centre (540, 940) with its own scale law, while the network zooms toward (540, ~387). At f440 it spills outside the growing head outline at the bottom right. At f460–490 it sits as a blurred fern blob in the chest, clearly visible in full-res f482, so a 'second brain' floats in the torso during the figure reveal. At f400 its alpha of 0.32×1.6 ≈ 0.5 also turns the network into muddy brown lichen.",
+   "fix": "Anchor the ghost to the network: centre = xf[0]·FIN_C + (xf[1], xf[2]), scale ∝ xf[0]^0.9 for gentle parallax, rotation kept. Cut alpha to ≤ 0.15. Fade it out completely by f430, before the outline starts at f414–446, or clip it with the head Path2D."
+  },
+  {
+   "severity": "major",
+   "frames": "236→237",
+   "problem": "Camera hitch. Checked numerically through camera() in trail.ts: during the walk the sand scrolls at about 9 px/frame on screen (print 11 moves dy = 8.98 px at f236). At f237 macroCam takes over, pinned to walkCam(236), and the scroll drops to 0.00 in one frame, then the zoom eases in from rest. The whole field visibly slams to a stop.",
+   "fix": "trail.ts macroCam: do not freeze walkCam(236). Blend from the live walkCam(f) to the macro framing with w = ease.inOutSine(seg(f, 230, 256)), interpolating cx, cy and log z, so pan velocity decays smoothly. Alternatively carry the f236 pan velocity forward with an exponential decay (τ ≈ 8 f) added to the pinned position."
+  },
+  {
+   "severity": "major",
+   "frames": "all; worst 250–420",
+   "problem": "Over the performance budget. scripts/stills.mjs at --scale 1 (load 2.5–4, consecutive frames no faster, so the cost is per frame, not precompute) measured: f100 1.2–1.6 s, f200 1.6 s, f292 1.8–2.1 s, f316 2.0 s, f350 2.3–3.4 s, f400 1.9 s, f482 1.2 s, f569 0.9 s. The budget is about 900 ms.",
+   "fix": "Profile each layer behind a dev flag. Likely wins: (a) drawGrainOverlay runs 3 full-frame 1080×1920 CPU passes plus a full-frame 'soft-light' composite on every macro frame. Render it at 0.5 scale, limited to the DOF focus bbox, or fold the grain-dome term into the shader. (b) Skip renderFrag and paintRelief once u_dark ≥ 0.98 (f ≥ ~405). Skip relief sprites with depth < 0.01 and the relief upload when nothing changed. (c) During f336–416, while the sand darkens and defocuses, render the shader at about 0.35 scale. (d) In figure.ts, skip the bloom pass and the far dendrite buckets when S < 1, and cache full-grown network Path2Ds once age > 14 for every node (most frames after f430 rebuild about 4.3k segments into 21 paths that only change in brightness bucket)."
+  },
+  {
+   "severity": "major",
+   "frames": "40–250",
+   "problem": "The sand stage is monotonous and the subject competes with the texture. For about 6.5 s the full frame is uniform, high-contrast, near-vertical ripple stripes that read as wood grain. The prints shrink to about 84 px at z = 0.56 and are often no darker than the ripple lee shadows. White captions and the gold emphasis (过去, 顺着) sit directly on bright sand: legible only thanks to the shadow, and the gold accent is weak against #D9B27C.",
+   "fix": "Lower ripple contrast (AMP 3 → about 2, occ × 0.6, more SKY fill). Add a broad low-frequency dune light/shade and a warm edge falloff so a lit corridor holds the trail and the frame edges darken (vignette 0.5 → about 0.65 during f60–250). End the walk pull-back at z ≥ 0.7 so prints stay at least 105 px. Add a soft dark gradient band behind the narration lane (y 1330–1560, about 25%) while the sand is up, per the ENGINEERING.md rule for busy or bright imagery."
+  },
+  {
+   "severity": "minor",
+   "frames": "325→326",
+   "problem": "The S-gauge needle jumps up 0.05 of range (about 40 px) in one frame when the 'falling' window ends (entropyS subtracts 0.05·seg(310,318) only for f < 326).",
+   "fix": "Ease the recovery: s -= 0.05·seg(f,310,318)·(1 − ease.outCubic(seg(f,326,334))). Optionally flash the tick from red to cream as it snaps back."
+  },
+  {
+   "severity": "minor",
+   "frames": "310–326",
+   "problem": "The HUD reads '◀◀ ×1' but the clock runs back at 0.25 frame per frame (seconds = FILM_T0 + (310 − (f − 310)·0.25)/30), which is inconsistent.",
+   "fix": "Either rewind the clock at 1 f/f, or label the speed '×¼' (straining)."
+  },
+  {
+   "severity": "minor",
+   "frames": "500–569 (handoff frame)",
+   "problem": "At final scale the gold axon running crown to neck reads as a crack splitting the skull. The 'nerve' polylines in the arms and legs (alpha 0.2) run parallel and close to the outline, so they read as a doubled contour, not nerves. Red IR embers scattered over the torso and legs look like speckle or blood spots on the hold frame that S09 inherits.",
+   "fix": "In figure.ts, scale the axon width with ws (about 0.6× at S < 1) and dim it to about 0.6 so the dendrite glow dominates. Route the arm and leg nerves along the limb centre lines, or drop their alpha to about 0.1. Limit body embers to 1–2 per pulse that drift outward past the outline, and keep most of the IR around the head."
+  },
+  {
+   "severity": "minor",
+   "frames": "4–150",
+   "problem": "C1 is short on reading time. The 3-line card has 24 characters, about 5.6 s at the grammar's chars/5 + 0.8 rate. It runs 146 f, and line 3 only lands about f34–48, so roughly 3.5 s of full readability.",
+   "fix": "Extend CAP.c1 to [4, 160]. The screenplay allows ±0.5 s and #2 (4.8–6.2 s) is textless, so this collides with nothing."
+  },
+  {
+   "severity": "minor",
+   "frames": "282–330",
+   "problem": "Macro splash grains render as glossy white, grey and tan spheres with specular highlights, 1.7–4.5 mm at the scene's scale (foot 150 px ≈ 26 cm). They read as beads or caviar more than quartz sand.",
+   "fix": "Use a matte, slightly angular sprite (polygonal clip, weaker highlight, no grey/white beads) and a smaller, skewed size distribution. A minority of glints is enough."
+  },
+  {
+   "severity": "minor",
+   "frames": "n/a",
+   "problem": "The builder report does not match the code. It claims a world-anchored red ✕ (absent) and C3 at f178–256 (code: 178–252, C4 252–342, C5 342–416, C6 416–545). The cues and anything S09 relies on should describe what actually renders.",
+   "fix": "Implement the ✕ (see the rewind issue) or correct the report and cues.ts descriptions."
+  }
+ ],
+ "strengths": [
+  "Frame 0 is effectively identical to S07's last frame: PSNR 68 dB between out/review/S08_r1full/f0000.jpg and out/stills/S07_final/f0899.jpg. The thermal prints then cool through the inferno ramp as the sand sweeps in, a clean material dissolve.",
+  "The last frame (f569) matches FIGURE_S08: gold-line HUMAN_PATH figure, cx 540, feet at about 1610, height 1300, glowing network in the head, a pulse mid-flight, on #0A0705. The drawing is exported as drawFigureS08 (plus drawMotesS08) and stays closed-form for t > 569, so S09 can continue it seamlessly.",
+  "The trail → axon → lightning-dendrite transformation (f352–420) is the best passage. The beads sit exactly on the old prints, the ignition runs down the trail, and the space-colonised dendrites have white-hot tips. It is premium and explains 「记忆，是大脑里的脚印。」 without the text.",
+  "The gold-line figure reveal works: outline grows from the neck, pulses run down spine and limbs, 回声 echo copies are timed to the f478 pulse and its +7 tap, and the caption ends at f545 for a clean 0.8 s hold.",
+  "On-screen text matches the screenplay character for character: curly quotes U+201C/U+201D, double em dash, 昨天 gold, 明天 a cold ghost, 回声 echo. Caption timings are within ±0.5 s and condense/diffuse grammar is kept. tsc is clean.",
+  "Physics is thoughtful: asymmetric wind ripples with crests perpendicular to a right-to-left wind, erosion as depth e^(−age/τ) with edge blur ∝ √age, the future sand left untouched, infrared waste heat at impact, the S-gauge stepping up per print, law-cyan for the time-symmetric 'way back'.",
+  "Determinism is clean: no Math.random, Date.now or performance.now. Memo'd scratch canvases are fully rewritten each frame, simulations are closed-form or seeded, and cues.ts derives every cue from the picture's own constants."
+ ]
+}

@@ -2,343 +2,427 @@
  {
   "frame": 0,
   "kind": "continue",
-  "description": "S05's near-silence carries over; the gold point flickers (tiny glassy tick)",
+  "description": "S05's near-silence; the gold point flickers (tiny glassy tick)",
   "intensity": 0.15
  },
  {
   "frame": 3,
-  "kind": "reverse-swell",
-  "description": "colour floods back out of the grey: bright reverse swell",
-  "intensity": 0.6
+  "kind": "grain-sparkle",
+  "description": "the grey starts to dissolve grain by grain around the point: a granular glassy sparkle that spreads outward (reverse of S05's noise), carried by a bright reverse swell",
+  "intensity": 0.55
  },
  {
   "frame": 6,
   "kind": "sun-swell",
-  "description": "point rises and swells into the Sun: warm low pad grows until f62 (D major colour returns)",
+  "description": "the point rises and swells into the Sun: warm low pad grows until f62 (D major colour returns)",
   "intensity": 0.7
+ },
+ {
+  "frame": 16,
+  "kind": "swell",
+  "description": "the dissolving front sweeps the lower frame; the heat-death noise bed thins out",
+  "intensity": 0.5
  },
  {
   "frame": 20,
   "kind": "drone-in",
-  "description": "Earth's limb rises from below: low blue drone enters",
+  "description": "the Earth's limb rises from below: low blue drone enters",
   "intensity": 0.4
  },
  {
-  "frame": 26,
+  "frame": 30,
   "kind": "swell-peak",
-  "description": "flood front passes the frame edges; heat-death noise bed gone",
+  "description": "last grey grains gone (frame edges): noise bed fully gone, warm space",
   "intensity": 0.5
  },
  {
-  "frame": 34,
+  "frame": 42,
   "kind": "ui-tick",
-  "description": "ledger head 收 condenses (gold); gold rain shimmer / red rising hum start (continuous to ~f120)",
+  "description": "ledger column head 收 condenses (gold)",
   "intensity": 0.3
  },
  {
-  "frame": 40,
+  "frame": 42,
+  "kind": "streams",
+  "description": "gold short-wave rain falls (bright shimmer) / red long waves rise (low hum) — continuous until ~f120",
+  "intensity": 0.35
+ },
+ {
+  "frame": 48,
   "kind": "ui-tick",
-  "description": "ledger head 还 condenses (red) + hairlines draw on",
+  "description": "ledger column head 还 condenses (red)",
   "intensity": 0.3
+ },
+ {
+  "frame": 48,
+  "kind": "pen-line",
+  "description": "ledger hairlines draw on (spine + rule)",
+  "intensity": 0.2
  },
  {
   "frame": 54,
   "kind": "counter-roll",
-  "description": "energy bars fill, odometers roll 0→240 W/m² (to ~f84)",
+  "description": "energy bars fill, both odometers roll 0 → 240 W/m² (until ~f84)",
   "intensity": 0.3
  },
  {
   "frame": 76,
   "kind": "chime",
-  "description": "≈ sign lands between IN and OUT (balance)",
+  "description": "the ≈ sign lands between IN and OUT: balance",
   "intensity": 0.4
  },
  {
-  "frame": 106,
+  "frame": 104,
+  "kind": "counter-roll",
+  "description": "energy readings roll back to 0",
+  "intensity": 0.25
+ },
+ {
+  "frame": 104,
   "kind": "flap-clack",
-  "description": "split-flap tile 1 flips (also f109, f112); energy readings roll back to 0",
+  "description": "split-flap tile 1 flips (1/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 106,
+  "kind": "hush",
+  "description": "ambient streams fade: the stage clears for one photon",
+  "intensity": 0.3
+ },
+ {
+  "frame": 107,
+  "kind": "flap-clack",
+  "description": "split-flap tile 1 flips (2/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 108,
+  "kind": "flap-clack",
+  "description": "split-flap tile 2 flips (1/3)",
   "intensity": 0.3
  },
  {
   "frame": 110,
   "kind": "flap-clack",
-  "description": "split-flap tile 2 flips (also f113, f116): 能量 → 光子",
+  "description": "split-flap tile 1 flips (3/3)",
   "intensity": 0.3
  },
  {
-  "frame": 112,
-  "kind": "hush",
-  "description": "ambient streams fade: stage clears for one photon",
+  "frame": 111,
+  "kind": "flap-clack",
+  "description": "split-flap tile 2 flips (2/3)",
   "intensity": 0.3
  },
  {
-  "frame": 132,
+  "frame": 114,
+  "kind": "flap-clack",
+  "description": "split-flap tile 2 flips (3/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 122,
   "kind": "high-sine",
-  "description": "ONE gold photon leaves the Sun: single pure high sine begins (sustains until the unzip ends)",
+  "description": "ONE gold photon leaves the Sun: a single pure high sine begins (sustain until the unzip ends); its tag 阳光 · 0.5 µm rides along",
   "intensity": 0.6
  },
  {
-  "frame": 166,
+  "frame": 148,
   "kind": "impact",
-  "description": "photon lands on the limb: soft bright impact + flash (slow motion)",
+  "description": "the photon lands on the limb: soft bright impact + flash, slow-motion",
   "intensity": 0.7
  },
  {
-  "frame": 168,
+  "frame": 150,
   "kind": "counter-tick",
-  "description": "收 counter 0→1",
+  "description": "收 counter 0 → 1 (gold)",
   "intensity": 0.4
+ },
+ {
+  "frame": 151,
+  "kind": "split-tone",
+  "description": "crest 1/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 1 at f154",
+  "intensity": 0.25
+ },
+ {
+  "frame": 153,
+  "kind": "split-tone",
+  "description": "crest 2/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 2 at f156",
+  "intensity": 0.25
+ },
+ {
+  "frame": 155,
+  "kind": "split-tone",
+  "description": "crest 3/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 3 at f158",
+  "intensity": 0.25
+ },
+ {
+  "frame": 157,
+  "kind": "split-tone",
+  "description": "crest 4/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 4 at f160",
+  "intensity": 0.25
+ },
+ {
+  "frame": 159,
+  "kind": "split-tone",
+  "description": "crest 5/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 5 at f162",
+  "intensity": 0.25
+ },
+ {
+  "frame": 161,
+  "kind": "split-tone",
+  "description": "crest 6/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 6 at f164",
+  "intensity": 0.25
+ },
+ {
+  "frame": 163,
+  "kind": "split-tone",
+  "description": "crest 7/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 7 at f166",
+  "intensity": 0.25
+ },
+ {
+  "frame": 165,
+  "kind": "split-tone",
+  "description": "crest 8/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 8 at f168",
+  "intensity": 0.25
+ },
+ {
+  "frame": 167,
+  "kind": "split-tone",
+  "description": "crest 9/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 9 at f170",
+  "intensity": 0.25
  },
  {
   "frame": 169,
   "kind": "split-tone",
-  "description": "crest 1/20 peels off → red wave; add one low sine (1/20 freq); 还 counter ticks +1 three frames later. Repeats every 2 frames: f169,171,173,…,207 (20 events)",
+  "description": "crest 10/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 10 at f172",
   "intensity": 0.25
  },
  {
   "frame": 171,
   "kind": "split-tone",
-  "description": "crest 2/20",
+  "description": "crest 11/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 11 at f174",
   "intensity": 0.25
  },
  {
   "frame": 173,
   "kind": "split-tone",
-  "description": "crest 3/20",
+  "description": "crest 12/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 12 at f176",
   "intensity": 0.25
  },
  {
   "frame": 175,
   "kind": "split-tone",
-  "description": "crest 4/20",
+  "description": "crest 13/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 13 at f178",
   "intensity": 0.25
  },
  {
   "frame": 177,
   "kind": "split-tone",
-  "description": "crest 5/20",
+  "description": "crest 14/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 14 at f180",
   "intensity": 0.25
  },
  {
   "frame": 179,
   "kind": "split-tone",
-  "description": "crest 6/20",
+  "description": "crest 15/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 15 at f182",
   "intensity": 0.25
  },
  {
   "frame": 181,
   "kind": "split-tone",
-  "description": "crest 7/20",
+  "description": "crest 16/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 16 at f184",
   "intensity": 0.25
+ },
+ {
+  "frame": 182,
+  "kind": "ui-tick",
+  "description": "the 阳光 · 0.5 µm tag settles under the IN counter",
+  "intensity": 0.2
  },
  {
   "frame": 183,
   "kind": "split-tone",
-  "description": "crest 8/20",
+  "description": "crest 17/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 17 at f186",
   "intensity": 0.25
  },
  {
   "frame": 185,
   "kind": "split-tone",
-  "description": "crest 9/20",
+  "description": "crest 18/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 18 at f188",
   "intensity": 0.25
  },
  {
   "frame": 187,
   "kind": "split-tone",
-  "description": "crest 10/20",
+  "description": "crest 19/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 19 at f190",
   "intensity": 0.25
  },
  {
   "frame": 189,
   "kind": "split-tone",
-  "description": "crest 11/20",
-  "intensity": 0.25
- },
- {
-  "frame": 191,
-  "kind": "split-tone",
-  "description": "crest 12/20",
+  "description": "crest 20/20 peels off → long red wave; a low sine (1/20 of the high one) is added; 还 counter → 20 at f192",
   "intensity": 0.25
  },
  {
   "frame": 193,
-  "kind": "split-tone",
-  "description": "crest 13/20",
-  "intensity": 0.25
- },
- {
-  "frame": 195,
-  "kind": "split-tone",
-  "description": "crest 14/20",
-  "intensity": 0.25
- },
- {
-  "frame": 197,
-  "kind": "split-tone",
-  "description": "crest 15/20",
-  "intensity": 0.25
- },
- {
-  "frame": 199,
-  "kind": "split-tone",
-  "description": "crest 16/20",
-  "intensity": 0.25
- },
- {
-  "frame": 201,
-  "kind": "split-tone",
-  "description": "crest 17/20",
-  "intensity": 0.25
- },
- {
-  "frame": 203,
-  "kind": "split-tone",
-  "description": "crest 18/20",
-  "intensity": 0.25
- },
- {
-  "frame": 205,
-  "kind": "split-tone",
-  "description": "crest 19/20",
-  "intensity": 0.25
- },
- {
-  "frame": 207,
-  "kind": "split-tone",
-  "description": "crest 20/20",
-  "intensity": 0.25
- },
- {
-  "frame": 211,
   "kind": "resolve",
-  "description": "high sine gone, twenty low sines sustain; → arrow (1 → 20) appears",
+  "description": "high sine gone; twenty low sines sustain; → arrow appears (1 → 20)",
   "intensity": 0.5
  },
  {
-  "frame": 234,
-  "kind": "flap-clack",
-  "description": "熵 row flap flips (also f237, f240)",
-  "intensity": 0.3
+  "frame": 201,
+  "kind": "ui-tick",
+  "description": "the 红外 · 10 µm tag settles under the OUT counter",
+  "intensity": 0.2
  },
  {
-  "frame": 240,
-  "kind": "crackle",
-  "description": "ghost fans flicker (all the other ways out): granular shimmer, continuous to f318",
+  "frame": 205,
+  "kind": "ui-tick",
+  "description": "λ ×20 appears between the two wavelength tags",
   "intensity": 0.25
  },
  {
-  "frame": 250,
+  "frame": 222,
+  "kind": "flap-clack",
+  "description": "split-flap tile 1 flips (1/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 225,
+  "kind": "flap-clack",
+  "description": "split-flap tile 1 flips (2/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 228,
+  "kind": "flap-clack",
+  "description": "split-flap tile 1 flips (3/3)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 230,
+  "kind": "ui-tick",
+  "description": "energy row typed back at the top: 1 = 1",
+  "intensity": 0.25
+ },
+ {
+  "frame": 232,
+  "kind": "crackle",
+  "description": "ghost fans flicker (all the other ways out): granular shimmer, continuous until ~f300",
+  "intensity": 0.25
+ },
+ {
+  "frame": 238,
   "kind": "counter-roll",
   "description": "entropy row rolls ≈0 → ≈20",
   "intensity": 0.3
  },
  {
-  "frame": 260,
+  "frame": 248,
   "kind": "pen-line",
   "description": "double underline (final balance) draws",
   "intensity": 0.3
  },
  {
-  "frame": 264,
+  "frame": 258,
   "kind": "emphasis-hit",
-  "description": "“20倍” (largest type in the scene) condenses: deep hit",
+  "description": "“20倍” (largest type of the scene) condenses: deep hit",
   "intensity": 0.6
  },
  {
-  "frame": 300,
-  "kind": "bloom",
-  "description": "infrared ink bloom rises from the impact point: soft reverse swell + deep red rumble (to ~f390)",
-  "intensity": 0.5
+  "frame": 294,
+  "kind": "shimmer",
+  "description": "the parallel gold beam fades in (one direction): steady high shimmer",
+  "intensity": 0.3
  },
  {
-  "frame": 304,
-  "kind": "shimmer",
-  "description": "ordered parallel sunlight beam fades in: steady high shimmer",
-  "intensity": 0.3
+  "frame": 298,
+  "kind": "burst-texture",
+  "description": "every landing gold packet bursts into 8 long red wavelets fanning out in all directions: a dense, soft low crackle/chorus of falling-pitch blips (≈ 1.7 bursts per frame) that keeps rising in density until ~f390",
+  "intensity": 0.45
  },
  {
   "frame": 306,
   "kind": "dissolve",
-  "description": "ledger dissolves upward",
+  "description": "the ledger dissolves upward",
   "intensity": 0.2
  },
  {
-  "frame": 312,
-  "kind": "bloom",
-  "description": "smaller blooms rise all along the limb (staggered ~every 6 f until ~f370)",
-  "intensity": 0.35
+  "frame": 308,
+  "kind": "rumble",
+  "description": "the sky slowly fills with infrared: deep red rumble swells until ~f396",
+  "intensity": 0.4
  },
  {
-  "frame": 356,
+  "frame": 348,
   "kind": "ink-bleed",
-  "description": "散开 starts to drift apart / bleed",
+  "description": "散开 starts to bleed like ink",
   "intensity": 0.3
  },
  {
   "frame": 396,
   "kind": "dive",
-  "description": "DIVE into the Earth: rising Shepard swell (zoom ×36), fastest ~f430",
+  "description": "DIVE into the Earth: rising Shepard swell (zoom ×36), fastest at ~f430",
   "intensity": 0.8
  },
  {
-  "frame": 404,
-  "kind": "growth",
-  "description": "leaf veins start growing (dendritic crackle of tiny ticks until f474)",
-  "intensity": 0.3
- },
- {
-  "frame": 414,
+  "frame": 418,
   "kind": "whoosh",
-  "description": "camera passes through the red haze / clouds",
+  "description": "camera falls through the cloud deck (veil peak f423)",
   "intensity": 0.6
  },
  {
-  "frame": 420,
-  "kind": "pings",
-  "description": "sunlight lands on vein tips: sparse tiny bell pings (continuous)",
-  "intensity": 0.15
- },
- {
-  "frame": 428,
+  "frame": 424,
   "kind": "glint",
-  "description": "river network of light glints on the land",
+  "description": "dusk land; rivers of light glint and flow to the mouth (shimmer)",
   "intensity": 0.35
  },
  {
   "frame": 428,
+  "kind": "growth",
+  "description": "leaf veins grow at the river mouth (dendritic crackle of tiny ticks, until ~f498)",
+  "intensity": 0.3
+ },
+ {
+  "frame": 444,
+  "kind": "pings",
+  "description": "sunlight lands on vein tips: sparse tiny bell pings (random, continuous)",
+  "intensity": 0.15
+ },
+ {
+  "frame": 452,
   "kind": "sparks",
   "description": "red IR sparks leave every junction: soft crackle (continuous, grows in the vortex)",
   "intensity": 0.2
  },
  {
-  "frame": 466,
-  "kind": "land",
-  "description": "zoom settles on the leaf rosette (soft landing, sustain)",
-  "intensity": 0.4
- },
- {
-  "frame": 490,
-  "kind": "vortex-swell",
-  "description": "flows twist into a whirlpool: rising swirl swell carried straight into S07 (no silence at the cut)",
-  "intensity": 0.6
- },
- {
-  "frame": 494,
+  "frame": 456,
   "kind": "heartbeat",
   "description": "你 brightens alone; the sink takes one deep warm beat",
   "intensity": 0.7
  },
  {
-  "frame": 552,
+  "frame": 466,
+  "kind": "land",
+  "description": "zoom settles on the leaf rosette over deep space (soft landing, sustain)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 500,
+  "kind": "vortex-swell",
+  "description": "the flows twist into a whirlpool: rising swirl swell that carries straight into S07 (no silence at the cut)",
+  "intensity": 0.6
+ },
+ {
+  "frame": 516,
   "kind": "clear",
-  "description": "last caption gone: picture only, swell keeps rising",
+  "description": "last caption gone: 2.2 s of picture only, swell keeps rising",
   "intensity": 0.5
  },
  {
   "frame": 581,
   "kind": "cut",
-  "description": "match cut to S07 (spiral sink → particle whirlpool), swell continues",
+  "description": "match cut to S07 (the wound rosette → particle whirlpool), swell continues",
   "intensity": 0.7
  }
 ]

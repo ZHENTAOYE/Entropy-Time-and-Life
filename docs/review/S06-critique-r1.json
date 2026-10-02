@@ -1,0 +1,117 @@
+{
+ "score": 5.5,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "blocker",
+   "frames": "469→470 (dive)",
+   "problem": "There is a hard pop in the middle of the dive. At f469 the frame is still brown terrain with large blurry river strokes (area-averaged mean luminance 17/255). At f470 it is black (~0). Measured over f465–472: 32, 24, 21, 17, 0, 0, 0. Cause in Scene.tsx: drawSun/drawEarth are skipped outright once `c.lz >= 0.9`. At that moment the darkening overlay `rgba(4,5,11,(lz-0.62)/0.36)` has only reached 0.78, so about 22% of the terrain is still visible and vanishes in one frame. In motion this reads as a glitch cut at the scene's pivotal camera move.",
+   "fix": "In Scene.tsx, have the dark overlay reach 1.0 before the cutoff (`clamp((c.lz-0.62)/0.24)`, opaque at lz 0.86), or fade `terrA` and the Earth cap to 0 by lz 0.86 inside drawEarth. Only then stop drawing at lz ≥ 0.9. Fade riverAlpha's 13× copy to 0 over the same span. Verify with `stills.mjs S06 --from 455 --to 480 --every 1 --scale 0.3`. Per-frame mean luminance should change by at most ~3/255 between neighbouring frames."
+  },
+  {
+   "severity": "major",
+   "frames": "436–468",
+   "problem": "The dive into the land looks broken. (a) In sky.ts drawEarth, terrainTex is a 320² texture stretched over 938 world px and then zoomed up to 36×. Bilinear magnification shows stair-step diamonds (crop of f452: a blocky orange/grey camouflage pattern). (b) The terrain square is centred on DIVE_T, 178 px below the limb, so about 290 px of land is drawn ABOVE the limb, out in space (brown mottling above the limb at f438). The crisp atmosphere-rim stroke is drawn on top of it and makes a blue line across the land at f452. (c) The 512×256 cloud map magnified at f438 reads as grey marble, not weather. The audience never reads 'rivers of light on land'. They see camo plus cracks, then black.",
+   "fix": "Clip the terrain to the planet disc: `ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2π); ctx.clip()` before drawing it. Start the terrain only after the limb has left the top of the frame. Fade the rim strokes out by lz 0.3. Replace the 320² bitmap with detail that is resolved at every zoom. Either render terrain in a shader with fbm sampled at the zoomed ground coordinate (add a `u_zoom` uniform and octaves that scale with it), or build a 1024² texture and cross-fade two scales. Add one zoom-scaled detail octave to EARTH_FRAG clouds (or cross-fade to terrain earlier, by lz ≈ 0.15). Keep the river glints crisp (lines 1–2 px with bloom), not the blurry 13× strokes seen at f460–469."
+  },
+  {
+   "severity": "major",
+   "frames": "581 vs S07 f0",
+   "problem": "The S06→S07 match cut does not match. S06 f581 is a frame-filling gold-olive spiral of streaks out to r ≈ 1100 (the corners), with the blades already faded (bladeOut 555) and 13 leaves. The S07 f0 currently rendered (out/review/S07/f0000.jpg) is a compact 7-armed green leaf pinwheel inside r ≈ 420 on near-black. visual-direction.md specifies S06 OUT as streams spiralling into (540,860) with r ≈ 420 on #04050B. S06 overshoots that radius and hides the background. The builder report also says '7 leaves' while network.ts has NLEAF = 13, and S07 r1 was built to match '7 arms'.",
+   "fix": "Over f540–581, attenuate drawInflow and drawStreamlines by radius (`alpha *= 1 - smoothstep(430, 560, r)`) so the whirlpool sits inside r ≈ 420–480 and #04050B shows in the corners at f581. Agree the arm count with the S07 author: either set NLEAF = 7 and regenerate netData.blob.ts, or have S07 match 13. Keep the wound arms visible to the cut if S07 starts from arms (move bladeOut past 581, or keep arm-density streams bright). Check `stills.mjs S06 --frames 581` and `stills.mjs S07 --frames 0` side by side."
+  },
+  {
+   "severity": "major",
+   "frames": "238–581",
+   "problem": "The caption timing drifts past the screenplay's ±0.5 s tolerance. Code: C3 f238–349, C4 f350–449, C5 f450–552. Screenplay: C3 7.4–10.2 s (f222–306), C4 10.2–13.4 s (f306–402), C5 13.4–17.2 s (f402–516). Starts run +0.5, +1.5 and +1.6 s late; ends run +1.4, +1.6 and +1.2 s late. Card #7 (17.2–19.4 s, picture only: the flows gathering into the vortex) shrinks from 2.2 s to 1.0 s (f552–581). That is the beat that sells the match cut. From f126 to f552 the narration also never pauses.",
+   "fix": "In timing.ts, set CAP to c3 {at: 224, dur: 86}, c4 {at: 312, dur: 90}, c5 {at: 404, dur: 112}. C5 then exits by f516, leaving 65 frames of picture only. Shift the picture beats with them: entropyRow ≈ 222, energyBack ≈ 230, ghostStart 232, ghostEnd ≈ 304, ledgerOut ≈ 306, hazeStart/beamIn ≈ 300, diveStart ≈ 396, diveEnd ≈ 466, netGrowStart ≈ 404, netGrowEnd ≈ 474, swirlStart ≈ 478, bladeOut ≈ 540. Use stagger 0.8 on C5 so line 2 forms by local ~30. cues.ts follows automatically."
+  },
+  {
+   "severity": "major",
+   "frames": "all (measured f0–581)",
+   "problem": "The scene is over the performance budget. scripts/stills.mjs at --scale 1 measured 957–1860 ms/frame (average 1527 ms on the f60–f560 set and 1151 ms on the cheap set) at load average ~3–4. The budget is ≤ ~900 ms. The in-page profiler shows 'sunEarth' costs 225–262 ms even at f0–2, when the Earth is off-screen (cy + 760) and covered by grey. earthCap() re-runs the GL shader, readPixels, the JS un-premultiply loop and putImageData on every frame, although the map drifts only 0.00008 rev/frame. The large Sun is drawn twice per frame (main pass plus ¼-res glow pass, with rotated 900–1100 px cached canvases), adding about 190 ms more (sunEarth 410–510 ms on f60–f300).",
+   "fix": "In sky.ts drawEarth, skip the cap when the Earth's top is below 1920 or the grey still covers the frame. Cache earthCap at a coarse step (e.g. `Math.floor(frame/12)`, the drift is invisible) or once per tab. In drawSun, build the bloom source from a static pre-blurred disc sprite instead of re-drawing. Check whether the `willReadFrequently` software 2D main canvas is still a net win. Re-measure until the script prints ≤ 900 ms at scale 1."
+  },
+  {
+   "severity": "major",
+   "frames": "124–148, 175–280",
+   "problem": "The two science labels are effectively invisible, so the 0.5 µm vs 10 µm (×20 wavelength) comparison that screenplay card #3 calls for never reads. '阳光 · 0.5 µm' is only on screen f124–142: its alpha window fades from photonLand−12, and at f140 it is at 33%. '红外 · 10 µm' is multiplied by `rp.a`, the dimming of packets that rise into the ledger rows (0.16–0.3). The f196 full-res crop shows a dark-red ghost about 15% bright at (760–930, 745). Both labels are also 22–24 px.",
+   "fix": "In photons.ts drawPhotonLabels, drop the `* rp.a` factor and keep the 红外 tag at ≥ 0.9 opacity. Keep the 阳光 tag until photonLand + 30. Then, for f170–300, pin both as static ledger annotations under the counters: '阳光 0.5 µm' under the IN '1' and '红外 10 µm' under the OUT '20'. Use 26–28 px and give the pill 0.85 opacity. Both wavelengths and the ×20 are then readable side by side."
+  },
+  {
+   "severity": "major",
+   "frames": "334–430",
+   "problem": "B5 (像那滴墨 / 散开) is the least premium beat and does not show the physics. After the ¼-res splat and two blurs, the torus particles, poloidal roll and Widnall lobes all collapse into soft red pills. At f345 they launch as a row of identical red jelly beans along the limb, and by f390–430 they are a mottled red cotton band hovering at y 850–1300. Nothing reads as S01's ink (dark core, dilute blue-grey fringe, tendrils). The real entropy argument also goes unshown: a narrow parallel beam (the Sun subtends 0.5°) arrives, and IR leaves into the whole hemisphere and fills the sky.",
+   "fix": "Re-stage it in the scene's own wave language. Every point of the limb emits hemispherical fans of the B3 red wavelets in all directions, travelling to the top and sides of the frame and thinning with distance. Set that against the parallel gold beam, so the contrast is 'one direction in, all directions out'. If you keep the ink rings, splat at ½ res with ≤ 1.5 px blur so ring cores and tendrils survive, and map them through an S01-style Beer–Lambert ramp (dark-red core, bright rim, dilute fringe). Let them travel 600–900 px, not ~300. Randomise launch times and sizes so no row of identical blobs ever appears."
+  },
+  {
+   "severity": "major",
+   "frames": "3–34",
+   "problem": "The colour-return moment, which lifts the film out of its S05 trough, looks like a stock radial gradient. At f12 it is a perfect hard-edged disc with concentric orange, rose and violet-blue bands inside a thick white ring: an 'orb/portal' icon. At f20–30 the whole frame becomes a saturated sunset gradient wallpaper. The rose/violet bands are not in the S06 palette. The caption's dark backdrop also shows as a dirty smudge on the uniform grey at f4–30.",
+   "fix": "In sky.ts floodR/drawGrey/drawFloodFront, make the front organic with an angle-dependent radius, `R(θ,t) = R·(1 + 0.06·fbm(3θ, 0.1t))`. Dissolve the grey grain by grain at the front (per-pixel threshold against the noise tile: S05's random walk run backwards) instead of a smooth gradient hole. Inside the front, reveal the real scene (space, stars, warm zodiacal glow from the point) with a short exposure overshoot. Drop the rose/violet stops and thin the white ring to a 3–6 px caustic. In RichCaption, set backdrop alpha to 0 while `floodR(f) < 1200`, or rely on glyph shadow only during the flood."
+  },
+  {
+   "severity": "major",
+   "frames": "all",
+   "problem": "A temporary profiler ships in the bundle. Scene.tsx imports pStart/pMark/pEnd from './dev/profmark'. That file uses `performance.now()` (forbidden by the determinism rules), mutable module state (`let t0, last`, `acc`), and `console.log`s a PROF line on every rendered frame (visible in the stills output).",
+   "fix": "Remove the import and the pStart/pMark/pEnd calls from Scene.tsx. Delete dev/profmark.ts (keep any profiling in a local, uncommitted file)."
+  },
+  {
+   "severity": "minor",
+   "frames": "240–318",
+   "problem": "The ghost fans are random ray-plus-dot starbursts re-drawn every 2 frames (15 Hz). On screen they read as strobing sparkle, not as 'the same 20 photons in other arrangements' (the S03 counting rhyme), and they look nothing like the 20 wavelets just shown.",
+   "fix": "Draw each ghost arrangement with the same red wavelet glyph (dimmed to ~15%) at re-shuffled angles, held 5–6 frames each with a soft cross-fade. A tiny mono tick per arrangement (or the S03 counter look) lets the eye register 'another way'. Keep at most 3 ghosts on screen."
+  },
+  {
+   "severity": "minor",
+   "frames": "45–420",
+   "problem": "The Sun, the scene's hard key light, reads as a flat, washed-out cream plate (f96 crop). Granulation at soft-light 0.1 is invisible, and the limb-darkening ramp is too pale to give it volume or heat. The prominences are thin pale hooks.",
+   "fix": "In sky.ts, raise granulation to ~0.22 at the disc centre and push the limb colour toward #FF8A1F. Add a thin over-bright chromosphere line (#FFF4D6) at the limb. Thicken the prominences (7→12 px outer glow in irHot), and let the bloom pass slightly over-expose the centre."
+  },
+  {
+   "severity": "minor",
+   "frames": "238–349",
+   "problem": "In 「能量一样多——」 the two U+2014 em dashes render as two separate bars with a gap ('— —'). RichCaption adds 0.08 em of letterSpacing between every glyph, but Chinese typography needs one continuous 2-em rule.",
+   "fix": "In RichCaption.layout, set the spacing to 0 (or a −0.02 em overlap) between consecutive '—' glyphs, or draw '——' as one run."
+  },
+  {
+   "severity": "minor",
+   "frames": "386–449",
+   "problem": "The 散开 'spreads like S01's ink' effect is weak. At f412 it mostly separates the two glyphs and adds a warm glow. The blue-grey tendrils are too faint to read as ink bleeding.",
+   "fix": "In RichCaption fx 'ink', raise the S01 dilute colour (#3C4A6A-like) tendril alpha to 0.6. Extend tendrils 60–110 px with branching wisps, and keep a darker core under each glyph (multiply/darken before the light pass) so it reads as diffusion, not glow."
+  },
+  {
+   "severity": "minor",
+   "frames": "42–366",
+   "problem": "Several HUD labels are below the film's 24 px HUD minimum and too dim to read on a phone: IN/OUT 20 px, ENERGY/PHOTONS/ENTROPY 16 px, the B4 'ENERGY' sublabel 14 px, W/m² 19 px. Category-label grammar is also inconsistent: 光子 and 熵 are split-flap tiles at the spine, while the B4 能量 row label is plain text at the left margin (x = 96).",
+   "fix": "In ledger.ts, raise the mono labels to 24 px at ≥ 70% opacity, or drop the purely decorative ones. Re-introduce 能量 in B4 as a small tile at the spine, matching the other rows."
+  },
+  {
+   "severity": "minor",
+   "frames": "54–110",
+   "problem": "The gold short-wave rain runs straight through the '240' IN numerals and the 收 head, making the left column busy.",
+   "fix": "In photons.ts drawStreams, mask the rain (lower its alpha to ~0.25) within ~70 px of ledger glyphs, or keep the rain left of x = 230 and right of x = 850."
+  },
+  {
+   "severity": "minor",
+   "frames": "540–581",
+   "problem": "In the final whirlpool the inflow streaks are 4-point polylines, so the outer gold arcs show straight-segment kinks. Straight, untwisted 'landing sunlight' streaks from drawNetwork cut radially across the spiral like scratches (e.g. near (885,720)–(1040,705) at f581). The red IR sparks escaping outward, required in the OUT spec, are tiny and only appear within r < 450.",
+   "fix": "In network.ts drawInflow, use 7–8 samples per streak. Fade the landing streaks out from swirlStart onward (multiply landOn by 1 − seg(f, swirlStart, swirlStart + 20)). Make the IR sparks 1.5× longer, brighter, and let them escape to r ≈ 700 in the last second."
+  },
+  {
+   "severity": "minor",
+   "frames": "n/a",
+   "problem": "The builder report does not match the code. It lists captions at 16/134/230/326/432, a dive at f396–466, 7 leaves and a 收 tick at f34. The code has 4/126/238/350/450, f420–490, 13 leaves and f42. The S07 author appears to have matched the report's 7 arms, and the score team will place sounds from whichever source they read.",
+   "fix": "After the re-time, regenerate the report from timing.ts and cues.ts (cues.ts already derives from the constants). Tell the S07 author the final leaf/arm count."
+  }
+ ],
+ "strengths": [
+  "The photon unzip is a real teaching image. A 20-crest gold packet (0.5 µm, λ 11 px, about 220 px long) lands, and each crest peels into its own one-crest red wavelet (about 210 px, so ~20× the wavelength) with a bead on its crest. 'Energy = crests' is conserved, and the 1 → 20 counter is locked to the peel-offs (f151–189).",
+  "The final ledger states the whole argument in one frame: 能量 1 = 1 / 光子 1 → 20 / 熵 1 ≈ 20, with the accountant's double underline. The numbers are physically sound: 240 W/m² in and out (≈, because of the ~1 W/m² imbalance), 0.5 → 10 µm, and ×20 ≈ T☉/T⊕.",
+  "On-screen narration matches the locked screenplay character for character (verified U+201C/U+201D quotes and a U+2014 ×2 dash). Emphasis follows the spec: 收 gold / 还 red, gold 1 / deep-red 20, 20倍 at 168 px as the largest type, 差价 green, 你 brightening alone while the line dims, and the sink pulsing at f494. No caption remains on the last frame.",
+  "Frame 0 is an exact S05 match: #5C5C5C grey with σ ≈ 6% boiling noise, the flickering gold point r 3.5 at (540,820), no vignette, no caption. The vignette then ramps 0 → 0.45 with the light.",
+  "The leaf-rosette beat (f480–552) is the scene's best imagery. Veins grown by space colonization with Murray widths carry gold → green → teal pulses to the sink and shed red IR sparks at the junctions, and the rosette winds into a log-spiral whirlpool. The images are rich, luminous and on-palette.",
+  "The 9:16 composition is good: Sun at top, ledger in the middle, Earth's limb at y 1290, so the photon stage stays above the y 1440 narration lane. Text sits within the x 90–990 safe zone.",
+  "Determinism is clean apart from the profiler. Motion is closed-form or memoised, the trees are pre-grown into a blob, GL textures are uploaded once, and the font gate uses delayRender. `tsc` reports no S06 errors."
+ ]
+}

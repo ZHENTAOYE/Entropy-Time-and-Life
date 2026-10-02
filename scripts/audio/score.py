@@ -122,20 +122,10 @@ def bed_S01(dur):
 
 def bed_S02(dur):
     out = silence(dur)
-    # clinical bed: soft clock ticks at 100 bpm under a cold sine pad
-    beat = 0.6
-    t = 0.0
-    k = 0
-    while t < 13.0:
-        place(out, tick(seed=k, f=2600 if k % 2 else 3400) * 0.05, t, pan=-0.3 if k % 2 else 0.3)
-        t += beat
-        k += 1
+    # clinical bed: a cold sine pad (ticks, collisions and the countdown come from the scene's cues)
     cold = pad([N('D3'), N('A3'), N('D4')], dur, seed=71, bright=0.15, amp=0.1, voices=2)
     cold = apply_env(cold, [(0, 0), (1, 0.8), (8.6, 0.8), (13.0, 1.0), (14.6, 0.6), (dur, 0.0)])
     place(out, cold, 0)
-    # countdown 3-2-1 (2.2 -> 4.4)
-    for i, tt in enumerate([2.4, 3.1, 3.8]):
-        place(out, stereo(sine(N('A5'), 0.12) * env_exp(int(0.12 * SR), 0.03) * 0.12), tt)
     # 「分不出来」 soft two-note shrug
     place(out, reverb(stereo(bell(N('D5'), 1.2, seed=3) * 0.08 + bell(N('C5'), 1.2, seed=4) * 0.06), 0.5, 3.0), 4.45)
     # escalation riser 8.6 -> 13.0
@@ -316,16 +306,7 @@ def bed_S06(dur):
     place(out, sun, 0)
     tone = stereo(sine(N('A5'), 1.6) * 0.06)
     place(out, apply_env(tone, [(0, 1), (1.6, 0)]), 0)
-    # photon ledger 4.4 -> 7.4: one high sine in, splits into 20 sines at 1/20 frequency
-    f_in = 1760.0
-    inc = sine(f_in, 0.9) * np.linspace(0, 1, int(0.9 * SR)) ** 2 * 0.08
-    place(out, stereo(inc), 4.4)
-    for i in range(20):
-        fo = f_in / 20.0 * (1 + 0.004 * (i - 10))
-        d = 2.6
-        x = sine(fo, d) * env_adsr(int(d * SR), a=0.02, d=0.3, s=0.6, r=1.2) * 0.035
-        x = x + karplus(fo * 2, d, seed=1500 + i, damp=0.997) * 0.02
-        place(out, x, 5.3 + i * 0.06, pan=-0.9 + i * 0.09)
+    # photon ledger: the incoming high sine and the 20 outgoing tones are cue-driven (high-sine / split-tone)
     # ledger ticks
     for i, tt in enumerate([0.9, 1.4, 3.3, 3.6, 7.5, 7.8, 8.1]):
         place(out, tick(seed=1600 + i, f=4200) * 0.05, tt)
@@ -383,17 +364,7 @@ def bed_S07(dur):
     # 你是一个过程 26.8 -> end: single sustained tone + breath
     tone = stereo(sine(N('D5'), dur - 26.8) * 0.05)
     place(out, reverb(apply_env(tone, [(0, 0), (0.4, 1), (dur - 26.8, 0.7)]), 0.4, 4.0), 26.8)
-    # heartbeat 60 bpm from 5.0 to end
-    t = 5.0
-    k = 0
-    while t < dur - 0.5:
-        place(out, stereo(heartbeat(seed=k) * 0.35), t)
-        t += 1.0
-        k += 1
-    # breath (filtered noise swells) during the human section
-    for bt in [12.0, 16.0, 20.0, 24.0, 28.0]:
-        br = bandpass(noise(1.6, int(bt * 10), 'pink'), 400, 2500) * np.sin(np.linspace(0, np.pi, int(1.6 * SR))) ** 2 * 0.03
-        place(out, br, bt)
+    # heartbeat and breaths are cue-driven (scene BEAT_FRAMES / EXHALE_FRAMES)
     return out
 
 
@@ -464,43 +435,140 @@ BEDS = {'S01': bed_S01, 'S02': bed_S02, 'S03': bed_S03, 'S04': bed_S04, 'S05': b
 
 # ============================================================ cue sounds (frame-accurate events from scenes)
 
-def cue_sound(kind, intensity, seed):
-    k = kind.lower()
-    a = 0.3 + 0.7 * max(0.0, min(1.0, intensity))
-    if any(w in k for w in ['collision', 'collide', 'click', 'tick', 'tap', 'type']):
-        return tick(seed=seed, f=2400 + (seed % 7) * 300) * 0.06 * a
-    if any(w in k for w in ['crackle', 'swarm', 'rain', 'many']):
-        out = np.zeros(int(0.6 * SR))
-        r = rng(seed)
-        for i in range(40):
-            s = int(r.uniform(0, 0.55) * SR)
-            x = tick(seed=seed + i, f=r.uniform(2000, 6000)) * r.uniform(0.01, 0.03)
-            out[s:s + len(x)] += x[: len(out) - s]
-        return out * a
-    if any(w in k for w in ['impact', 'hit', 'boom', 'slam', 'stamp']):
-        return impact(1.5, f0=100, f1=38, seed=seed) * 0.35 * a
-    if any(w in k for w in ['drop', 'plop', 'splash', 'drip']):
-        return water_drop(seed=seed) * 0.5 * a
-    if any(w in k for w in ['whoosh', 'swipe', 'zoom', 'transition', 'sweep', 'tilt']):
-        return whoosh(0.9, 200, 4000, seed=seed, shape='bell') * 0.12 * a
-    if any(w in k for w in ['glitch', 'rewind', 'error', 'fail', 'stutter']):
-        x = highpass(noise(0.25, seed), 800) * 0.15
-        g = (np.sin(2 * np.pi * 37 * np.arange(len(x)) / SR) > 0).astype(float)
-        return x * g * a
-    if any(w in k for w in ['flash', 'ignite', 'spark', 'shimmer', 'sparkle', 'twinkle']):
-        return bell(N('A6'), 0.8, seed=seed, decay=0.4) * 0.05 * a
-    if any(w in k for w in ['reveal', 'chime', 'bell', 'appear', 'pop']):
-        return bell(N('D5'), 1.5, seed=seed, decay=0.9) * 0.06 * a
-    if any(w in k for w in ['footstep', 'step', 'sand', 'crunch']):
-        x = bandpass(noise(0.12, seed), 800, 5000) * np.exp(-np.arange(int(0.12 * SR)) / (0.03 * SR))
-        return x * 0.08 * a
-    if any(w in k for w in ['shatter', 'break', 'crack']):
-        return glass_shatter(seed=seed) * 0.25 * a
+import zlib
+
+
+def _crackle(dur, seed, density=60, lo=2000, hi=6000, amp=0.025):
+    out = np.zeros(int(dur * SR))
+    r = rng(seed)
+    for i in range(int(density * dur)):
+        s0 = int(r.uniform(0, dur - 0.03) * SR)
+        x = tick(seed=seed + i, f=r.uniform(lo, hi)) * r.uniform(0.3, 1.0) * amp
+        out[s0:s0 + len(x)] += x[: len(out) - s0]
+    return out
+
+
+def _sparkle(seed, n=6, amp=0.03):
+    r = rng(seed)
+    out = np.zeros(int(1.2 * SR))
+    notes = [N('D6'), N('E6'), N('F#6'), N('A6'), N('B6'), N('D7')]
+    for i in range(n):
+        s0 = int(r.uniform(0, 0.4) * SR)
+        b = bell(notes[int(r.integers(0, len(notes)))], 0.7, seed=seed + i, decay=0.25) * r.uniform(0.4, 1.0) * amp
+        out[s0:s0 + len(b)] += b[: len(out) - s0]
+    return out
+
+
+SPLIT_COUNT = {}
+
+
+def cue_sound(kind, intensity, seed, sid=''):
+    """Map a scene's cue kind to a synthesized sound (mono or stereo), or None to leave it to the bed."""
+    k = kind.lower().strip()
+    a = 0.35 + 0.65 * max(0.0, min(1.0, float(intensity if intensity is not None else 0.5)))
+    r = rng(seed)
+    # --- narration / bed-owned / meta cues: silent here
+    if k.startswith('text') or k in ('name', 'resolve', 'release', 'continue', 'handoff', 'hold', 'count', 'time-lapse', 'clear', 'cut',
+                                      'silence', 'silence dip', 'hush', 'muffle', 'drone', 'drone-in', 'warm-pad', 'hum', 'texture', 'ambience',
+                                      'streams', 'flow-on', 'water', 'noise-white', 'detune', 'instrument', 'swell-continue', 'transform'):
+        return None
+    # --- S06 photon ledger: 1 high sine in, 20 low tones out (frequency /20)
+    if k == 'high-sine':
+        d = 1.0
+        x = sine(3520.0, d) * env_adsr(int(d * SR), a=0.15, d=0.2, s=0.8, r=0.5) * 0.05
+        return x + sine(1760.0, d) * env_adsr(int(d * SR), a=0.15, d=0.2, s=0.8, r=0.5) * 0.02
+    if k == 'split-tone':
+        i = SPLIT_COUNT.get(sid, 0)
+        SPLIT_COUNT[sid] = i + 1
+        f = 176.0 * (1 + 0.006 * (i - 10))  # 3520 / 20
+        d = 2.2
+        x = sine(f, d) * 0.5 + sine(2 * f, d) * 0.3 + sine(3 * f, d) * 0.15
+        x = x * env_adsr(int(d * SR), a=0.01, d=0.25, s=0.45, r=1.4) * 0.05
+        return stereo(x, -0.9 + 1.8 * (i % 20) / 19)
+    # --- life
     if 'heart' in k:
-        return heartbeat(seed=seed) * 0.3 * a
-    if 'pluck' in k or 'note' in k:
-        return karplus(N('D4'), 1.0, seed=seed) * 0.08 * a
-    return None  # swells / silences / ambiences are handled by the beds
+        return heartbeat(seed=seed) * 0.42 * a
+    if k == 'breath':
+        n = int(1.6 * SR)
+        return bandpass(noise(1.6, seed, 'pink'), 350, 2400) * np.sin(np.linspace(0, np.pi, n)) ** 2 * 0.045 * a
+    if k in ('footstep', 'step') or 'crunch' in k or 'sand' in k:
+        n = int(0.16 * SR)
+        x = bandpass(noise(0.16, seed), 700, 6000) * np.exp(-np.arange(n) / (0.035 * SR))
+        x += _crackle(0.16, seed + 7, density=120, lo=3000, hi=8000, amp=0.01)
+        return x * 0.12 * a
+    if k in ('ember-pluck',) or 'pluck' in k or k == 'note':
+        notes = [N('D4'), N('F4'), N('A4'), N('C5'), N('D5'), N('E5')]
+        return karplus(notes[int(r.integers(0, len(notes)))], 1.4, seed=seed, damp=0.995, bright=0.45) * 0.09 * a
+    # --- ticks, clicks, typing, odometers, collisions
+    if k in ('tick', 'ui-tick', 'odometer-tick', 'counter-tick', 'click', 'flap-clack', 'pen-line', 'pen', 'type') or 'tick' in k:
+        f = {'type': 4200, 'flap-clack': 1500, 'pen-line': 5200, 'pen': 5200}.get(k, 2600 + (seed % 5) * 350)
+        g = {'type': 0.035, 'flap-clack': 0.08, 'pen-line': 0.02, 'pen': 0.02}.get(k, 0.055)
+        return tick(seed=seed, f=f) * g * a
+    if k in ('counter-roll', 'odometer-whirr', 'ff-whir'):
+        return _crackle(0.6 if k != 'ff-whir' else 1.0, seed, density=70, lo=2500, hi=4500, amp=0.03) * a
+    if 'collision' in k or 'collide' in k:
+        return tick(seed=seed, f=1800 + (seed % 9) * 260) * 0.09 * a
+    if k in ('crackle', 'rain', 'swarm', 'burst-texture', 'ember-cascade', 'growth', 'sparks', 'pings'):
+        return _crackle(0.8, seed, density=90 if k != 'growth' else 50, amp=0.03) * a
+    # --- impacts
+    if k in ('impact', 'hit', 'slam', 'emphasis-hit', 'collapse'):
+        return impact(1.8, f0=110, f1=38, seed=seed) * 0.42 * a
+    if k in ('stamp', 'land', 'odometer-land', 'settle', 'gauge-peg'):
+        return impact(0.6, f0=180, f1=70, seed=seed, noise_amt=0.5) * 0.22 * a
+    if k in ('pop', 'last-pop'):
+        return water_drop(seed=seed, f0=500, f1=1300, dur=0.18) * 0.22 * a
+    if k == 'bh-pop':
+        n = int(0.5 * SR)
+        x = impact(0.5, f0=70, f1=35, seed=seed, noise_amt=0.2) * 0.2 + _crackle(0.5, seed, density=40, lo=5000, hi=9000, amp=0.03)
+        return x * a
+    if k in ('drop', 'drip', 'splash', 'plop'):
+        return water_drop(seed=seed) * 0.45 * a
+    if k == 'strike':
+        return swept_bandpass(noise(0.35, seed), 600, 5000, q=3) * np.linspace(1, 0, int(0.35 * SR)) * 0.25 * a
+    # --- light
+    if k in ('ignition', 'gold-ignite', 'last-star', 'flash', 'glint'):
+        f = {'last-star': N('A5'), 'gold-ignite': N('A5')}.get(k, N('E6'))
+        return bell(f, 2.0, seed=seed, decay=0.9 if k != 'flash' else 0.4) * 0.07 * a
+    if k in ('shimmer', 'sparkle', 'grain-sparkle', 'gold-flicker', 'spark', 'ping', 'reveal ping'):
+        return _sparkle(seed, n=4 if k != 'gold-flicker' else 1, amp=0.03 if k != 'gold-flicker' else 0.015) * a
+    if k in ('chime', 'reveal', 'appear'):
+        notes = [N('D5'), N('F#5'), N('A5'), N('E5')]
+        return bell(notes[int(r.integers(0, len(notes)))], 1.8, seed=seed, decay=1.0) * 0.06 * a
+    if k == 'sonar':
+        return delay(stereo(bell(N('A5'), 0.8, seed=seed, decay=0.3) * 0.06 * a), time=0.25, fb=0.5, mix=0.6, taps=4)
+    if k == 'hawking-rise':
+        n = int(1.2 * SR)
+        return glide_sine(300, 2400, 1.2) * np.sin(np.linspace(0, np.pi, n)) ** 2 * 0.03 * a
+    if k == 'glissando':
+        n = int(1.5 * SR)
+        return glide_sine(220, 880, 1.5) * np.sin(np.linspace(0, np.pi, n)) * 0.04 * a
+    # --- time tampering
+    if k in ('glitch',):
+        x = highpass(noise(0.22, seed), 900) * 0.16
+        g = (np.sin(2 * np.pi * (25 + seed % 30) * np.arange(len(x)) / SR) > 0).astype(float)
+        return x * g * a
+    if k in ('rewind', 'rewind swell', 'spark reversed'):
+        w = whoosh(0.8 if k != 'rewind' else 1.4, 3000, 300, seed=seed, shape='rise') * 0.12
+        return w * a
+    if k in ('tape-stop', 'transport'):
+        return glide_sine(600, 60, 0.5) * np.linspace(1, 0, int(0.5 * SR)) * 0.08 * a
+    # --- motion
+    if k in ('whoosh', 'sweep', 'transition', 'camera-move', 'zoom', 'dive', 'drain', 'mode-switch', 'loupe-open', 'loupe-close', 'hud-dissolve', 'dissolve', 'ink-bleed', 'pulse'):
+        d = {'pulse': 0.6, 'dive': 1.6, 'zoom': 1.4}.get(k, 0.9)
+        shape = 'rise' if k in ('pulse', 'dive') else 'bell'
+        return whoosh(d, 250, 3500, seed=seed, shape=shape) * (0.09 if k != 'pulse' else 0.07) * a
+    if 'swell' in k or k in ('rise', 'rumble', 'gravity-swell', 'sun-swell', 'vortex-swell'):
+        d = 1.8
+        x = bandpass(noise(d, seed, 'pink'), 150, 2500) * np.linspace(0, 1, int(d * SR)) ** 2 * 0.06
+        return x * a
+    return None
+
+
+# per-scene cue kinds already designed into the scene's bed (avoid doubling)
+BED_OWNS = {
+    'S01': {'drop', 'impact', 'swell', 'swell peak', 'rewind', 'sweep'},
+    'S06': {'swell', 'sun-swell', 'swell-peak'},
+}
 
 
 # ============================================================ master
@@ -556,11 +624,15 @@ def main():
         dur = s['frames'] / tl['fps']
         bed = BEDS[sid](dur)
         place(mix, bed[:, : int(dur * SR) + int(0.02 * SR)], start)
+        owns = BED_OWNS.get(sid, set())
         for i, c in enumerate(load_cues(sid)):
-            snd = cue_sound(c.get('kind', ''), c.get('intensity', 0.5), seed=hash((sid, i)) % 100000)
+            kind = c.get('kind', '')
+            if kind.lower() in owns:
+                continue
+            snd = cue_sound(kind, c.get('intensity', 0.5), seed=zlib.crc32(f'{sid}:{i}'.encode()) % 100000, sid=sid)
             if snd is None:
                 continue
-            place(mix, snd, start + c['frame'] / tl['fps'], pan=c.get('pan', 0.0))
+            place(mix, snd, start + c['frame'] / tl['fps'], pan=c.get('pan', None))
             cue_count += 1
         print(f'{sid}: bed {dur:.1f}s @ {start:.1f}s, cues so far {cue_count}', flush=True)
     mix = mix[:, : int(total * SR)]

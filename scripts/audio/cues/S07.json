@@ -2,35 +2,41 @@
  {
   "frame": 0,
   "kind": "swell-continue",
-  "description": "continuation of S06's spiral; water-swirl bed fades in under the gold streams",
+  "description": "continuation of S06's last chord: S06's whirlpool of light keeps turning, red IR sparks crackle on (die out by f46)",
   "intensity": 0.5
  },
  {
-  "frame": 6,
+  "frame": 4,
   "kind": "text-in",
   "description": "「1944年，薛定谔问：」 condenses",
   "intensity": 0.2
  },
  {
+  "frame": 4,
+  "kind": "transform",
+  "description": "S06's light hands over to water (f4–40): teal floods in from the rim, 7 gold feeder arms crystallise, the white sink closes into the drain's dark eye; the flow settles from S06's speed to the whirlpool's",
+  "intensity": 0.55
+ },
+ {
   "frame": 20,
   "kind": "reveal",
-  "description": "book-cover rules draw out, 「生命是什么？」 — low warm chord",
+  "description": "book-cover rules draw out, 「生命是什么？」 — a low, warm chord",
   "intensity": 0.6
  },
  {
-  "frame": 34,
+  "frame": 32,
   "kind": "type",
-  "description": "imprint E. SCHRÖDINGER · CAMBRIDGE · 1944 types on (soft keys to f48)",
+  "description": "imprint E. SCHRÖDINGER · CAMBRIDGE · 1944 types on (soft keys, to f50)",
   "intensity": 0.15
  },
  {
   "frame": 40,
-  "kind": "transition",
-  "description": "S06's bright sink becomes the whirlpool's dark drain eye",
+  "kind": "settle",
+  "description": "whirlpool fully formed: 7 gold feeder arms on deep teal water, a stationary shape",
   "intensity": 0.3
  },
  {
-  "frame": 90,
+  "frame": 98,
   "kind": "text-in",
   "description": "「他写道：生命以“负熵”为食。」",
   "intensity": 0.2
@@ -38,187 +44,235 @@
  {
   "frame": 104,
   "kind": "pulse",
-  "description": "white-hot free-energy packet races inward along the gold arms (rising whoosh into the eye)",
+  "description": "gold \"free-energy\" packet races inward along the arms (rising whoosh into the eye)",
   "intensity": 0.45
  },
  {
   "frame": 118,
   "kind": "pulse",
-  "description": "second feeding pulse along the arms",
+  "description": "gold \"free-energy\" packet races inward along the arms (rising whoosh into the eye)",
   "intensity": 0.45
  },
  {
   "frame": 132,
   "kind": "pulse",
-  "description": "third feeding pulse",
+  "description": "gold \"free-energy\" packet races inward along the arms (rising whoosh into the eye)",
   "intensity": 0.45
  },
  {
   "frame": 146,
   "kind": "pulse",
-  "description": "fourth feeding pulse",
+  "description": "gold \"free-energy\" packet races inward along the arms (rising whoosh into the eye)",
   "intensity": 0.45
  },
  {
   "frame": 146,
   "kind": "ping",
-  "description": "tracer gold particle enters at the rim — bright pluck; a whistle rising in pitch as it spirals in (to f210)",
+  "description": "tracer (gold particle) enters at the rim — bright pluck; whistle rises in pitch as it spirals in (to f210)",
   "intensity": 0.6
  },
  {
   "frame": 210,
   "kind": "drain",
-  "description": "tracer leaves through the eye — gold ring flash, low glug + ping (停留 2.1 s · 离开)",
+  "description": "tracer leaves through the eye — gold ring flash, low \"glug\" + ping; label 停留 2.1 s · 离开",
   "intensity": 0.65
  },
  {
-  "frame": 216,
+  "frame": 210,
   "kind": "sonar",
-  "description": "census tag pulse sweeps eye → rim, every drop turns white",
+  "description": "census tag pulse sweeps eye → rim (born with the exit flash), every drop inside the rim turns white",
   "intensity": 0.7
  },
  {
-  "frame": 225,
+  "frame": 217,
   "kind": "tick",
-  "description": "census 原来的水 drops to 80%",
+  "description": "census counter 原来的水 drops to 90 %",
   "intensity": 0.25
  },
  {
-  "frame": 233,
+  "frame": 224,
   "kind": "tick",
-  "description": "census 70%",
+  "description": "census counter 原来的水 drops to 80 %",
   "intensity": 0.25
  },
  {
-  "frame": 242,
+  "frame": 230,
   "kind": "tick",
-  "description": "census 60%",
+  "description": "census counter 原来的水 drops to 70 %",
   "intensity": 0.25
  },
  {
-  "frame": 251,
+  "frame": 237,
   "kind": "tick",
-  "description": "census 50%",
+  "description": "census counter 原来的水 drops to 60 %",
   "intensity": 0.25
  },
  {
-  "frame": 260,
+  "frame": 243,
   "kind": "tick",
-  "description": "census 40%",
+  "description": "census counter 原来的水 drops to 50 %",
+  "intensity": 0.25
+ },
+ {
+  "frame": 249,
+  "kind": "tick",
+  "description": "census counter 原来的水 drops to 40 %",
+  "intensity": 0.25
+ },
+ {
+  "frame": 256,
+  "kind": "tick",
+  "description": "census counter 原来的水 drops to 30 %",
+  "intensity": 0.25
+ },
+ {
+  "frame": 262,
+  "kind": "tick",
+  "description": "census counter 原来的水 drops to 20 %",
   "intensity": 0.25
  },
  {
   "frame": 269,
   "kind": "tick",
-  "description": "census 30%",
+  "description": "census counter 原来的水 drops to 10 %",
   "intensity": 0.25
  },
  {
-  "frame": 277,
-  "kind": "tick",
-  "description": "census 20%",
-  "intensity": 0.25
- },
- {
-  "frame": 285,
-  "kind": "tick",
-  "description": "census 10%",
-  "intensity": 0.25
- },
- {
-  "frame": 294,
+  "frame": 279,
   "kind": "chime",
-  "description": "census reaches 0% — not one drop left, the shape unchanged",
-  "intensity": 0.55
+  "description": "census reaches 0 % — the last original drop has left; the dashed outline 形状 · 不变 flashes (hold to f306)",
+  "intensity": 0.6
  },
  {
   "frame": 296,
   "kind": "camera-move",
-  "description": "TILT 1 begins: top view → side view, deep whoosh (to f340)",
+  "description": "TILT 1 begins: top view → side view (deep whoosh, to f340)",
   "intensity": 0.7
  },
  {
-  "frame": 308,
+  "frame": 298,
+  "kind": "rise",
+  "description": "the WATERSPOUT: the inner whirlpool stops draining, spirals ever faster into the eye and rises as a spinning column (rising swirl, f298–352); its leading tip climbs ~46 px/frame",
+  "intensity": 0.7
+ },
+ {
+  "frame": 318,
   "kind": "impact",
-  "description": "「你也是。」 — deep hit",
+  "description": "「你也是。」 — deep hit (the legs have already formed under the spout)",
   "intensity": 0.85
  },
  {
-  "frame": 316,
-  "kind": "rise",
-  "description": "the whirlpool lifts off as a spinning helix and settles bottom-up into the figure (rising shimmer to f384)",
-  "intensity": 0.6
+  "frame": 327,
+  "kind": "shimmer",
+  "description": "the person fills in from the feet up as drops peel off the column into their seats (10 % f327 → 50 % f340 → 90 % f351 → complete f358): granular sparkle rising in pitch",
+  "intensity": 0.45
+ },
+ {
+  "frame": 358,
+  "kind": "settle",
+  "description": "the figure is complete; the spout has gone, the leftover pool has faded",
+  "intensity": 0.3
  },
  {
   "frame": 360,
   "kind": "growth",
-  "description": "vessel tree grows from the mouth (crackling branches, to f410)",
+  "description": "a gold line runs from the mouth down the throat to the heart, then the vessel tree grows out of the heart (crackling branch sound, to f410)",
   "intensity": 0.35
  },
  {
-  "frame": 380,
+  "frame": 372,
+  "kind": "text-in",
+  "description": "「你的大部分原子，几个月前还不在这里。」",
+  "intensity": 0.2
+ },
+ {
+  "frame": 376,
   "kind": "flow-on",
-  "description": "metabolism starts; time-lapse begins (to f458)",
+  "description": "metabolism starts: the gold intake thread streams into the mouth from the left; replaced atoms leave the skin as rising red heat",
   "intensity": 0.4
+ },
+ {
+  "frame": 380,
+  "kind": "time-lapse",
+  "description": "day counter starts 第00天 (time-lapse to f458; fastest early replacement)",
+  "intensity": 0.3
  },
  {
   "frame": 396,
   "kind": "heartbeat",
-  "description": "first heartbeat (60 bpm lub, dub +8 f); continues every 30 f: 426 456 486 516 546 576 606 636 666 696 726",
+  "description": "60 bpm lub (dub at +8 frames)",
   "intensity": 0.45
  },
  {
   "frame": 403,
   "kind": "tick",
-  "description": "day counter 第10天",
+  "description": "day counter passes 第10天 (time-lapse)",
   "intensity": 0.2
  },
  {
   "frame": 411,
   "kind": "tick",
-  "description": "第20天",
+  "description": "day counter passes 第20天 (time-lapse)",
   "intensity": 0.2
  },
  {
   "frame": 418,
   "kind": "tick",
-  "description": "第30天",
+  "description": "day counter passes 第30天 (time-lapse)",
   "intensity": 0.2
+ },
+ {
+  "frame": 422,
+  "kind": "breath",
+  "description": "exhale: CO₂ · H₂O leave the mouth as a warm puff (soft breath noise, ~1.5 s; the one at f422 is time-lapsed, faster)",
+  "intensity": 0.15
  },
  {
   "frame": 424,
   "kind": "tick",
-  "description": "第40天",
+  "description": "day counter passes 第40天 (time-lapse)",
   "intensity": 0.2
+ },
+ {
+  "frame": 426,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
  },
  {
   "frame": 431,
   "kind": "tick",
-  "description": "第50天",
+  "description": "day counter passes 第50天 (time-lapse)",
   "intensity": 0.2
  },
  {
   "frame": 437,
   "kind": "tick",
-  "description": "第60天",
+  "description": "day counter passes 第60天 (time-lapse)",
   "intensity": 0.2
  },
  {
   "frame": 444,
   "kind": "tick",
-  "description": "第70天",
+  "description": "day counter passes 第70天 (time-lapse)",
   "intensity": 0.2
  },
  {
   "frame": 451,
   "kind": "tick",
-  "description": "第80天",
+  "description": "day counter passes 第80天 (time-lapse)",
   "intensity": 0.2
+ },
+ {
+  "frame": 456,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
  },
  {
   "frame": 458,
   "kind": "settle",
-  "description": "第90天 — time-lapse ends; body almost all new (gold) atoms",
+  "description": "第90天 · 原有原子 34 % — new (gold) flesh around the persisting original (cyan) skeleton",
   "intensity": 0.35
  },
  {
@@ -228,34 +282,88 @@
   "intensity": 0.75
  },
  {
+  "frame": 468,
+  "kind": "text-in",
+  "description": "「此刻，你像一只100瓦的灯泡，向宇宙散热。」",
+  "intensity": 0.2
+ },
+ {
   "frame": 482,
   "kind": "hum",
-  "description": "thermal sensor hum; IR wave packets begin radiating (warm low drones)",
+  "description": "thermal sensor hum; IR wave packets start radiating (low warm drones); slow camera push-in on the chest (to f568)",
   "intensity": 0.4
+ },
+ {
+  "frame": 486,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 489,
+  "kind": "breath",
+  "description": "exhale: CO₂ · H₂O leave the mouth as a warm puff (soft breath noise, ~1.5 s; the one at f422 is time-lapsed, faster)",
+  "intensity": 0.25
  },
  {
   "frame": 492,
   "kind": "reveal",
-  "description": "≈100 W bulb icon glows",
+  "description": "≈100 W bulb readout glows (top left); SP1 35.4 °C on the forehead",
   "intensity": 0.3
  },
  {
-  "frame": 500,
-  "kind": "breath",
-  "description": "breath pulse in the head plume (every 4 s: f500, 620, 740)",
-  "intensity": 0.2
+  "frame": 516,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 546,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 568,
+  "kind": "camera-move",
+  "description": "camera pulls back (to f604) as the sensor re-maps to W/kg",
+  "intensity": 0.4
  },
  {
   "frame": 570,
   "kind": "mode-switch",
-  "description": "sensor re-maps to W/kg; the Sun's limb slides in from the top (huge low rumble to f600)",
+  "description": "sensor re-maps to W/kg; the Sun limb slides in from the top (huge, low rumble, to f600)",
   "intensity": 0.65
+ },
+ {
+  "frame": 574,
+  "kind": "text-in",
+  "description": "「按每公斤算，你发的热是太阳的约7000倍。」",
+  "intensity": 0.2
+ },
+ {
+  "frame": 576,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
  },
  {
   "frame": 598,
   "kind": "count",
-  "description": "×7000 counter rolls up (accelerating ticks to f622)",
+  "description": "×7000 counter rolls up (rising ticks to f622)",
   "intensity": 0.5
+ },
+ {
+  "frame": 606,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 609,
+  "kind": "breath",
+  "description": "exhale: CO₂ · H₂O leave the mouth as a warm puff (soft breath noise, ~1.5 s; the one at f422 is time-lapsed, faster)",
+  "intensity": 0.25
  },
  {
   "frame": 622,
@@ -264,75 +372,129 @@
   "intensity": 0.75
  },
  {
+  "frame": 636,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
   "frame": 650,
   "kind": "transition",
-  "description": "Sun exits upward; colour bar becomes the S-gauge; 「你不是在对抗熵增——」 enters",
+  "description": "Sun leaves upward; colour bar becomes the S-gauge; camera drifts in again",
   "intensity": 0.3
  },
  {
-  "frame": 678,
-  "kind": "dissolve",
-  "description": "对抗 diffuses (granular scatter)",
+  "frame": 656,
+  "kind": "text-in",
+  "description": "「你不是在对抗熵增——」 (held complete f678–714)",
+  "intensity": 0.2
+ },
+ {
+  "frame": 666,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
   "intensity": 0.45
  },
  {
-  "frame": 686,
+  "frame": 696,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 714,
+  "kind": "strike",
+  "description": "a 2 px line scratches across 对抗 (dry scratch, f714–720)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 720,
+  "kind": "dissolve",
+  "description": "对抗 fades to a ghost under the strike; its copy diffuses and drifts down (granular scatter, to f738)",
+  "intensity": 0.4
+ },
+ {
+  "frame": 726,
   "kind": "resolve",
-  "description": "…re-condenses as 借着 (warm resolving chord)",
+  "description": "… and re-condenses as 借着 in 「你借着它，活着。」 (warm resolving chord, lands f742)",
   "intensity": 0.55
  },
  {
-  "frame": 752,
-  "kind": "silence",
-  "description": "FREEZE ❚❚: tape-stop deceleration f752–760, then ALL MUSIC DROPS OUT",
-  "intensity": 0
- },
- {
-  "frame": 760,
-  "kind": "silence",
-  "description": "frozen; heat drains from the figure — only faint cold room tone until f812",
-  "intensity": 0.05
- },
- {
-  "frame": 812,
-  "kind": "impact",
-  "description": "▶ restart: first heartbeat (strong) — heat floods back from the chest; next beat f842",
-  "intensity": 0.9
- },
- {
-  "frame": 814,
-  "kind": "text-in",
-  "description": "「你是一个过程。」 — 过程 as a steady particle stream (granular flow to f866)",
+  "frame": 726,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
   "intensity": 0.45
  },
  {
-  "frame": 842,
+  "frame": 729,
+  "kind": "breath",
+  "description": "exhale: CO₂ · H₂O leave the mouth as a warm puff (soft breath noise, ~1.5 s; the one at f422 is time-lapsed, faster)",
+  "intensity": 0.25
+ },
+ {
+  "frame": 758,
+  "kind": "silence",
+  "description": "FREEZE ❚❚: flow time stops (tape-stop deceleration f758–766) — ALL MUSIC DROPS OUT; the camera stops",
+  "intensity": 0
+ },
+ {
+  "frame": 766,
+  "kind": "silence",
+  "description": "frozen: the heat drains out of the figure into a cold violet constellation (only room tone, a faint cold air sound)",
+  "intensity": 0.05
+ },
+ {
+  "frame": 772,
+  "kind": "text-in",
+  "description": "「你不是一个东西。」 (in the silence)",
+  "intensity": 0.15
+ },
+ {
+  "frame": 822,
+  "kind": "impact",
+  "description": "▶ restart: first heartbeat — heat floods back from the chest outward",
+  "intensity": 0.9
+ },
+ {
+  "frame": 822,
   "kind": "heartbeat",
-  "description": "last heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
   "intensity": 0.7
  },
  {
-  "frame": 846,
+  "frame": 826,
+  "kind": "text-in",
+  "description": "「你是一个过程。」 — 过程 drawn by a steady particle flow (granular stream to f876)",
+  "intensity": 0.45
+ },
+ {
+  "frame": 850,
   "kind": "release",
-  "description": "the figure rises away as heat, head first (airy rising whoosh)",
+  "description": "the figure starts to rise away as heat, head first (airy rising whoosh)",
   "intensity": 0.5
  },
  {
   "frame": 852,
+  "kind": "heartbeat",
+  "description": "60 bpm lub (dub at +8 frames)",
+  "intensity": 0.7
+ },
+ {
+  "frame": 854,
   "kind": "camera-move",
-  "description": "TILT 2 down to the floor top view (to f896)",
+  "description": "TILT 2: down to the floor top view (to f896)",
   "intensity": 0.55
  },
  {
-  "frame": 866,
+  "frame": 876,
   "kind": "text-out",
   "description": "caption diffuses",
   "intensity": 0.2
  },
  {
-  "frame": 886,
+  "frame": 888,
   "kind": "reveal",
-  "description": "only the two residual-heat footprints remain on the cold floor — soft low tone held into S08",
+  "description": "residual-heat footprints fully exposed on the cold floor (soft low tone, hold → S08)",
   "intensity": 0.4
  }
 ]

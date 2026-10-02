@@ -1,0 +1,118 @@
+{
+ "score": 6.4,
+ "verdict": "revise",
+ "issues": [
+  {
+   "severity": "blocker",
+   "frames": "S06 f581 vs S07 f0–46 (evidence: out/review/S07_cut_r1/f0581.jpg next to out/review/S07_full_r1/f0000.jpg)",
+   "problem": "The S06→S07 match cut breaks. S06 was revised later (its files are from 06:29; S07's s06.ts is from 06:19). S06's last frame is now a fully wound log-spiral whirlpool that fills the frame: K_END=5, θ=K·ln(720/(r+20))+spin, about 1500 gold→olive→teal inflow streaks reaching the frame edges, and a large white-green sink (core R≈76 plus a 160 px glow). S07 f0 still rebuilds S06's OLD ending: a loosely twisted 7-leaf rosette with dark leaf blades, a tiny sink and a mostly black frame. At the cut the picture unwinds by about 1.5 turns, loses the outer gold rings and shrinks the core. S07 then winds it back up over f0–46, so the audience sees a visible un-twist followed by a re-twist.",
+   "fix": "Rebuild S07's opening from S06's CURRENT end state, not from the rosette.\n- Simplest route: start S07 f0 with the whirlpool already formed. In vortex.ts set wOpen≡1 and kAt≡V.k from f0. Set armExtent to 1150 at f0. Drop drawS06Leaves and the blades.\n- Recolour particles by radius with S06's LIFE ramp (gold outer → olive → teal). Blend to S07's teal water and gold arms over f0–40.\n- Replace drawEye's S06 sink (radii 58/120) with S06's exact sink: R = 42·1.8 ≈ 76 for the core and 160 for the glow, same gradient stops. Fade it into the drain eye over f4–40.\n- Continue S06's red sparks as now.\n- If you keep a reconstruction instead, port S06 network.ts's twist() (K_END 5, R_OUT 700, CORE 20, SPIN0 0.0035·(frame−428), pullAt 0.12) and drawInflow (NP 1500, r0 720–980) into s06.ts.\n- Verify with stills S06 --frames 581 and S07 --frames 0 side by side, and re-check once S06's own review round has landed."
+  },
+  {
+   "severity": "major",
+   "frames": "f312–384 (see f345, f362; sequence out/review/S07_seq2_r1)",
+   "problem": "The promised wow, \"the whirlpool stands up and becomes you\", reads as a mess. After a good tilt (f316–332), the disc lifts into a flat, fuzzy hairball of crossing straw-like streaks. The hairball hovers over a pair of disembodied legs (f350–368, embarrassing as a still at f362). No vortex column or waterspout ever appears. Worse, 「你也是。」 (f312–364) plays entirely over the disc and hairball and diffuses before the person is recognisable (≈f372), so the punchline never lands on the figure.",
+   "fix": "Make it a coherent waterspout.\n- In bodyDraw.morphPos, lift particles from the eye (the feet sit on it) up a tight vertical vortex column: radius ≈ the figure's half-width (~0.12·R0), not 0.45·r0.\n- Use a helical path with constant pitch so the trails run parallel and tangential. Keep morph trails at ≤1 frame and keep the column streaks dim.\n- Order lift-off by radius: the eye water first, the rim last. The column then grows upward like a spout.\n- Peel each particle off the column into its seat from the bottom up.\n- Re-time: morph0 → ~300 (during the tilt), figure ≥90% formed by ~f350. Move C5 to ≈f318–368, still within the ±0.5 s nudge, so 「你也是。」 sits on a recognisable person for ≥0.6 s."
+  },
+  {
+   "severity": "major",
+   "frames": "f658–760 (f683–694 is the only moment line 1 is complete; see f690, f730)",
+   "problem": "The thesis reversal cannot be read. Line 1 「你不是在对抗熵增——」 is fully formed only from f683 to f694 (0.37 s). Then 对抗 starts diffusing (BorrowCard D0=36). The film's rule asks ≥2.8 s for 10 characters. Viewers never register 对抗, so 对抗→借着 fails. From f710 line 1 reads 「你不是在　　熵增——」 with a hole.",
+   "fix": "In cards.tsx BorrowCard:\n- Hold the complete line ≥1.2 s: D0 36→62, D1 52→78.\n- R0 44→70, R1 60→86. The non-borrow glyphs of line 2 start at R0−4.\n- Extend C9 to f658–772 and shift C10 to f774–826 (both within ±0.5 s), or trim the freeze lead-in.\n- Use the film's STRIKE verb: a 2 px strike across 对抗, then leave a 20–25% ghost of 对抗 in place while its diffused copy re-condenses as 借着, so line 1 still reads as a sentence."
+  },
+  {
+   "severity": "major",
+   "frames": "f480–760 (f520, f612, f690, f730)",
+   "problem": "The thermal phase is flat and static for about 9.5 s across three cards (C7–C9). The figure is an evenly orange \"paper-doll\" cutout: almost uniform index 0.75–0.8 with a slightly yellower head and white sparkle dots, and the framing is identical apart from one zoom. It has no anatomical thermal structure and no visible metabolism. This is below the premium bar for the scene's second wow and for the cover candidate S07 f650 (visual-direction §1). It looks like a filter over a silhouette, not a FLIR portrait.",
+   "fix": "Structure the warmth map (body.ts warm[] and thermal.ts):\n- Face, neck, armpits, chest and groin at 0.92–1.0, with hot inner-canthus spots.\n- Nose, ears and hair about 0.6; hands 0.5–0.55; feet 0.45.\n- Superficial vein lines on forearms and neck at +0.05.\n- Two octaves of low-amplitude skin mottling.\n\nMake the life visible:\n- Raise the visible heartbeat amplitude (beatPulse factor 0.035 → ≥0.08).\n- Show exhale puffs leaving the mouth and nose every 4 s, not only a faint plume.\n\nMotion: add a slow camera move, e.g. a push-in on the chest across C7, a pull-back for W/kg, then a slight drift during C9, so three cards don't play over one still."
+  },
+  {
+   "severity": "major",
+   "frames": "f376–466, f656–760 (f430, f458, f690)",
+   "problem": "The metabolic flow is mis-sited and one-sided, both as science and as explanation.\n- The intake thread descends from the sky (INTAKE (330,1960)→(150,1250)→MOUTH) and crosses the skull. It reads as a light beam or marionette string into the top of the head, not food and air at the mouth.\n- The out-stream (热·CO₂·H₂O) is hair-thin red strokes at alpha 0.2 and practically invisible next to the saturated gold beam. Visually, matter pours in and nothing leaves, which contradicts the steady state.\n- The Murray vessel tree is rooted at the mouth. Blood vessels are pumped from the heart, and the heartbeat pulses already start at HEART.\n- CO₂ in fact leaves mostly through the lungs and mouth, not the skin.",
+   "fix": "- Route INTAKE horizontally into the mouth at mouth height from one side, e.g. [[−700, MOUTH.h+40], [−260, MOUTH.h+10], MOUTH]. Move the 食物·水·O₂ and 吃进低熵 labels with it.\n- Root grow() at HEART and add a short mouth→chest (gut/lung) segment.\n- Make the outflow as substantial as the inflow: K_OUT BASE_A 0.2 → ~0.5, line width 1.6, longer trails, a diffuse red halo.\n- Add an exhale stream from the mouth for CO₂ and H₂O, with heat leaving across the whole skin."
+  },
+  {
+   "severity": "major",
+   "frames": "f574–656 (f612, f630)",
+   "problem": "The W/kg card is over-cluttered and repeats every number. On screen at once: the colour bar with six log ticks; the markers 你 1.4 and 太阳 0.0002; a ×7000 bracket; the BX1 label 1.4 W/kg; the BX2 label 0.0002 W/kg; the monumental ×7000; the mode label; the corner brackets; and the caption's 7000倍. Every number appears two or three times. This violates visual-direction §2.3 (one narration line plus at most two HUD elements). The bracket's vertical line at x=136 also runs through the exponent spans of 10⁰…10⁻³.",
+   "fix": "Keep the monumental ×7000 (see the ≈ note below) plus the log colour bar with only the two markers. Keep only the 10⁰ and 10⁻⁴ tick labels and remove the ×7000 bracket on the bar. Remove the BX1 and BX2 text labels but keep the boxes as targeting chrome. If the bracket stays, move it to x≥150 so it clears the exponents."
+  },
+  {
+   "severity": "major",
+   "frames": "all frames; worst f612 (2.1 s) and f500/520 (1.8 s)",
+   "problem": "Performance is over budget or at best unverified. stills.mjs printed 987–2223 ms per frame at --scale 1: avg 1743 ms on a 9-frame sample at load ≈3.5, and 1.0–2.2 s at load ≈6. The budget is ≤900 ms. The in-page bench (dev/bench-entry) shows the JS is cheap (renderMain <135 ms, thermal grid ≈30 ms). The time goes to raster and compositing:\n- the full-frame 1080×1920 additive canvas of about 14k polylines;\n- two full-frame bloom upscales;\n- the WebGL water layer under it until f482;\n- per-glyph CSS blur filters;\n- the CSS drop-shadow filters on the ×7000 span and the 过程 canvas.",
+   "fix": "Re-measure on an idle machine. If it is still >900 ms:\n- Don't mount WaterBg once the side view is reached (f>340); it is hidden behind the backdrop and particles.\n- Render the raster canvas at 0.75 internal scale during the thermal phase, which is a soft sensor image anyway.\n- Replace the CSS drop-shadow filters on the ×7000 span and the FlowWord canvas with a pre-blurred offscreen copy drawn once.\n- Skip the wide bloom pass (bloomB) where it is <0.1."
+  },
+  {
+   "severity": "major",
+   "frames": "f830–892 (f840, f870)",
+   "problem": "The final typographic concept doesn't land. 过程 reads as glitter text sitting inside a visible faint dotted rectangle (≈x 520–830, y 1440–1560). The 'outside' particles at alpha 0.16 fill the whole FlowWord canvas uniformly and stop at hard edges, and a drop-shadow filter is on top. At phone size you can't see that particles flow through the glyph, which is the whole point of the screenplay note.",
+   "fix": "In cards.tsx FlowWord:\n- Fade the outside particles by distance to the stroke mask (alpha ∝ exp(−d/12 px), from a precomputed distance field).\n- Fade them to 0 over 60 px at the left and right canvas edges and 20 px at the top and bottom, so only streams entering 过 and leaving 程 are visible.\n- Draw the outside particles as 1-frame streaks (x(τ−1)→x(τ)) so the motion reads.\n- Drop the CSS drop-shadow.\n- Optionally feed the stream visibly from the dissolving figure."
+  },
+  {
+   "severity": "minor",
+   "frames": "f752–812 (f790, f812)",
+   "problem": "The freeze contradicts itself as physics. The ❚❚ timecode says time is paused (frozen at 00:02:40:22), yet the heat visibly drains for ~40 frames (f760–800). Cooling is a process that takes time, and a physicist will object.",
+   "fix": "Either finish the drain inside the tape-stop (heat → violet over f752–760, then a perfectly static image while ❚❚ blinks), or keep the clock running and label it as metabolism stopping (e.g. 流动 0) instead of ❚❚."
+  },
+  {
+   "severity": "minor",
+   "frames": "f98–178",
+   "problem": "C2 runs to f178 (5.93 s). The screenplay slot ends at 5.0 s, so it overruns the allowed ±0.5 s nudge by 0.43 s. It also overlaps the picture-only tracer beat (5.0–7.0 s), so the tracer's entry at f146 competes with text.",
+   "fix": "Set CAP.c2 to {at: 98, dur: 66} (f98–164)."
+  },
+  {
+   "severity": "minor",
+   "frames": "f146–212 (f180)",
+   "problem": "The gold tracer is camouflaged among the gold feeder arms and its gold path line. Its label 停留 x.x s is 22 px mono, about 7 pt on a phone.",
+   "fix": "Give the tracer a white-hot core with a gold halo (R 26→34). Dim the arms by ~35% over f146–210. Make the label 28 px with a dark backing."
+  },
+  {
+   "severity": "minor",
+   "frames": "f388–466, f482–570, f226–316",
+   "problem": "Several pieces of HUD micro-type fall below the 24–34 px HUD range in ENGINEERING.md and are unreadable on phones:\n- the footnotes at 18 px (体内的水 ≈ 原子的60% · 半衰期 7–14 天; 骨骼、脂肪、晶状体：更新慢);\n- the bulb arithmetic at 19 px;\n- 形状 · 不变 at 22 px;\n- LWIR at 20 px.",
+   "fix": "Raise these to ≥24 px. Cut the second footnote, which isn't readable at the time-lapse speed anyway."
+  },
+  {
+   "severity": "minor",
+   "frames": "f656–760, f388–466, f216–316",
+   "problem": "Safe-zone and layout nits:\n- The SGauge labels (lib default x=64) start at x≈80, inside the 90 px margin.\n- The '↗ 热 · CO₂ · H₂O' label's right edge is ≈950 inside the platform-button band (y 900–1500 needs ≤940). safeBox assumes w=250, but the label is ~262 px wide.\n- The census readout uses padStart(3,' '), so ' 38%' and '  0%' shift against the label.\n- 形状 · 不变 collides with the end of the census bar near x≈390.",
+   "fix": "- Pass x={100} to SGauge.\n- Use w=290 in safeBox for the out label.\n- Right-align the census number in a fixed-width tabular box.\n- Move 形状 · 不变 to sit centred under the dashed circle, or to the right of the bar."
+  },
+  {
+   "severity": "minor",
+   "frames": "f430–466 (f458)",
+   "problem": "The day-90 claim 'original atoms persist in the skeleton' doesn't read. The remaining cyan atoms show up as a silvery rim on the limb edges, not as a skeleton.",
+   "fix": "Draw K_ORIG dots larger and brighter (≈3.4 px, alpha 1) only on bone slots, and dim the non-bone originals. Otherwise drop the skeleton claim from the visual and footnote."
+  },
+  {
+   "severity": "minor",
+   "frames": "f598–656",
+   "problem": "The count-up lands on an exact '×7000' and the bar bracket also says ×7000. The true ratio is ≈7400 (1.4 / 1.9×10⁻⁴), and the caption says 约7000倍. Also, in W/kg mode the Sun is drawn with granulation and a bright limb rim. W/kg is a body-wide average, so spatial structure implies something false.",
+   "fix": "Show '≈×7000'. Render the Sun as a flat uniform disc at a single index (~0.11). Optionally flatten the body to its single 1.4 W/kg colour for a crisper one-value-vs-one-value comparison."
+  },
+  {
+   "severity": "minor",
+   "frames": "f866–874; all thermal frames",
+   "problem": "The floor reflection toggles off abruptly when cam.sp crosses 0.7 (refl = cam.sp < 0.7, ≈f872), which is a small visible pop. Throughout the thermal phase the mirrored figure is also a purple column sitting behind every caption (y 1300–1920), which muddies caption contrast.",
+   "fix": "Weight the reflection by (1 − smoothstep(0.55, 0.75, cam.sp)) instead of the boolean. Halve its strength below y 1380 (the caption lane), or lower reflectance to ~0.15."
+  },
+  {
+   "severity": "minor",
+   "frames": "code",
+   "problem": "Determinism is clean: no Math.random, Date.now or performance.now outside dev/, and the lazy constants (MT, ARMB, ROS, mctx) and fully reset thermal grids are pure. However, bodyFrame's module cache is keyed only on f and ignores its cam and trailDt arguments. That is safe today but brittle.",
+   "fix": "Key the cache on (f, trailDt) and assert the cam matches camAt(f), or pass f only and derive the cam inside."
+  }
+ ],
+ "strengths": [
+  "The census beat (f210–306) is the best science visual in the film so far. A sonar pulse tags every drop white, and the white disc drains into the eye while the dashed outline 形状 · 不变 stays fixed. The 原来的水 counter is computed from the flow model and lands on 0% at f279, inside 「水，没有一滴停留。」. It explains the idea without any text.",
+  "The flow physics is correct and closed-form. The spiral sink r² = R² − q·τ with log-spiral winding θ = k·ln(R/r) and a Rankine core gives arms that are stationary curves while every particle on them moves, which is the scene's thesis. The water caustics are advected in flow-comoving coordinates (ψ, s).",
+  "The opening whirlpool and the 1944 book-cover title card (f36–96) are genuinely premium: deep teal water, gold feeder arms, hairline gold rules, WHAT IS LIFE? and the typed imprint. The tracer (f146–210) with a persistent path, residence timer and exit ring is clear.",
+  "Tilt 1 (f296–332) is a real 3D move into a funnel basin, with one camera shared by the JS and the GLSL water shader.",
+  "All on-screen narration matches the screenplay character for character, including the curly quotes in “负熵”. The emphasis follows the spec: 100瓦 in the inferno ramp, 借着 in gold, 7000倍 in heavy weight. The vocabulary rules are respected (吃进低熵 / 排出高熵, no 秩序/混乱).",
+  "The numbers are right: 2000 kcal/天 ÷ 86400 s ≈ 97 W; 1.4 W/kg vs 0.0002 W/kg; SP1 35.4 °C on the forehead; LWIR 8–14 µm; ε 0.98; body water ≈60% of atoms with a 7–14 天 half-life; the time-lapse 原有原子 100 → 34% by day 90.",
+  "The out handoff is exact. f899 is a pure #05030F top view with two toes-up inferno footprints at FEET (500,990)/(582,950), each 150 px long, and S08 reuses the same footHeat recipe, so S07→S08 is seamless.",
+  "Determinism is clean and cues.ts is frame-exact and thorough: census ticks, day ticks, 60 bpm heartbeats, the freeze silence and the restart."
+ ]
+}
