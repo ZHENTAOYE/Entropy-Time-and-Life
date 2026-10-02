@@ -3,7 +3,7 @@ import { clamp, ease, lerp, seg } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 import { C, PA, PANEL_H, PANEL_W, PB, T } from './constants';
 import { arrow, Ctx, glow, latin, mono, rgbaHex, ring } from './paint';
-import { gasRun, GAS_DISC, GAS_R, rackRun, RACK_R, runPos, runSpeed, TWO, TWO_T, twoPos, twoVel } from './sims';
+import { GAS_DISC, GAS_FRAMES, GAS_R, gasRun, rackRun, RACK_R, runPos, runSpeed, TWO, TWO_T, twoPos, twoVel } from './sims';
 
 export type Which = 'A' | 'B';
 
@@ -23,7 +23,7 @@ export const k10 = (w: Which, f: number) => {
 };
 export const k400 = (w: Which, f: number) => {
   const k = Math.max(0, f - T.run400);
-  return w === 'A' ? Math.min(k, gasRun().frames - 1) : Math.max(0, RUN400_LEN - k);
+  return w === 'A' ? Math.min(k, GAS_FRAMES - 1) : Math.max(0, RUN400_LEN - k);
 };
 
 export type Stage = 2 | 10 | 400;
@@ -587,9 +587,9 @@ export function pushInB(f: number): number {
 }
 /** `skip(i)`: balls that are no longer part of the panel (panel A's balls once the finale swarm launches them). */
 export function drawGas(ctx: Ctx, w: Which, f: number, px: number, py: number, glowLayer: boolean, alpha = 1, fringe = 0, skip?: (i: number) => boolean) {
-  const run = gasRun();
   const k = k400(w, f);
   const kp = k400(w, f - 2.4);
+  const run = gasRun(Math.max(k, kp) + 1);
   const n = run.n;
   const burstF = w === 'A' ? T.run400 : T.run400End;
   const dcx = px + GAS_DISC.x;
@@ -661,8 +661,8 @@ export function drawGas(ctx: Ctx, w: Which, f: number, px: number, py: number, g
 
 /** World-space positions of all gas balls in panel A at frame f (used by the finale swarm). */
 export function gasWorldA(f: number, px: number, py: number): Float32Array {
-  const run = gasRun();
   const k = k400('A', f);
+  const run = gasRun(k + 1);
   const out = new Float32Array(run.n * 2);
   for (let i = 0; i < run.n; i++) {
     const [x, y] = runPos(run, i, k);

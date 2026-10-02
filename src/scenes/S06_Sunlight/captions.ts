@@ -22,8 +22,8 @@ export const CAPTIONS: CaptionSpec[] = [
     // line 2 condenses as the gold packet lands and starts to unzip
     lineDelay: [0, 22],
     lines: [
-      [{ text: '进来' }, { text: '1', color: P.gold, font: 'latin', size: 74, glow: 0.45 }, { text: '个光子，' }],
-      [{ text: '出去约' }, { text: '20', color: RED_DEEP, font: 'latin', size: 74, glow: 0.45 }, { text: '个。' }],
+      [{ text: '进来' }, { text: '1', color: P.gold, size: 74, glow: 0.45 }, { text: '个光子，' }],
+      [{ text: '出去约' }, { text: '20', color: RED_DEEP, size: 74, glow: 0.45 }, { text: '个。' }],
     ],
   },
   {
@@ -37,7 +37,7 @@ export const CAPTIONS: CaptionSpec[] = [
       [{ text: '能量一样多——' }],
       [
         { text: '熵，多了约' },
-        { text: '20', color: RED_DEEP, font: 'latin', size: 168, glow: 0.55, letterSpacing: 0.01 },
+        { text: '20', color: RED_DEEP, size: 168, glow: 0.55, letterSpacing: 0.01 },
         { text: '倍', color: RED_DEEP, size: 132, weight: 900, glow: 0.55, letterSpacing: 0.02 },
         { text: '。' },
       ],

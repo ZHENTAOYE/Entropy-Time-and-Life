@@ -1,6 +1,7 @@
 node_modules
-out/tmp
 .cache
 *.log
 scratch
-out/stills
+# render scratch output (keep only the final film under out/final)
+out/*
+!out/final

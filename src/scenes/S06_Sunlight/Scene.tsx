@@ -13,7 +13,7 @@ import { clamp, ease, seg } from '../../lib/math';
 import { camAt } from './camera';
 import { CAPTIONS } from './captions';
 import { useFontGate } from './fontGate';
-import { renderGL } from './glOff';
+import { renderGLRead } from './glOff';
 import { drawHaze } from './haze';
 import { LEDGER_FONTS, drawLedger, ledgerOn } from './ledger';
 import { Layer } from './Layer';
@@ -69,7 +69,7 @@ function drawVignette(ctx: CanvasRenderingContext2D, f: number) {
   ctx.restore();
 }
 
-function drawComposite(ctx: CanvasRenderingContext2D, f: number, fontsReady: boolean) {
+function drawComposite(ctx: CanvasRenderingContext2D, f: number) {
   pStart();
   const c = camAt(f);
   // background (soft content at half resolution)
@@ -105,7 +105,9 @@ function drawComposite(ctx: CanvasRenderingContext2D, f: number, fontsReady: boo
   drawInflow(ctx, f, c);
   const na = netAlpha(f);
   if (na > 0.005) {
-    ctx.drawImage(renderGL(NET_FRAG, netUniforms(f, c, na, netDmax()), { u_vein: veinTex(), u_glow: veinGlowTex() }), 0, 0, 1080, 1920);
+    // the vein network on the GPU, rendered in a 1080² box around the sink and read back
+    const y0 = Math.round(c.sy - 540);
+    ctx.drawImage(renderGLRead(NET_FRAG, { ...netUniforms(f, c, na, netDmax()), u_y0: y0 }, { u_vein: veinTex(), u_glow: veinGlowTex() }, 1080, 1080), 0, y0);
     pMark('gl');
   }
   drawNetwork(ctx, f, c, na);
@@ -163,12 +165,10 @@ function drawComposite(ctx: CanvasRenderingContext2D, f: number, fontsReady: boo
   drawVignette(ctx, f);
   pMark('motes');
   // ---- text & HUD (needs the font slices of this frame)
-  if (fontsReady) {
-    drawLedger(ctx, f);
-    drawHero(ctx, f, c);
-    drawPhotonLabels(ctx, f, c);
-    for (const cap of CAPTIONS) drawCaption(ctx, cap, f);
-  } else drawHero(ctx, f, c);
+  drawLedger(ctx, f);
+  drawHero(ctx, f, c);
+  drawPhotonLabels(ctx, f, c);
+  for (const cap of CAPTIONS) drawCaption(ctx, cap, f);
   pMark('text');
   pEnd(f);
 }
@@ -187,7 +187,8 @@ export const Scene: React.FC = () => {
   const fontsKey = useFontGate(fontsAt(frame));
   return (
     <AbsoluteFill style={{ background: P.space }}>
-      <Layer draw={(ctx, { frame: f }) => drawComposite(ctx, f, fontsKey !== null)} version={fontsKey === null ? 'wait' : 'ok'} />
+      {/* nothing is drawn until this frame's font slices are in (the screenshot waits for them anyway) */}
+      <Layer draw={(ctx, { frame: f }) => (fontsKey === null ? undefined : drawComposite(ctx, f))} version={fontsKey === null ? 'wait' : 'ok'} />
     </AbsoluteFill>
   );
 };

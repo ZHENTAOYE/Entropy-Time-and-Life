@@ -4,7 +4,7 @@
 //  · every frame the visible cap of the sphere is ray-cast against it (orthographic, the map's pole tilted back so the
 //    face spans ±35° latitude), the clouds drift in longitude, lit by the Sun above-and-behind: a lit crescent at the
 //    limb, a soft terminator, a calm dark face below (the narration lane), Rayleigh-blue limb, a small ocean glint.
-import { bakeGL, renderGLSize } from './glOff';
+import { bakeGL, renderGLRead } from './glOff';
 import { EARTH, LIMB_Y } from './palette';
 
 const NOISE = `
@@ -104,5 +104,5 @@ export const cloudMap = () => bakeGL('earthCloud', MAP_FRAG, { u_mode: 1 }, 512,
 
 /** the shaded cap (½ res) for this frame */
 export function earthCap(frame: number, beta: number): HTMLCanvasElement {
-  return renderGLSize(EARTH_FRAG, { u_drift: frame * 0.00008, u_cdrift: frame * 0.00016, u_beta: beta, u_y0: EARTH_CAP.y0 }, { u_surf_rep: surfMap(), u_cloud_rep: cloudMap() }, EARTH_CAP.w, EARTH_CAP.h);
+  return renderGLRead(EARTH_FRAG, { u_drift: frame * 0.00008, u_cdrift: frame * 0.00016, u_beta: beta, u_y0: EARTH_CAP.y0 }, { u_surf_rep: surfMap(), u_cloud_rep: cloudMap() }, EARTH_CAP.w, EARTH_CAP.h);
 }

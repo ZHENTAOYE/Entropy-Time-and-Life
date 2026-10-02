@@ -431,7 +431,7 @@ export function drawPhysicsArrow(ctx: Ctx, f: number, glowLayer: boolean) {
   }
   ctx.save();
   // the ghost of the t = 0 drop: every ball's starting position, faint gold, inside a dashed outline
-  const run = gasRun();
+  const run = gasRun(0);
   ctx.fillStyle = rgbaHex(C.gold, 0.32 * a);
   ctx.beginPath();
   for (let i = 0; i < run.n; i++) {

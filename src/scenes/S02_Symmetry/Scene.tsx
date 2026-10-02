@@ -34,7 +34,7 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { FONT } from '../../lib/fonts';
 import { useFontsWindowed } from './fonts';
 import { SGauge } from '../../lib/hud';
-import { clamp, ease, memo, mixHex, seg } from '../../lib/math';
+import { clamp, ease, mixHex, seg } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 import { C, LANE_Y, PA, PANEL_H, PB, T } from './constants';
 import { C7, card7Layout } from './finale';
@@ -68,18 +68,13 @@ function shake(f: number): [number, number] {
 }
 
 // ------------------------------------------------------------------ S gauge mapping (real coarse-grained entropy)
-/** the run's own range: the t = 0 drop reads 0.1, the most spread state of the recording reads 0.9 */
-const gaugeRange = () =>
-  memo('S02:gaugeRange', () => {
-    const S = gasRun().S;
-    let hi = 0;
-    for (let i = 0; i < S.length; i++) hi = Math.max(hi, S[i]);
-    return [S[0], hi] as const;
-  });
+/** 0.1 = the t = 0 drop, 0.9 = the maximum possible coarse-grained entropy (gas uniform over all cells): a fixed
+ * physical scale, so A's needle keeps climbing after f390 (S = 0.97 by its last recorded frame) */
 const gaugeOf = (S: number) => {
-  const [lo, hi] = gaugeRange();
-  return 0.1 + 0.8 * clamp((S - lo) / (hi - lo));
+  const lo = gasRun(0).S[0];
+  return 0.1 + 0.8 * clamp((S - lo) / (1 - lo));
 };
+const sAt = (k: number) => gasRun(k).S[Math.round(k)];
 
 // ------------------------------------------------------------------ captions
 /** advance of one 56 px glyph with 0.08 em tracking */
@@ -166,8 +161,8 @@ export const Scene: React.FC = () => {
 
       {gA > 0 ? (
         <>
-          <SGauge value={gaugeOf(gasRun().S[Math.round(k400('A', f))])} x={56} y0={PA.y + 12} y1={PA.y + PANEL_H - 12} color={C.cyan} opacity={gA} />
-          <SGauge value={gaugeOf(gasRun().S[Math.round(k400('B', f))])} falling={k400('B', f) < RUN400_LEN} x={56} y0={PB.y + 12} y1={PB.y + PANEL_H - 12} color={C.cyan} opacity={gA} />
+          <SGauge value={gaugeOf(sAt(k400('A', f)))} x={56} y0={PA.y + 12} y1={PA.y + PANEL_H - 12} color={C.cyan} opacity={gA} />
+          <SGauge value={gaugeOf(sAt(k400('B', f)))} falling={k400('B', f) < RUN400_LEN} x={56} y0={PB.y + 12} y1={PB.y + PANEL_H - 12} color={C.cyan} opacity={gA} />
         </>
       ) : null}
 

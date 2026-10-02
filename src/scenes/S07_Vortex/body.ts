@@ -190,7 +190,7 @@ export const bodyData = (): BodyData =>
       const arm = smoothstep(100, 125, ax) * smoothstep(360, 420, Hh);
       const armCool = arm * smoothstep(800, 430, Hh);
       const legCool = smoothstep(470, 30, Hh);
-      warm[s] = clamp(0.6 + 0.08 * Math.sqrt(core) + 0.07 * trunk + 0.2 * isHead - 0.12 * armCool - 0.15 * legCool, 0.45, 0.92);
+      warm[s] = clamp(0.6 + 0.08 * Math.sqrt(core) + 0.07 * trunk + 0.18 * isHead - 0.12 * armCool - 0.15 * legCool, 0.45, 0.92);
       const bx = X / S + 300;
       const by = 1402 - Hh / S;
       bone[s] = boneAt(bx, by) ? 1 : 0;

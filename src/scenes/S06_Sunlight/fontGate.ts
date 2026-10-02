@@ -9,10 +9,10 @@ export function useFontGate(specs: Array<[string, string]>): string | null {
   const key = specs.map((s) => s.join('|')).join('||');
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const handles = useRef(new Map<string, number>());
-  const ready = readyKey === key;
+  const ready = readyKey === key || specs.length === 0;
   if (!ready && !handles.current.has(key)) handles.current.set(key, delayRender('S06 fonts ' + key.slice(0, 40)));
   useEffect(() => {
-    if (readyKey === key) return;
+    if (ready) return;
     let alive = true;
     Promise.all(specs.map(([s, t]) => loadFont(s, t)))
       .then(() => document.fonts.ready)

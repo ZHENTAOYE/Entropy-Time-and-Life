@@ -445,7 +445,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o: 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'butt';
-  ctx.lineJoin = 'round';
+  ctx.lineJoin = 'miter';
   for (let b = 0; b < NK * LV; b++) {
     const kind = Math.floor(b / LV);
     const a = ((b % LV) + 0.5) / LV;

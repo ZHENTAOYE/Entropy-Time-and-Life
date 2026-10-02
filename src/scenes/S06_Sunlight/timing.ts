@@ -26,8 +26,8 @@ export const T = {
   earthRiseStart: 16,
   earthRiseEnd: 80,
   // ledger
-  ledgerIn: 30,
-  barsIn: 46,
+  ledgerIn: 42,
+  barsIn: 54,
   flipAt: 104,
   streamsDim: 106,
   // hero photon

@@ -33,7 +33,8 @@ const RED_TXT = '#FF4A3A';
 export const LEDGER_FONTS: Array<[string, string]> = [
   [`900 76px ${FONT.serif}`, '收还'],
   [`600 64px ${FONT.serif}`, '能量光子熵' + FLAP_NOISE],
-  [`600 120px ${FONT.latin}`, '0123456789≈→='],
+  [`600 120px ${FONT.serif}`, '0123456789≈→='],
+  [`400 92px ${FONT.serif}`, '≈→='],
   [`400 20px ${FONT.mono}`, 'INOUTENERGYPHOTONSENTROPYW/m²▍·'],
 ];
 
@@ -120,7 +121,7 @@ function roll(ctx: CanvasRenderingContext2D, value: number, x: number, y: number
   const cw = size * 0.56;
   ctx.save();
   ctx.globalAlpha *= opacity;
-  ctx.font = `600 ${size}px ${FONT.latin}`;
+  ctx.font = `600 ${size}px ${FONT.serif}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const pw = prefix ? size * 0.62 * 0.62 + 6 : 0;
@@ -132,7 +133,7 @@ function roll(ctx: CanvasRenderingContext2D, value: number, x: number, y: number
   ctx.shadowBlur = Math.min(22, size * 0.18 * glow);
   if (prefix) {
     ctx.save();
-    ctx.font = `600 ${size * 0.62}px ${FONT.latin}`;
+    ctx.font = `600 ${size * 0.62}px ${FONT.serif}`;
     ctx.filter = filt(0);
     ctx.fillText(prefix, x0 + pw / 2 - 3, y + off - size * 0.02);
     ctx.restore();
@@ -289,7 +290,7 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
     mono(ctx, frame, 'W/m²', COL_OUT, ROW_A + 62, T.barsIn + 4, { size: 19, align: 'center', color: 'rgba(255,90,70,0.78)', opacity: energyA, spacing: 0.2 });
   }
   const approxA = Math.min(seg(frame, T.barsIn + 22, T.barsIn + 32), 1 - seg(frame, T.flipAt, T.flipAt + 10));
-  if (approxA > 0.01) word(ctx, '≈', SPINE, ROW_A, `600 100px ${FONT.latin}`, P.voice, { opacity: approxA, glow: 18, scale: 0.8 + 0.2 * ease.outBack(clamp(approxA)) });
+  if (approxA > 0.01) word(ctx, '≈', SPINE, ROW_A, `400 92px ${FONT.serif}`, P.voice, { opacity: approxA, glow: 18, scale: 0.8 + 0.2 * ease.outBack(clamp(approxA)) });
 
   // ---- photon counters
   const cntA = seg(frame, T.flipAt + 14, T.flipAt + 22);
@@ -300,7 +301,7 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
     roll(ctx, inVal, COL_IN, ROW_A, 120, P.gold, { glow: 0.5 + inVal * 0.5, opacity: cntA });
     roll(ctx, outVal, COL_OUT, ROW_A, 120, RED_TXT, { glow: 0.4 + outVal / 30, opacity: cntA });
     const arrowA = seg(frame, unzipAt(19), unzipAt(19) + 10);
-    if (arrowA > 0.01) word(ctx, '→', SPINE + (1 - arrowA) * -20, ROW_A + 4, `600 66px ${FONT.latin}`, 'rgba(243,239,230,0.88)', { opacity: arrowA });
+    if (arrowA > 0.01) word(ctx, '→', SPINE + (1 - arrowA) * -20, ROW_A + 4, `400 62px ${FONT.serif}`, 'rgba(243,239,230,0.88)', { opacity: arrowA });
   }
 
   // ---- B4: the energy row is typed back at the top — 1 = 1 (energy of one sunlight photon in = energy out)
@@ -309,7 +310,7 @@ export function drawLedger(ctx: CanvasRenderingContext2D, frame: number) {
     roll(ctx, 1, COL_IN, E_Y, 60, P.gold, { opacity: eb, glow: 0.35 });
     roll(ctx, 1, COL_OUT, E_Y, 60, RED_TXT, { opacity: seg(frame, T.energyBack + 4, T.energyBack + 12), glow: 0.35 });
     const eq = seg(frame, T.energyBack + 8, T.energyBack + 18);
-    word(ctx, '=', SPINE, E_Y, `600 64px ${FONT.latin}`, P.voice, { opacity: eq, glow: 12, scale: 0.7 + 0.3 * ease.outBack(eq) });
+    word(ctx, '=', SPINE, E_Y, `400 60px ${FONT.serif}`, P.voice, { opacity: eq, glow: 12, scale: 0.7 + 0.3 * ease.outBack(eq) });
     word(ctx, '能量', 96, E_Y - 6, `600 34px ${FONT.serif}`, 'rgba(243,239,230,0.85)', { opacity: eb, align: 'left' });
     mono(ctx, frame, 'ENERGY', 98, E_Y + 24, T.energyBack + 2, { size: 14 });
   }

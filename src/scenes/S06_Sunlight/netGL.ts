@@ -116,6 +116,7 @@ export const NET_FRAG = `
 uniform sampler2D u_vein;
 uniform sampler2D u_glow;
 uniform vec2 u_sc;      // screen position of the sink (logical px)
+uniform float u_y0;     // top of the rendered 1080×1080 box (logical px)
 uniform float u_s;      // ground -> screen scale
 uniform float u_K;      // differential twist
 uniform float u_spin;   // rigid spin (rad)
@@ -139,7 +140,7 @@ vec3 life(float d){ // d: 0 root .. 1 tips
 float pulse(float x){ float p = fract(x); return step(0.62, p) * pow(1. - (p - 0.62)/0.38, 1.6); }
 
 void main(){
-  vec2 px = v_uv * vec2(1080., 1920.);
+  vec2 px = vec2(v_uv.x * 1080., u_y0 + v_uv.y * 1080.);
   vec2 P = (px - u_sc) / u_s;            // twisted ground offset from the sink
   float rp = length(P);
   if (rp > 540.) { gl_FragColor = vec4(0.); return; }

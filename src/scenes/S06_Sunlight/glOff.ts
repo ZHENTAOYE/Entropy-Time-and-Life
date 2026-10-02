@@ -1,10 +1,14 @@
-// Offscreen WebGL renderer for the vein network: one context per tab on a DETACHED canvas, static textures uploaded
-// once, the result blitted into the scene's single 2D canvas (one fewer full-frame layer in the software compositor).
+// Offscreen WebGL renderer (vein network, Earth): one context per shader & size per tab on a DETACHED canvas, static
+// textures uploaded once. The result is READ BACK explicitly (readPixels → putImageData into a CPU canvas): blitting
+// a WebGL canvas straight into the CPU 2D canvas defers a slow cross-process readback to screenshot time
+// (measured +1.5–2 s per still), and a separate DOM WebGL layer costs a full compositor layer.
 import { memo } from '../../lib/math';
 import { FRAG_HEADER } from '../../lib/Shader';
 
+// v_uv (0,0) = top-left of the IMAGE; the image is stored bottom-up in the framebuffer so that readPixels (row 0 =
+// framebuffer bottom) returns it top-down, ready for putImageData.
 const VERT = `attribute vec2 a_pos; varying vec2 v_uv;
-void main(){ v_uv = vec2(a_pos.x*0.5+0.5, 0.5-a_pos.y*0.5); gl_Position = vec4(a_pos,0.,1.); }`;
+void main(){ v_uv = vec2(a_pos.x*0.5+0.5, 0.5+a_pos.y*0.5); gl_Position = vec4(a_pos,0.,1.); }`;
 
 interface GLState {
   cv: HTMLCanvasElement;
@@ -92,10 +96,47 @@ export function renderGLSize(frag: string, uniforms: Record<string, number | num
   return s.cv;
 }
 
+/** Render, read back and return a CPU canvas (un-premultiplied) holding the image. */
+export function renderGLRead(frag: string, uniforms: Record<string, number | number[]>, textures: Record<string, TexImageSource>, w: number, h: number): HTMLCanvasElement {
+  renderGLSize(frag, uniforms, textures, w, h);
+  const { gl } = glState(frag, w, h);
+  const R = memo(`s06:glread:${w}x${h}:${frag.length}`, () => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    const img = x.createImageData(w, h);
+    return { c, x, img, buf: new Uint8Array(w * h * 4) };
+  });
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, R.buf);
+  const d = R.img.data;
+  const b = R.buf;
+  for (let i = 0; i < b.length; i += 4) {
+    const a = b[i + 3];
+    if (a === 0) {
+      d[i + 3] = 0;
+      continue;
+    }
+    if (a === 255) {
+      d[i] = b[i];
+      d[i + 1] = b[i + 1];
+      d[i + 2] = b[i + 2];
+    } else {
+      const k = 255 / a;
+      d[i] = b[i] * k;
+      d[i + 1] = b[i + 1] * k;
+      d[i + 2] = b[i + 2] * k;
+    }
+    d[i + 3] = a;
+  }
+  R.x.putImageData(R.img, 0, 0);
+  return R.c;
+}
+
 /** Render a shader ONCE and keep a 2D-canvas copy of the result (e.g. a generated texture map). */
 export const bakeGL = (key: string, frag: string, uniforms: Record<string, number | number[]>, w: number, h: number): HTMLCanvasElement =>
   memo('s06:bake:' + key, () => {
-    const src = renderGLSize(frag, uniforms, {}, w, h);
+    const src = renderGLRead(frag, uniforms, {}, w, h);
     const c = document.createElement('canvas');
     c.width = w;
     c.height = h;

@@ -24,6 +24,7 @@ import {
   vparts,
   vPos,
   wOpen,
+  kAt,
 } from './vortex';
 
 const LV = 5; // intensity levels per class
@@ -104,6 +105,7 @@ export function drawVortex(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o
   const fore = Math.pow(Math.max(0.15, cam.sp), 0.9);
   // while S06's rosette spins up (f0–46) the trails stay short, or the fast wind-up smears arms into fans
   const wo = wOpen(f);
+  const kOut = kAt(f, true);
   const maxSweep = 0.1 + (MAX_SWEEP - 0.1) * wo * wo * wo;
   const tiltK = 1 - cam.sp; // 0 top view … ~0.8 side view
   for (let i = 0; i < NV; i++) {
@@ -159,8 +161,15 @@ export function drawVortex(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o
     // trail: by time (slow arm streams get long filaments) but capped by the angle it sweeps, and sampled finely
     // enough that every chord stays ≤ 0.12 rad — the fast core draws true arcs, never polygons
     let trail = Math.min(tau, isArm ? dt * 2.2 : dt);
-    vPos(P, i, c, tau - trail, tmp);
-    let sweep = Math.abs(th1 - tmp[4]);
+    let sweep: number;
+    if (wo >= 1) {
+      // closed form: angular speed of the spiral sink ω = |k|·q / 2r² (solid body inside the core)
+      const rr = Math.max(r, V.rc);
+      sweep = (Math.abs(outer ? kOut : V.k) * P.q[i] * trail) / (2 * rr * rr);
+    } else {
+      vPos(P, i, c, tau - trail, tmp);
+      sweep = Math.abs(th1 - tmp[4]);
+    }
     if (sweep > maxSweep) {
       trail *= maxSweep / sweep;
       sweep = maxSweep;
@@ -188,7 +197,7 @@ export function drawVortex(ctx: CanvasRenderingContext2D, f: number, cam: Cam, o
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'butt';
-  ctx.lineJoin = 'round';
+  ctx.lineJoin = 'miter'; // chords turn by ≤ 0.16 rad: miter joins are invisible and far cheaper than round ones
   for (let b = 0; b < NCLS * LV; b++) {
     if (!S.used[b]) continue;
     const [st, w] = bucketStyle(b, f);
@@ -303,7 +312,7 @@ export function drawS06Leaves(ctx: CanvasRenderingContext2D, f: number, cam: Cam
   }
   // ---- veins (bucketed by Murray width × colour band) and pulses
   ctx.globalCompositeOperation = 'lighter';
-  ctx.lineCap = 'round';
+  ctx.lineCap = 'butt';
   const WB = 5;
   const DB = 4;
   const V0 = new Strokes(WB * DB);
@@ -331,9 +340,6 @@ export function drawS06Leaves(ctx: CanvasRenderingContext2D, f: number, cam: Cam
       if (fl > 0.25) PU.seg(db * 2 + (fl > 0.6 ? 1 : 0), sx[p], sy[p], sx[i], sy[i]);
     }
   }
-  // S06's soft vein halo (its blurred glow texture): the blades glow teal-green around their veins
-  for (let wb = 1; wb < WB; wb++)
-    for (let db = 0; db < DB; db++) V0.stroke(ctx, wb * DB + db, `rgba(90,200,150,${(0.035 + 0.015 * wb) * veinA})`, 7 + wb * 3);
   for (let wb = 0; wb < WB; wb++)
     for (let db = 0; db < DB; db++) {
       const d = (db + 0.5) / DB;

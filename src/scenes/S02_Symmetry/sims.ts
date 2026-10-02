@@ -68,7 +68,14 @@ interface Ball {
   m: number;
 }
 
-function simulate(balls: Ball[], frames: number, substeps: number, cell: number): DiscRun {
+/** A recording that is simulated incrementally: `advance(k)` steps the (deterministic, sequential) simulation until
+ * frames 0..k are recorded. A render tab only pays for the frames it actually shows — and because the steps always
+ * run in the same order from frame 0, the recording is identical however (and in whatever order) it is requested. */
+interface Recorder {
+  run: DiscRun;
+  advance: (upTo: number) => void;
+}
+function recorder(balls: Ball[], frames: number, substeps: number, cell: number): Recorder {
   const n = balls.length;
   const x = new Float64Array(n);
   const y = new Float64Array(n);
@@ -99,9 +106,12 @@ function simulate(balls: Ball[], frames: number, substeps: number, cell: number)
       vel[(f * n + i) * 2 + 1] = vy[i];
     }
   };
+  const S = new Float32Array(frames);
   rec(0);
+  S[0] = entropyAt(pos, n, 0);
+  let done = 0;
   const dt = 1 / substeps;
-  for (let f = 1; f < frames; f++) {
+  const step = (f: number) => {
     let h = 0;
     for (let s = 0; s < substeps; s++) {
       for (let i = 0; i < n; i++) {
@@ -172,35 +182,44 @@ function simulate(balls: Ball[], frames: number, substeps: number, cell: number)
     }
     hits[f] = Math.min(65535, h);
     rec(f);
-  }
-  return { n, frames, pos, vel, r, hits, S: entropyOf(pos, n, frames) };
+    S[f] = entropyAt(pos, n, f);
+  };
+  const run: DiscRun = { n, frames, pos, vel, r, hits, S };
+  return {
+    run,
+    advance: (upTo: number) => {
+      const t = Math.min(frames - 1, Math.ceil(upTo));
+      while (done < t) step(++done);
+    },
+  };
+}
+function simulate(balls: Ball[], frames: number, substeps: number, cell: number): DiscRun {
+  const rc = recorder(balls, frames, substeps, cell);
+  rc.advance(frames - 1);
+  return rc.run;
 }
 
-/** Coarse-grained (Boltzmann/Gibbs) entropy of the occupancy of a 12x6 grid of 75 px cells (normalised to 0..1).
- * The cells are coarse enough that S keeps rising until the gas has filled the box (95 % of the 0..68 rise is reached
- * at recorded frame ~60), so the gauges move through the whole N = 400 window. */
-function entropyOf(pos: Float32Array, n: number, frames: number): Float32Array {
-  const GX = 12;
-  const GY = 6;
-  const out = new Float32Array(frames);
-  const cnt = new Float32Array(GX * GY);
-  for (let f = 0; f < frames; f++) {
-    cnt.fill(0);
-    for (let i = 0; i < n; i++) {
-      const cx = Math.min(GX - 1, Math.max(0, Math.floor((pos[(f * n + i) * 2] / PANEL_W) * GX)));
-      const cy = Math.min(GY - 1, Math.max(0, Math.floor((pos[(f * n + i) * 2 + 1] / PANEL_H) * GY)));
-      cnt[cy * GX + cx]++;
-    }
-    let s = 0;
-    for (let k = 0; k < GX * GY; k++) {
-      if (cnt[k] > 0) {
-        const p = cnt[k] / n;
-        s -= p * Math.log(p);
-      }
-    }
-    out[f] = s / Math.log(Math.min(n, GX * GY));
+/** Coarse-grained (Boltzmann/Gibbs) entropy of the occupancy of a 12x6 grid of 75 px cells, normalised so that 1 =
+ * perfectly uniform over all 72 cells. The cells are coarse enough that S keeps rising until the gas has filled the
+ * box (95 % of the 0..68 rise is reached at recorded frame ~52), so the gauges move through the whole N = 400 window. */
+const EGX = 12;
+const EGY = 6;
+const eCnt = new Float32Array(EGX * EGY);
+function entropyAt(pos: Float32Array, n: number, f: number): number {
+  eCnt.fill(0);
+  for (let i = 0; i < n; i++) {
+    const cx = Math.min(EGX - 1, Math.max(0, Math.floor((pos[(f * n + i) * 2] / PANEL_W) * EGX)));
+    const cy = Math.min(EGY - 1, Math.max(0, Math.floor((pos[(f * n + i) * 2 + 1] / PANEL_H) * EGY)));
+    eCnt[cy * EGX + cx]++;
   }
-  return out;
+  let s = 0;
+  for (let k = 0; k < EGX * EGY; k++) {
+    if (eCnt[k] > 0) {
+      const p = eCnt[k] / n;
+      s -= p * Math.log(p);
+    }
+  }
+  return s / Math.log(Math.min(n, EGX * EGY));
 }
 
 // ------------------------------------------------------------------ N = 10 : a 9-ball diamond rack + cue ball
@@ -234,8 +253,9 @@ export const GAS_FRAMES = 122;
 export const GAS_N = 400;
 export const GAS_DISC = { x: 232, y: 225 };
 
-export function gasRun(): DiscRun {
-  return memo('S02:gas400', () => {
+/** The N = 400 recording, guaranteed simulated up to recorded frame `upTo` (default: all of it). */
+export function gasRun(upTo: number = GAS_FRAMES - 1): DiscRun {
+  const rc = memo('S02:gas400', () => {
     const rnd = mulberry32(20402);
     const gauss = () => {
       const u = Math.max(1e-9, rnd());
@@ -263,11 +283,13 @@ export function gasRun(): DiscRun {
         m: 1,
       });
     }
-    return simulate(balls, GAS_FRAMES, 6, 2 * r + 1);
+    return recorder(balls, GAS_FRAMES, 6, 2 * r + 1);
   });
+  rc.advance(upTo);
+  return rc.run;
 }
 export const gasDiscRadius = () => {
-  const run = gasRun();
+  const run = gasRun(0);
   let m = 0;
   for (let i = 0; i < run.n; i++) {
     const dx = run.pos[i * 2] - GAS_DISC.x;
