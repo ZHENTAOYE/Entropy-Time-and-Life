@@ -13,6 +13,7 @@ import { ease, memo, seg, smoothstep } from '../../lib/math';
 import { HUMAN_PATH } from '../../lib/human';
 import { makeNoise } from '../../lib/noise';
 import { hash01 } from '../../lib/random';
+import { V, velAt } from './flow';
 import { ctxOf, scratch } from './canvas';
 import { FIG, FLOOR, K } from './inkfx';
 import { skyWeb } from './middle';
@@ -128,47 +129,6 @@ function initialDensity(): Float32Array {
   });
 }
 
-// ───────────────────────────── the flow ─────────────────────────────
-// A closed-form, divergence-free velocity field (full-res px/s):
-//   * sinking whose speed varies ACROSS the tank (vy = S(x): ∂vy/∂y = 0, divergence-free by itself) — where it sinks
-//     faster the filaments are drawn down into hanging veils and fingers;
-//   * stream-function modes from large (the whole pattern bends and drifts) to small (curls) — the small ones switch
-//     on later: the stirring cascades down to finer eddies as the tank's motion develops.
-// The ink at τ is the initial density pulled back through the FLOW MAP of this field (RK2, back-traced from τ to 0 on
-// a coarse grid): filaments stretch thin and fold like real advection and never tear. A pure function of τ.
-type Mode = readonly [number, number, number, number, number, number]; // kx, ky, U (px/s), ω, φ, onset (s)
-const MODES: ReadonlyArray<Mode> = [
-  [0.0066, 0.0043, 12, 0.19, 0.4, 0],
-  [-0.0047, 0.0074, 10, 0.15, 2.1, 0],
-  [0.0205, 0.0128, 9, 0.31, 4.4, 0.6],
-  [-0.0158, 0.0236, 8, 0.27, 5.3, 1.2],
-  [0.0262, -0.0187, 7, 0.38, 1.1, 1.8],
-  [0.046, 0.0305, 4.6, 0.5, 3.3, 3.0],
-  [-0.0385, 0.0515, 4.2, 0.45, 0.9, 3.6],
-];
-const MU = MODES.map(([kx, ky, U]) => {
-  const k = Math.hypot(kx, ky);
-  return [(U * ky) / k, (-U * kx) / k] as const;
-});
-let VX = 0,
-  VY = 0;
-function velAt(x: number, y: number, t: number) {
-  let vx = 0,
-    vy = 0;
-  for (let m = 0; m < MODES.length; m++) {
-    const md = MODES[m];
-    const on = t <= md[5] ? 0 : t >= md[5] + 2.5 ? 1 : smoothstep(md[5], md[5] + 2.5, t);
-    if (on === 0) continue;
-    const c = Math.cos(md[0] * x + md[1] * y + md[3] * t + md[4]) * on;
-    vx += MU[m][0] * c;
-    vy += MU[m][1] * c;
-  }
-  const s = 9 + 6 * Math.sin(0.0093 * x + 0.8) + 4 * Math.sin(0.0217 * x + 2.3) + 1.2 * Math.sin(0.047 * x + 1.1);
-  vy += Math.max(1.5, s) * (0.5 + 0.5 * smoothstep(0, 3, t));
-  VX = vx;
-  VY = vy;
-}
-
 // ───────────────────────────── plumes ─────────────────────────────
 // The web's biggest clusters are the densest ink: each one falls as a THERMAL — a vortex pair (the 2-D section of a
 // vortex ring) whose bubble carries the cluster down while the water around it rolls up into the two lobes of the
@@ -228,11 +188,11 @@ function forwardSmooth(x0: number, y0: number, tau: number): [number, number] {
   const dt = tau / n;
   for (let k = 0; k < n; k++) {
     velAt(x, y, t);
-    const hx = x + VX * dt * 0.5,
-      hy = y + VY * dt * 0.5;
+    const hx = x + V[0] * dt * 0.5,
+      hy = y + V[1] * dt * 0.5;
     velAt(hx, hy, t + dt * 0.5);
-    x += VX * dt;
-    y += VY * dt;
+    x += V[0] * dt;
+    y += V[1] * dt;
     t += dt;
   }
   return [x, y];
@@ -347,11 +307,11 @@ function displacement(tau: number): Float32Array {
         if (tau > 0)
           for (let s = 0; s < n; s++) {
             velAt(x, y, t);
-            const hx = x - VX * dt * 0.5,
-              hy = y - VY * dt * 0.5;
+            const hx = x - V[0] * dt * 0.5,
+              hy = y - V[1] * dt * 0.5;
             velAt(hx, hy, t - dt * 0.5);
-            x -= VX * dt;
-            y -= VY * dt;
+            x -= V[0] * dt;
+            y -= V[1] * dt;
             t -= dt;
           }
         const k = (j * GW + i) * 2;
