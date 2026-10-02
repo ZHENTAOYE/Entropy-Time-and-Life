@@ -240,9 +240,15 @@
   "intensity": 0.3
  },
  {
+  "frame": 505,
+  "kind": "swell",
+  "description": "the tank’s water begins to run down through an invisible form: the web’s threads sag and bend onto an outline (crown first) — a low, slowly rising current tone",
+  "intensity": 0.3
+ },
+ {
   "frame": 538,
   "kind": "texture",
-  "description": "a brush travels down the contour from the crown: wet bristle hiss along both sides, the figure appears (to f604)",
+  "description": "ink pours down the outline from the crown, both sides together (to f604): a wet bristle hiss descending in stereo, drips at the hands and feet",
   "intensity": 0.45
  },
  {
@@ -254,7 +260,7 @@
  {
   "frame": 604,
   "kind": "swell",
-  "description": "the figure is complete — held while the ink keeps flowing along its outline (warm sustained chord)",
+  "description": "the figure is complete — held while the ink keeps streaming down its outline (warm sustained chord)",
   "intensity": 0.45
  },
  {
@@ -264,22 +270,22 @@
   "intensity": 0.35
  },
  {
-  "frame": 640,
+  "frame": 634,
   "kind": "texture",
-  "description": "你 is painted stroke by stroke with a real brush (the only brush glyph in the film): 7 short dry-brush strokes to f668",
+  "description": "你 is written stroke by stroke with a real brush (the only brush glyph in the film): 7 strokes in stroke order to f682 — a soft press-and-flick per stroke",
   "intensity": 0.5
- },
- {
-  "frame": 687,
-  "kind": "tick",
-  "description": "。 condenses last (f~679–696), closing the sentence",
-  "intensity": 0.15
  },
  {
   "frame": 688,
   "kind": "swell",
-  "description": "the ink lets the figure go: the chord dissolves, the outline is carried off by the water (to f784)",
+  "description": "the form is let go: the current through it eases off, its ink joins the water and diffuses (the chord dissolves, to f~760)",
   "intensity": 0.5
+ },
+ {
+  "frame": 691,
+  "kind": "tick",
+  "description": "。 lands as the brush lifts (f~683–699), closing the sentence",
+  "intensity": 0.15
  },
  {
   "frame": 720,
@@ -294,49 +300,49 @@
   "intensity": 0.6
  },
  {
+  "frame": 742,
+  "kind": "swell",
+  "description": "title 「熵 · 时间 · 生命」 condenses out of the melting ◀◀ ink (shāng over 熵): final theme statement, held 1.5 s",
+  "intensity": 0.65
+ },
+ {
   "frame": 744,
   "kind": "fail",
   "description": "the ◀◀ itself bleeds into ink and sinks: the reverse sound collapses into a soft liquid gurgle",
   "intensity": 0.5
  },
  {
-  "frame": 756,
-  "kind": "swell",
-  "description": "title 「熵 · 时间 · 生命」 condenses (shāng over 熵): final theme statement",
-  "intensity": 0.65
- },
- {
-  "frame": 776,
+  "frame": 774,
   "kind": "texture",
-  "description": "a last drop falls from above the surface (tiny whistle)",
+  "description": "a last drop falls into view from above the frame (tiny whistle, 0.85 s)",
   "intensity": 0.25
  },
  {
-  "frame": 790,
+  "frame": 800,
   "kind": "impact",
-  "description": "the drop breaks the surface (plink + low thump, ripples); the title starts dissolving into ink",
+  "description": "the drop breaks the surface (plink + low thump, ripples, a small vortex ring); the title starts dissolving into ink",
   "intensity": 0.85
  },
  {
-  "frame": 797,
+  "frame": 806,
   "kind": "transition",
   "description": "the light table switches off: the hum dies (power-down), the tank goes dark",
   "intensity": 0.55
  },
  {
-  "frame": 804,
+  "frame": 814,
   "kind": "texture",
   "description": "the hairline of light contracts toward the centre: a thin high tone narrowing",
   "intensity": 0.35
  },
  {
-  "frame": 816,
+  "frame": 830,
   "kind": "tick",
   "description": "the hairline is a single point of light",
   "intensity": 0.2
  },
  {
-  "frame": 819,
+  "frame": 834,
   "kind": "silence",
   "description": "the point goes out: pure black #000, total silence to the end (loops to S01’s cold open)",
   "intensity": 0

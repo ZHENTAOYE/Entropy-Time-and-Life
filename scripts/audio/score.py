@@ -435,16 +435,22 @@ def bed_S09(dur):
     place(out, apply_env(mn, [(0, 0), (1, 1), (4.2, 1), (4.4, 0)]), 16.2)
     th = pad([N('D2'), N('A2'), N('D3'), N('F#3'), N('A3'), N('C#4'), N('E4'), N('F#4')], 7.0, seed=2450, bright=0.55, amp=0.32, voices=4)
     place(out, reverb(apply_env(th, [(0, 0), (0.6, 1), (3.0, 0.9), (7.0, 0)]), 0.5, 6.0, seed=17), 20.2)
-    # ◀◀ fails 24.0 -> 25.2: a rewind attempt that stutters and dies
-    att = reversed_buf(stereo(whoosh(0.9, 300, 3000, seed=2460, shape='rise') * 0.12))
-    att = tape_stop(att, 0.5)
-    place(out, att, 24.1)
-    # title 25.2: final drop + long reverb, then silence at 27.3
+    # ◀◀ attempt 24.2 -> fails 24.8: a rewind that strains, stutters and dies into the ink
+    att = reversed_buf(stereo(whoosh(0.7, 300, 3000, seed=2460, shape='rise') * 0.12))
+    att = tape_stop(att, 0.4)
+    place(out, att, 24.2)
+    # title condenses 24.7: a final warm swell; the last drop breaks the surface 26.7; light off 26.9; black 27.8
+    tt = pad([N('D3'), N('A3'), N('F#4'), N('A4')], 2.6, seed=2465, bright=0.35, amp=0.14)
+    place(out, apply_env(tt, [(0, 0), (0.6, 1), (2.0, 0.8), (2.6, 0)]), 24.7)
     fin = silence(3.0)
     place(fin, water_drop(seed=2470, f0=800, f1=2200, dur=0.5) * 0.8, 0.0)
+    place(fin, impact(1.2, f0=80, f1=40, seed=2471, noise_amt=0.1) * 0.2, 0.0)
     fin = reverb(fin, 0.55, 3.5, seed=18)
-    place(out, fin, 25.3)
-    out[:, int(27.3 * SR):] *= np.linspace(1, 0, out.shape[1] - int(27.3 * SR))
+    place(out, fin, 26.7)
+    hum_off = glide_sine(120, 40, 0.6) * np.linspace(1, 0, int(0.6 * SR)) * 0.03
+    place(out, hum_off, 26.9)
+    e = int(26.9 * SR)
+    out[:, e:] *= np.clip(1 - (np.arange(out.shape[1] - e) / SR) / 0.9, 0, 1)
     return out
 
 
@@ -589,6 +595,7 @@ BED_OWNS = {
     'S04': {'slam', 'impact', 'rewind', 'tape-stop', 'swell', 'rumble', 'counter-roll', 'glissando'},
     'S05': {'transport', 'ff-whir', 'gravity-swell', 'collapse', 'noise-white', 'warm-pad', 'gold-ignite'},
     'S06': {'swell', 'sun-swell', 'swell-peak'},
+    'S09': {'impact', 'rewind', 'fail'},
 }
 
 
