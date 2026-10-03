@@ -73,52 +73,63 @@ def hiss(dur, seed=0, amp=0.02):
 # ============================================================ scene beds (scene-local seconds)
 
 def bed_S01(dur):
+    """Cold-open hook: sound is fully present on frame 0 (no fade-in).
+    0.00 tape engages mid-rewind (thunk + VHS whine) -> a reversed roar that rises into the LEAP (f52 = 1.73 s)
+    -> tape-stop clunk at the apex (f72 = 2.4 s) -> held breath -> the drop falls -> impact f126 (4.2 s) -> bloom
+    -> hard cut f330 (11.0 s)."""
     out = silence(dur)
-    # --- forward "event" we will reverse: a plop with a long airy reverb bloom
-    fw_len = 3.4
+    LEAP, STOP, IMPACT = 52 / 30, 72 / 30, 126 / 30
+    # frame-0 punch: transport thunk + a short bright flash of noise so the first frame is loud
+    place(out, stereo(impact(0.5, f0=160, f1=60, seed=1, noise_amt=0.9) * 0.55), 0.0)
+    place(out, stereo(highpass(noise(0.08, 2), 2000) * np.exp(-np.arange(int(0.08 * SR)) / (0.02 * SR)) * 0.25), 0.0)
+    # VHS rewind whine (rising pitch, wobbling) under the whole rewind
+    wl = int(LEAP * SR)
+    tt = np.arange(wl) / SR
+    fr = 900 + 1700 * (tt / LEAP) ** 1.6 + 25 * np.sin(2 * np.pi * 7 * tt)
+    whine = np.sin(2 * np.pi * np.cumsum(fr) / SR) * (0.018 + 0.03 * (tt / LEAP))
+    place(out, stereo(whine), 0.0)
+    place(out, stereo(highpass(noise(LEAP, 7), 2500) * 0.03), 0.0)
+    # forward event (plop + airy bloom), reversed so it ROARS up into the leap
+    fw_len = 3.0
     fw = silence(fw_len)
-    place(fw, water_drop(seed=3, f0=700, f1=1900, dur=0.5) * 0.7, 0.05)
-    place(fw, impact(1.6, f0=120, f1=40, seed=5, noise_amt=0.25) * 0.35, 0.05)
-    bloom = pad([N('D3'), N('A3'), N('E4'), N('F4')], fw_len, seed=11, bright=0.45, amp=0.22)
-    bloom = apply_env(bloom, [(0, 0), (0.2, 1), (fw_len, 0.15)])
-    fw = fw + bloom
-    fw = reverb(fw, wet=0.55, seconds=3.0, seed=4)
-    rev = reversed_buf(fw)  # swells INTO the reversed plop at its end
-    # warble (tape) via varispeed wobble
+    place(fw, water_drop(seed=3, f0=700, f1=1900, dur=0.5) * 0.8, 0.05)
+    place(fw, impact(1.6, f0=120, f1=40, seed=5, noise_amt=0.35) * 0.45, 0.05)
+    bloom = pad([N('D3'), N('A3'), N('E4'), N('F4')], fw_len, seed=11, bright=0.55, amp=0.3)
+    fw = fw + apply_env(bloom, [(0, 0), (0.15, 1), (fw_len, 0.2)])
+    fw = fw + stereo(bandpass(noise(fw_len, 12, 'pink'), 200, 6000) * np.exp(-np.arange(int(fw_len * SR)) / (0.9 * SR)) * 0.12)
+    fw = reverb(fw, wet=0.6, seconds=3.0, seed=4)
+    rev = reversed_buf(fw)
     n = rev.shape[1]
-    wob = 1 + 0.012 * np.sin(2 * np.pi * 5.3 * np.arange(n) / SR) + 0.006 * np.sin(2 * np.pi * 0.7 * np.arange(n) / SR)
-    rev = varispeed(rev, wob)
-    # place so the reversed plop (end of rev) lands at 2.4 s
-    place(out, rev, 2.4 - fw_len + 0.05, gain=0.9)
-    place(out, hiss(3.0, 7, 0.018), 0.0)
-    # tape-stop clunk at 3.0
+    rev = varispeed(rev, 1 + 0.015 * np.sin(2 * np.pi * 5.3 * np.arange(n) / SR))
+    start = LEAP - fw_len + 0.05
+    place(out, rev, start, gain=1.1)  # the part before t=0 is simply cut: the roar is already loud on frame 0
+    # the drop rises to its apex: a quick upward whistle
+    place(out, stereo(glide_sine(1200, 2600, STOP - LEAP) * np.linspace(0.05, 0.0, int((STOP - LEAP) * SR))), LEAP)
+    # tape-stop clunk at the apex
     clunk = tape_stop(stereo(pad([N('D3'), N('A3')], 0.6, seed=2, amp=0.25)), 0.5)
-    place(out, clunk, 2.55, gain=0.6)
-    place(out, stereo(impact(0.25, f0=300, f1=80, seed=8, noise_amt=0.8) * 0.4), 3.0)
-    # falling drop: a tiny descending whistle
-    place(out, stereo(glide_sine(2400, 1400, 1.0) * np.linspace(0, 0.06, int(SR * 1.0))), 3.2)
-    # impact at 4.2
+    place(out, clunk, STOP - 0.45, gain=0.7)
+    place(out, stereo(impact(0.3, f0=300, f1=80, seed=8, noise_amt=0.8) * 0.45), STOP)
+    # held breath: near-silence with a faint high tone, then the fall whistle into the impact
+    place(out, stereo(sine(N('A6'), 0.9) * np.linspace(0, 0.012, int(0.9 * SR))), STOP + 0.1)
+    place(out, stereo(glide_sine(2400, 1400, IMPACT - 3.3) * np.linspace(0, 0.06, int((IMPACT - 3.3) * SR))), 3.3)
+    # impact
     hit = silence(6.0)
     place(hit, water_drop(seed=21, f0=850, f1=2300, dur=0.45) * 0.9, 0.0)
-    place(hit, impact(3.0, f0=95, f1=36, seed=22, noise_amt=0.2) * 0.45, 0.0)
+    place(hit, impact(3.0, f0=95, f1=36, seed=22, noise_amt=0.2) * 0.5, 0.0)
     hit = reverb(hit, wet=0.45, seconds=4.0, seed=6)
-    place(out, hit, 4.2)
-    # bloom bed 4.2 -> 11.0 (rising, opening filter)
-    bl = pad([N('D2'), N('A2'), N('D3'), N('F3'), N('A3'), N('E4'), N('A4')], 7.2, seed=31, bright=0.5, amp=0.26, voices=4)
+    place(out, hit, IMPACT)
+    # bloom bed (impact -> 11.0), rising, opening
+    bl = pad([N('D2'), N('A2'), N('D3'), N('F3'), N('A3'), N('E4'), N('A4')], 11.0 - IMPACT, seed=31, bright=0.5, amp=0.26, voices=4)
     bl = apply_env(bl, [(0, 0), (1.5, 0.55), (5.0, 0.9), (6.75, 1.0), (6.8, 0.0)])
-    place(out, reverb(bl, 0.35, 4.0, seed=9), 4.2)
-    # micro bubbles
+    place(out, reverb(bl, 0.35, 4.0, seed=9), IMPACT)
     r = rng(41)
     for i in range(26):
-        tt = 4.4 + r.uniform(0, 6.4)
-        place(out, water_drop(seed=100 + i, f0=r.uniform(1800, 3200), f1=r.uniform(3500, 5200), dur=0.12) * r.uniform(0.03, 0.08), tt, pan=r.uniform(-0.8, 0.8))
-    # hard cut 11.0 -> room tone
+        place(out, water_drop(seed=100 + i, f0=r.uniform(1800, 3200), f1=r.uniform(3500, 5200), dur=0.12) * r.uniform(0.03, 0.08), IMPACT + 0.2 + r.uniform(0, 6.4), pan=r.uniform(-0.8, 0.8))
+    # hard cut at 11.0 -> room tone; 「为什么？」 a single distant low bell
     out[:, int(11.0 * SR):] = 0
     place(out, stereo(lowpass(noise(2.0, 51, 'pink'), 1200) * 0.004), 11.0)
-    # 「为什么？」 a single distant low bell
-    place(out, reverb(stereo(bell(N('A2'), 2.0, seed=61, decay=1.2) * 0.18), 0.6, 4.0, seed=12), 11.15)
+    place(out, reverb(stereo(bell(N('A2'), 2.0, seed=61, decay=1.2) * 0.18), 0.6, 4.0), 11.15)
     return out
-
 
 def bed_S02(dur):
     out = silence(dur)
