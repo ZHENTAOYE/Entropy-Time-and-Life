@@ -50,15 +50,19 @@ Each table below gives scene-local times in seconds (frame = s × 30). "/" = lin
 ---
 
 ## S01 墨滴 / The Drop — 13.0 s (390 f)
-Cold open. Frame 0 is already moving: no black, no title.
+Cold open on the rewind. Frame 0 is the platform cover: no black, no title, no fade-in — the headline is already on screen.
+Frames in brackets are scene-local (30 fps). Cards 1–2 are ASSERTIONS (Noto Serif SC 900, ~120 px, ink `#0B0D14` on the
+cream water with a soft cream halo/scrim, emphasis in seal red `#A3161A`), sharing one lane centred at y ≈ 1392; card 4 is
+normal narration (Caption grammar). Science note for card 2: the laws of motion are time-symmetric — the ink re-gathering
+is *allowed*, just absurdly improbable (S03 counts how improbable).
 | # | t (s) | On-screen text | Emphasis | Picture · Sound |
 |---|---|---|---|---|
-| 1 | 0.0–0.3 | — | — | A spread ink cloud in water is *rolling back* (reverse playback). HUD top-left: ◀◀ + timecode running backward. Sound: reversed reverb inhale. |
-| 2 | 0.3–3.0 | 这是倒放。/ 你一眼就知道。 | 倒放 = glitch (RGB split, scanline jitter); line 2 enters 0.6 s later | The ink re-gathers into a drop that leaps out of the water at ~2.4 s. Reversed "plop". |
-| 3 | 3.0–5.4 | — | — | Tape-stop "clunk", HUD switches to ▶. The drop falls, hits the water at ~4.2 s, blooms in slow motion. |
-| 4 | 5.4–8.8 | 现实里，/ 没人见过它自己聚回来。 | 聚回来 – its characters drift slightly apart while displayed | Vortex ring descends, fractal tendrils. |
-| 5 | 8.8–11.0 | — | — | The bloom breathes alone; sound swells. |
-| 6 | 11.0–13.0 | 为什么？ | the only big word, screen centre | Hard cut to black; all sound cuts to room tone. |
+| 1 | 0.0–1.6 [f0–48] | 你永远不会 / 看到这一幕。 | 永远不会 (seal red); fully legible on f0, diffuses fast f38–48 | **Cover frame f0:** dense near-black ink chandelier (Beer–Lambert deep core, camera 1.8×) fills most of the frame; ◀◀ ×16 OSD + tape clock in alarm red, two scan tears, slight chroma split. Then the VIOLENT rewind (◀◀ ×16 → ×24, radial motion smear toward the impact point, tears, V-hold jumps, red falling S-gauge): the grand-lobes fold back (f4–7), the 4 lobes merge into one ring (f19–20), the camera whips up the stem; the torus climbs to the crater, the Worthington jet rises and retracts (f31–42), ripples run inward, the crown closes (f38–52) while the impact flash implodes into the crater. Sound: loud on frame 0 — transport thunk, VHS whine, reversed roar rising into the leap; glitch hits on the jumps. |
+| 2 | 1.67–4.13 [f50–124] | 可物理定律，/ 并不禁止它。 | 并不禁止 (seal red); condenses f50–58, crisp f58–112, diffuses f112–124 | **f52.5 (1.75 s): the re-gathered ink LEAPS OUT of the water as a drop** — punch-in toward the lens (motion blur, strobe ghosts), reversed plop; it decelerates to its apex. **f72 (2.4 s): tape-stop clunk** (vertical roll, artefacts snap off, ◀◀ → ▶ ×0.00). f72–100: macro still life — the drop hangs above a perfectly still surface (refraction, specular, bokeh), near-silence. f100–126: the tape spins up, the drop falls, the camera pulls back. |
+| 3 | 4.2–4.9 [f126–147] | — | — | Impact at 4.2 s (f126): flash, camera shake, slow-motion photographic crown (×0.25), jets and spray; deep slowed plop. |
+| 4 | 4.9–9.3 [f147–279] | 现实里，/ 它只会散开。 | 散开 – its two characters drift apart while displayed | Pull-out reveal: the vortex ring descends on its stem, Widnall splits (f186–188, f222–227) → fractal ink chandelier. |
+| 5 | 9.3–11.0 [f279–330] | — | — | The bloom breathes alone (starts to spread), the camera leans in, the light swells; sound swells. |
+| 6 | 11.0–13.0 [f330–390] | 为什么？ | the only big word, screen centre (Serif 200) | Hard cut to black at f330; all sound cuts to room tone. 「为什么」 and the hook of 「？」 diffuse (f360–384); only the dot remains at `Q_DOT` (→ S02). |
 
 ## S02 对称 / Symmetry — 17.4 s (522 f)
 | # | t | Text | Emphasis | Picture · Sound |

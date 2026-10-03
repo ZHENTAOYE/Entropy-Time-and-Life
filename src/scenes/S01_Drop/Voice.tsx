@@ -3,9 +3,9 @@
 //   emFx 'glitch' — 倒放: the word is "on the tape": a fine RGB split, and short bursts (~20 % of 2-frame ticks, plus
 //                   forced bursts on tape events: `glitchBursts`) of horizontal scan-slices torn ≤ 12 px sideways.
 //                   Between bursts the word stays legible.
-//   emFx 'drift'  — 聚回来: while the line is displayed the three characters slowly drift APART (and rotate a hair,
-//                   soften a little) — the words that claim re-gathering are themselves spreading.
-//   lineDelay     — line n enters n·lineDelay frames later (card 2: line 2 enters 0.6 s after line 1).
+//   emFx 'drift'  — 散开: while the line is displayed the emphasised characters slowly drift APART (and rotate a
+//                   hair, soften a little) — the word for spreading spreads. `driftStep` = px of opening per glyph.
+//   lineDelay     — line n enters n·lineDelay frames later.
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
 import { FONT, useFontsReady } from '../../lib/fonts';
@@ -30,6 +30,8 @@ export interface VoiceProps {
   stagger?: number;
   lineDelay?: number;
   emFx?: 'glitch' | 'drift';
+  /** px each emphasised glyph opens away from the previous one while it drifts (default 9) */
+  driftStep?: number;
   /** strength multiplier of the glitch bursts (e.g. louder while the tape is rewinding) */
   glitchGain?: number;
   /** local frames (relative to `from`) on which a glitch burst is forced (tape events: the leap…) */
@@ -101,6 +103,7 @@ export const Voice: React.FC<VoiceProps> = (p) => {
     stagger = 2,
     lineDelay = 0,
     emFx,
+    driftStep = 9,
     glitchGain = 1,
     glitchBursts = [],
     jitter = 0,
@@ -156,11 +159,11 @@ export const Voice: React.FC<VoiceProps> = (p) => {
     if (drift && emFx === 'drift' && g.idx >= drift.first) {
       const shown = ease.inOutSine(seg(local, drift.t0, exitStart + 6));
       const k = g.em ? g.emIdx : drift.len; // glyphs after the run move with its far end
-      dx += k * 9 * shown + (g.em ? (r3 - 0.5) * 4 * shown : 0);
+      dx += k * driftStep * shown + (g.em ? (r3 - 0.5) * 4 * shown : 0);
       if (g.em) {
         dy += (r2 - 0.5) * 16 * shown + Math.sin(local * 0.07 + r1 * 6) * 1.2 * shown;
         rot += (r4 - 0.5) * 8 * shown;
-        blur += 0.6 * shown;
+        blur += (0.6 + driftStep / 30) * shown;
         op *= 1 - 0.12 * shown;
       }
     }

@@ -15,17 +15,21 @@
 //                  refracting band, beaded jets with glints), ballistic micro-spray with shutter streaks, the
 //                  Worthington jet with an ink core and its pinched-off droplet. Pure in age, so the rewind plays it
 //                  backward (the crown closes, the jet retracts).
-//   drawLight      main canvas (under the GL ink, additive): impact flash + anamorphic streak, the exposure swell.
+//   drawLight      main canvas (under the GL ink, additive): impact flash + anamorphic streak (and the same flash
+//                  played backward, imploding into the crater, as the drop leaps out), the exposure swell.
+//   drawSmear      front canvas, the violent rewind: re-composites the frame (stage canvas × GL ink) and darkens it
+//                  with radially displaced copies about the impact point — the ink is sucked back to where it went
+//                  in, trailing streaks behind it. Off on the cover frame (crisp) and from the crown on.
 //   drawTamper     front canvas: time-tamper artefacts of the rewind — real horizontal scan-tears (slices of the
-//                  composited frame — stage canvas + GL ink re-multiplied — shifted sideways and wrapped), a rolling
-//                  tracking band, chroma fringes, dropout dashes, scanlines. Tears never cut through the subject while
-//                  the drop leaps. (The V-hold / clunk roll is a CSS transform of the stage: see rollAt.)
+//                  composited frame shifted sideways and wrapped), a rolling tracking band, chroma fringes, dropout
+//                  dashes, scanlines. The cover frame gets exactly two clean tears. Tears never cut through the
+//                  subject while the drop leaps. (The clunk roll is a CSS transform of the stage: see rollAt.)
 //   drawVignette   main canvas, under the GL ink (multiply commutes): warm lens vignette ("70,52,30" at .35).
 import { clamp, ease, memo, seg, smoothstep } from '../../lib/math';
 import { hash01 } from '../../lib/random';
 import { inkDropFall, inkRipple } from '../../lib/ink';
 import { WATER_LINE_Y } from '../../lib/handoff';
-import { DROP_R, F, FROM_Y, S01State, T_FALL, ageAt, camAt, toScreen } from './timeline';
+import { DROP_R, F, FROM_Y, LEAP_AT, S01State, T_FALL, ageAt, camAt, toScreen } from './timeline';
 
 type Ctx = CanvasRenderingContext2D;
 const TAU = Math.PI * 2;
@@ -46,9 +50,8 @@ function view(f: number): View {
 /** physical shutter (s of tape time) for a 180° real-time shutter at frame f */
 const shutter = (st: S01State) => (0.5 / 30) * Math.abs(st.speed);
 
-/** V-hold roll (px) of the whole picture: the tape engaging on the first frames, and the tape-stop clunk. */
+/** V-hold roll (px) of the whole picture at the tape-stop clunk (the cover frame opens clean, mid-rewind). */
 export function rollAt(f: number): number {
-  if (f < 5) return [110, 52, 20, 7, 2][f];
   if (f >= F.stop && f < F.stop + 4) return [44, 18, 6, 2][f - F.stop];
   return 0;
 }
@@ -868,10 +871,27 @@ export function drawMacroBack(ctx: Ctx, f: number, st: S01State) {
   ctx.fillStyle = gw;
   ctx.fillRect(0, ys - 18, 1080, 36);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = `rgba(48,42,36,${0.42 * m})`;
-  ctx.fillRect(0, ys + 1.1, 1080, 1.3);
-  ctx.fillStyle = `rgba(252,249,242,${0.95 * m})`;
-  ctx.fillRect(0, ys - 0.75, 1080, 1.5);
+  if (st.age > 0) {
+    // the rewound ripples run INWARD along the crisp line (the lib's hairline carries them at low zoom)
+    const line = (off: number, lw: number, col: string) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (let X = -6; X <= 1086; X += 6) {
+        const Y = V.Y(S + inkRipple(X0 + (X - X0) / V.z, st.age)) + off;
+        if (X === -6) ctx.moveTo(X, Y);
+        else ctx.lineTo(X, Y);
+      }
+      ctx.stroke();
+    };
+    line(1.75, 1.3, `rgba(48,42,36,${0.42 * m})`);
+    line(0, 1.5, `rgba(252,249,242,${0.95 * m})`);
+  } else {
+    ctx.fillStyle = `rgba(48,42,36,${0.42 * m})`;
+    ctx.fillRect(0, ys + 1.1, 1080, 1.3);
+    ctx.fillStyle = `rgba(252,249,242,${0.95 * m})`;
+    ctx.fillRect(0, ys - 0.75, 1080, 1.5);
+  }
   // the key light glancing off the line right under the drop
   const kg = ctx.createLinearGradient(240, 0, 840, 0);
   kg.addColorStop(0, 'rgba(255,255,255,0)');
@@ -889,31 +909,10 @@ export const swellAt = (f: number) => ease.inCubic(seg(f, 268, F.cut));
 export function drawLight(ctx: Ctx, f: number) {
   // impact flash: the strobe/key light catching the crown, with an anamorphic streak (macro lens)
   const t = f - F.impact;
-  if (t >= 0 && t < 16) {
-    const [ix, iy] = toScreen(f, 540, WATER_LINE_Y - 6);
-    const k = Math.exp(-t / 3.2) * (t < 1 ? 0.7 + 0.3 * t : 1);
-    const R = 260;
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(ix, iy, 0, ix, iy, R);
-    g.addColorStop(0, `rgba(255,252,244,${0.85 * k})`);
-    g.addColorStop(0.12, `rgba(255,244,222,${0.42 * k})`);
-    g.addColorStop(0.45, `rgba(255,232,196,${0.12 * k})`);
-    g.addColorStop(1, 'rgba(255,232,196,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(ix - R, iy - R, R * 2, R * 2);
-    const sw = 1080 * (0.6 + 0.4 * ease.outCubic(clamp(t / 6)));
-    const sg = ctx.createLinearGradient(ix - sw / 2, 0, ix + sw / 2, 0);
-    sg.addColorStop(0, 'rgba(190,214,255,0)');
-    sg.addColorStop(0.5, `rgba(226,238,255,${0.55 * k})`);
-    sg.addColorStop(1, 'rgba(190,214,255,0)');
-    ctx.fillStyle = sg;
-    ctx.fillRect(ix - sw / 2, iy - 2.2, sw, 4.4);
-    ctx.fillStyle = sg;
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(ix - sw / 2, iy - 9, sw, 18);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-  }
+  if (t >= 0 && t < 16) flash(ctx, f, t, Math.exp(-t / 3.2) * (t < 1 ? 0.7 + 0.3 * t : 1));
+  // the same flash played BACKWARD: it gathers into the crater and snaps off as the drop leaps out
+  const tl = LEAP_AT - f;
+  if (tl > 0 && tl < 12) flash(ctx, f, tl, 0.85 * Math.exp(-(tl - 0.5) / 2.8));
   // exposure swell while the bloom breathes alone: the light table blooms up into the cut (drawn on the paper, under
   // the GL ink; the ink itself is thinned optically by the caller). The air catches a halation above the line.
   const sw = swellAt(f);
@@ -936,40 +935,119 @@ export function drawLight(ctx: Ctx, f: number) {
   }
 }
 
+/** the strobe flash at the impact point: radial glow + anamorphic streak; `t` = frames from the event, `k` strength */
+function flash(ctx: Ctx, f: number, t: number, k: number) {
+  {
+    const [ix, iy] = toScreen(f, 540, WATER_LINE_Y - 6);
+    const R = 260;
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(ix, iy, 0, ix, iy, R);
+    g.addColorStop(0, `rgba(255,252,244,${0.85 * k})`);
+    g.addColorStop(0.12, `rgba(255,244,222,${0.42 * k})`);
+    g.addColorStop(0.45, `rgba(255,232,196,${0.12 * k})`);
+    g.addColorStop(1, 'rgba(255,232,196,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(ix - R, iy - R, R * 2, R * 2);
+    const sw = 1080 * (0.6 + 0.4 * ease.outCubic(clamp(t / 6)));
+    const sg = ctx.createLinearGradient(ix - sw / 2, 0, ix + sw / 2, 0);
+    sg.addColorStop(0, 'rgba(190,214,255,0)');
+    sg.addColorStop(0.5, `rgba(226,238,255,${0.55 * k})`);
+    sg.addColorStop(1, 'rgba(190,214,255,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(ix - sw / 2, iy - 2.2, sw, 4.4);
+    ctx.fillStyle = sg;
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(ix - sw / 2, iy - 9, sw, 18);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
 // ───────────────────────────── tamper ─────────────────────────────
-function glCopy(): { c: HTMLCanvasElement; x: Ctx } {
-  return memo('s01-glcopy', () => {
+function scratch(key: string): { c: HTMLCanvasElement; x: Ctx } {
+  return memo(key, () => {
     const c = document.createElement('canvas');
     return { c, x: c.getContext('2d', { willReadFrequently: true })! };
   });
 }
 
-interface Sources {
-  main: HTMLCanvasElement;
-  gl: HTMLCanvasElement | null;
-  glScale: number;
+interface Comp {
+  /** the composited frame (stage canvas × GL ink) at the front canvas's resolution */
+  c: HTMLCanvasElement;
+  /** its resolution relative to the logical 1080×1920 frame */
+  s: number;
 }
-/** The stage's main CPU canvas and the GL ink layer (read back once into a 2D copy). */
-function sources(front: HTMLCanvasElement): Sources | null {
+let compFrame = -1;
+
+/** Darkroom grade of the rewound chandelier (printed on a hard paper grade): per channel, transmittance relative to
+ *  the light table t = v / paper goes through an S-curve pivoting at .42 — dense ink sinks to a deep black core, the
+ *  thin halo lifts toward the paper, the paper itself is untouched. `g` 0..1 blends from identity. */
+const PAPER_RGB = [244, 238, 226];
+function gradeLut(g: number): Uint8ClampedArray {
+  const q = Math.round(clamp(g) * 24);
+  return memo(`s01-grade:${q}`, () => {
+    const w = q / 24;
+    const lut = new Uint8ClampedArray(768);
+    const P = 0.42;
+    for (let c = 0; c < 3; c++)
+      for (let v = 0; v < 256; v++) {
+        const pc = PAPER_RGB[c];
+        const t = Math.min(1, v / pc);
+        const s = t <= P ? P * Math.pow(t / P, 1.75) : 1 - (1 - P) * Math.pow((1 - t) / (1 - P), 1.45);
+        const out = v > pc ? v : pc * (t + (s - t) * w);
+        lut[c * 256 + v] = Math.round(out);
+      }
+    return lut;
+  });
+}
+function applyGrade(x: Ctx, w: number, h: number, g: number) {
+  const lut = gradeLut(g);
+  const img = x.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0, n = d.length; i < n; i += 4) {
+    d[i] = lut[d[i]];
+    d[i + 1] = lut[256 + d[i + 1]];
+    d[i + 2] = lut[512 + d[i + 2]];
+  }
+  x.putImageData(img, 0, 0);
+}
+
+/** The picture as the viewer sees it under the front canvas: the stage's main CPU canvas with the GL ink density
+ *  multiplied on top, at the front canvas's resolution. Built by drawSmear and reused by drawTamper in the same
+ *  stage pass (`reuse`); a pure function of the frame either way. */
+function composite(front: HTMLCanvasElement, f: number, reuse: boolean, grade = 0): Comp | null {
   const stage = front.parentElement;
   if (!stage) return null;
   const all = Array.from(stage.querySelectorAll('canvas')) as HTMLCanvasElement[];
   const main = all[0];
   if (!main || main === front) return null;
-  const glc = all.find((c) => c !== main && c !== front && c.style.mixBlendMode === 'multiply' && c.style.display !== 'none') ?? null;
-  if (!glc) return { main, gl: null, glScale: 1 };
-  const cp = glCopy();
-  if (cp.c.width !== glc.width || cp.c.height !== glc.height) {
-    cp.c.width = glc.width;
-    cp.c.height = glc.height;
+  const cp = scratch('s01-composite');
+  const w = front.width,
+    h = front.height;
+  const s = w / 1080;
+  if (reuse && compFrame === f && cp.c.width === w && cp.c.height === h) return { c: cp.c, s };
+  if (cp.c.width !== w || cp.c.height !== h) {
+    cp.c.width = w;
+    cp.c.height = h;
   }
-  cp.x.globalCompositeOperation = 'copy';
-  cp.x.drawImage(glc, 0, 0);
-  return { main, gl: cp.c, glScale: glc.height / 1920 };
+  const x = cp.x;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalAlpha = 1;
+  x.globalCompositeOperation = 'copy';
+  x.drawImage(main, 0, 0, w, h);
+  const glc = all.find((c) => c !== main && c !== front && c.style.mixBlendMode === 'multiply' && c.style.display !== 'none');
+  if (glc) {
+    x.globalCompositeOperation = 'multiply';
+    x.drawImage(glc, 0, 0, w, h);
+  }
+  x.globalCompositeOperation = 'source-over';
+  if (grade > 0.02) applyGrade(x, w, h, grade);
+  compFrame = f;
+  return { c: cp.c, s };
 }
 
 /** copy the composited band [y, y+h) shifted by dx (wrapping around the frame edge) */
-function tear(ctx: Ctx, s: Sources, y: number, h: number, dx: number) {
+function tear(ctx: Ctx, cm: Comp, y: number, h: number, dx: number) {
   const W = 1080;
   y = Math.max(0, Math.min(1920 - 1, y));
   h = Math.max(1, Math.min(1920 - y, h));
@@ -978,15 +1056,18 @@ function tear(ctx: Ctx, s: Sources, y: number, h: number, dx: number) {
   ctx.rect(0, y, W, h);
   ctx.clip();
   ctx.globalCompositeOperation = 'source-over';
-  const parts: Array<[number, number]> = [[dx, 0]];
-  parts.push(dx > 0 ? [dx - W, 0] : [dx + W, 0]);
-  for (const [ox] of parts) ctx.drawImage(s.main, 0, y, W, h, ox, y, W, h);
-  if (s.gl) {
-    ctx.globalCompositeOperation = 'multiply';
-    const gs = s.glScale;
-    for (const [ox] of parts) ctx.drawImage(s.gl, 0, y * gs, W * gs, h * gs, ox, y, W, h);
-  }
+  const s = cm.s;
+  for (const ox of [dx, dx > 0 ? dx - W : dx + W]) ctx.drawImage(cm.c, 0, y * s, W * s, h * s, ox, y, W, h);
   ctx.restore();
+}
+
+/** a tear with the chroma fringes a time-base error leaves at its edges */
+function fringedTear(ctx: Ctx, cm: Comp, y: number, h: number, dx: number, k: number) {
+  tear(ctx, cm, y, h, dx);
+  ctx.fillStyle = `rgba(255,40,90,${0.32 * k})`;
+  ctx.fillRect(dx > 0 ? dx : 0, y, Math.min(1080, 1080 - Math.abs(dx)), 1.5);
+  ctx.fillStyle = `rgba(30,200,255,${0.32 * k})`;
+  ctx.fillRect(0, y + h - 1.5, 1080, 1.5);
 }
 
 function scanPattern(ctx: Ctx): CanvasPattern | null {
@@ -1002,21 +1083,79 @@ function scanPattern(ctx: Ctx): CanvasPattern | null {
   return ctx.createPattern(tile, 'repeat');
 }
 
+function scanlines(ctx: Ctx, f: number, a: number) {
+  const pat = scanPattern(ctx);
+  if (!pat) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = pat;
+  ctx.translate(0, ((f * 2) % 3) * 2);
+  ctx.fillRect(0, -6, 1080, 1932);
+  ctx.restore();
+}
+
+/** head-switching noise at the very bottom of the frame */
+function headSwitch(ctx: Ctx, cm: Comp, f: number, k: number) {
+  tear(ctx, cm, 1888, 32, 18 + 30 * hash01(f, 91));
+  ctx.fillStyle = `rgba(250,246,238,${0.25 * k})`;
+  for (let i = 0; i < 18; i++) ctx.fillRect(hash01(f * 3 + i, 93) * 1080, 1890 + hash01(f * 5 + i, 94) * 28, 30 + 90 * hash01(i, f), 2);
+}
+
 /** screen band [y0, y1] that tears must not cross while the drop re-forms and leaps (the hook's key image) */
 function protectBand(f: number): [number, number] | null {
-  if (f < 50 || f >= F.stop) return null;
+  if (f < 40 || f >= F.stop) return null;
   const V = view(f);
   const ys = V.Y(S);
   const age = ageAt(f);
   const dy = age < 0 ? V.Y(inkDropFall(age, { fromY: FROM_Y }).y) : ys;
-  return [Math.min(dy, ys) - 30 * V.z - 40, Math.max(dy + 30 * V.z, f < 78 ? ys + 150 : dy + 30 * V.z) + 30];
+  return [Math.min(dy, ys) - 30 * V.z - 40, Math.max(dy + 30 * V.z, f < LEAP_AT + 6 ? ys + 150 : dy + 30 * V.z) + 30];
+}
+
+/** strength of the darkroom grade: follows the ink gain of the rewound chandelier (gone once it is one ring) */
+export const gradeOf = (st: S01State) => clamp((st.inkGain - 1) / 2.6);
+
+/** the front canvas carries the whole (graded / smeared) picture: on the cover frame and while it smears */
+export const carriesPicture = (f: number, st: S01State) => f < F.stop && st.tamper > 0 && (f < 1 || st.smear > 0.01);
+
+export function drawSmear(ctx: Ctx, f: number, st: S01State) {
+  const k = st.smear;
+  if (!carriesPicture(f, st)) return;
+  const cm = composite(ctx.canvas, f, false, gradeOf(st));
+  if (!cm) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.drawImage(cm.c, 0, 0, 1080, 1920);
+  // everything converges on the impact point: the copies are pushed AWAY from it (where the ink just was) and only
+  // darken — dark streaks trail the ink, the cream never washes it out
+  // (VHS field echoes rather than a soft blur: the picture stays crisp, the ink leaves stroboscopic dark trails)
+  const [px, py] = toScreen(f, 540, S);
+  const N = k > 0.01 ? 4 : 0;
+  const step = 0.026 * k;
+  ctx.globalCompositeOperation = 'darken';
+  for (let i = 1; i <= N; i++) {
+    const sc = 1 + step * i;
+    ctx.globalAlpha = 0.62 * k * Math.pow(1 - i / (N + 1), 1.1);
+    ctx.drawImage(cm.c, px - px * sc, py - py * sc, 1080 * sc, 1920 * sc);
+  }
+  ctx.restore();
 }
 
 export function drawTamper(ctx: Ctx, f: number, st: S01State) {
   const k = st.tamper;
   if (k <= 0 || rollAt(f) > 0) return;
-  const s = sources(ctx.canvas);
-  if (!s) return;
+  const pic = carriesPicture(f, st);
+  const cm = composite(ctx.canvas, f, pic, pic ? gradeOf(st) : 0);
+  if (!cm) return;
+  if (f < 1) {
+    // THE COVER: exactly two clean scan tears through the ink (one through the black lobes, one through the stem),
+    // chroma-fringed; faint scanlines
+    fringedTear(ctx, cm, 952, 20, 70, 1);
+    fringedTear(ctx, cm, 418, 9, -44, 1);
+    headSwitch(ctx, cm, f, k);
+    scanlines(ctx, f, 0.05);
+    return;
+  }
   const pb = protectBand(f);
   const clear = (y: number, h: number) => !pb || y + h < pb[0] || y > pb[1];
   // 1) tracking band: rolls UP the frame (time runs backward), a stack of thin skewed tears
@@ -1027,7 +1166,7 @@ export function drawTamper(ctx: Ctx, f: number, st: S01State) {
     const h = 3 + Math.floor(hash01(f * 31 + i, 5) * 9);
     const y = yb + (i / lines) * bandH;
     const skew = Math.sin(i * 0.9 + f * 0.7) * (6 + 28 * k) * (0.5 + hash01(f * 7 + i, 9));
-    if (clear(y, h)) tear(ctx, s, y, h, skew);
+    if (clear(y, h)) tear(ctx, cm, y, h, skew);
   }
   // 2) random tears anywhere (the stronger the rewind, the more and the wider)
   const n = 1 + Math.floor(hash01(f, 41) * (1 + 4 * k));
@@ -1039,12 +1178,19 @@ export function drawTamper(ctx: Ctx, f: number, st: S01State) {
     const h = 2 + h2 * h2 * (16 + 40 * k);
     const dx = (h3 - 0.5) * 2 * (10 + 70 * k);
     if (!clear(y, h)) continue;
-    tear(ctx, s, y, h, dx);
-    // chroma fringes at the tear's edges
-    ctx.fillStyle = `rgba(255,40,90,${0.32 * k})`;
-    ctx.fillRect(dx > 0 ? dx : 0, y, Math.min(1080, 1080 - Math.abs(dx)), 1.5);
-    ctx.fillStyle = `rgba(30,200,255,${0.32 * k})`;
-    ctx.fillRect(0, y + h - 1.5, 1080, 1.5);
+    fringedTear(ctx, cm, y, h, dx, k);
+  }
+  // 2b) tracking skew on some frames of the fast rewind: a tall band of the picture bends sideways (time-base error)
+  if (f < 38 && hash01(f, 47) > 0.62) {
+    const y0 = 260 + hash01(f, 48) * 1100;
+    const H = 180 + hash01(f, 49) * 320;
+    const amp = (hash01(f, 50) < 0.5 ? -1 : 1) * (30 + 70 * k);
+    for (let y = y0; y < y0 + H; y += 6) {
+      const u = (y - y0) / H;
+      if (clear(y, 6)) tear(ctx, cm, y, 6, amp * u * u);
+    }
+    ctx.fillStyle = `rgba(255,40,90,${0.28 * k})`;
+    ctx.fillRect(0, y0 + H - 2, 1080, 2);
   }
   // 3) dropout dashes inside the tracking band
   for (let i = 0; i < 26 * k; i++) {
@@ -1059,19 +1205,9 @@ export function drawTamper(ctx: Ctx, f: number, st: S01State) {
     ctx.fillRect(x, y, w, 2);
   }
   // 4) head-switching noise at the very bottom of the frame
-  tear(ctx, s, 1888, 32, 18 + 30 * hash01(f, 91));
-  ctx.fillStyle = `rgba(250,246,238,${0.25 * k})`;
-  for (let i = 0; i < 18; i++) ctx.fillRect(hash01(f * 3 + i, 93) * 1080, 1890 + hash01(f * 5 + i, 94) * 28, 30 + 90 * hash01(i, f), 2);
+  headSwitch(ctx, cm, f, k);
   // 5) faint scanlines over everything while the tape is being tampered with
-  const pat = scanPattern(ctx);
-  if (pat) {
-    ctx.save();
-    ctx.globalAlpha = 0.07 * k;
-    ctx.fillStyle = pat;
-    ctx.translate(0, ((f * 2) % 3) * 2);
-    ctx.fillRect(0, -6, 1080, 1932);
-    ctx.restore();
-  }
+  scanlines(ctx, f, 0.07 * k);
 }
 
 // ───────────────────────────── vignette ─────────────────────────────
